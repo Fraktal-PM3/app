@@ -15,10 +15,8 @@ services:
       - "4000:4000"
     environment:
       DATABASE_URL: ${DB_URL}
-      REDIS_URL: redis://cache:6379
     depends_on:
       - db
-      - cache
     command: sh -c "npx prisma migrate deploy && node dist/main"
     networks:
       - appnet
@@ -34,13 +32,6 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
-    networks:
-      - appnet
-
-  cache:
-    image: redis:7
-    ports:
-      - "6379:6379"
     networks:
       - appnet
 
