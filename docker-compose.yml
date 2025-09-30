@@ -6,6 +6,8 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    networks:
+      - appnet
 
   backend:
     build: ./apps/backend
@@ -17,6 +19,9 @@ services:
     depends_on:
       - db
       - cache
+    command: sh -c "npx prisma migrate deploy && node dist/main"
+    networks:
+      - appnet
 
   db:
     image: postgres:15
@@ -26,8 +31,21 @@ services:
       POSTGRES_DB: appdb
     ports:
       - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - appnet
 
   cache:
     image: redis:7
     ports:
       - "6379:6379"
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  db_data:
