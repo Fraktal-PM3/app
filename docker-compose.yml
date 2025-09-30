@@ -1,0 +1,33 @@
+
+services:
+  frontend:
+    build: ./apps/frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./apps/backend
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgres://user:password@db:5432/appdb
+      REDIS_URL: redis://cache:6379
+    depends_on:
+      - db
+      - cache
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
+
+  cache:
+    image: redis:7
+    ports:
+      - "6379:6379"
