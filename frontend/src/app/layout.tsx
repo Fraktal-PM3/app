@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "../styles/globals.css";
 
 const geistSans = Geist({
@@ -23,11 +24,46 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="scrollbar-hide">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased scrollbar-hide overflow-x-hidden`}
       >
-        {children}
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto flex h-14 items-center justify-between px-4">
+            {/* Logo */}
+            <Link
+              href="/"
+              className="flex items-center space-x-2 text-xl font-bold text-foreground hover:text-primary transition-colors"
+            >
+              Fraktal
+            </Link>
+
+            {/* Navigation Links */}
+            <nav className="flex items-center space-x-6">
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Dashboard
+              </Link>
+            </nav>
+          </div>
+        </header>
+        <main className="flex-1">
+          {children}
+        </main>
       </body>
     </html>
   );
