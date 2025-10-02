@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 // Delivery offer interface
 interface DeliveryOffer {
@@ -30,37 +32,10 @@ interface DeliveryOffer {
   customerRating: number;
 }
 
-// Sample delivery offers
-const initialOffers: DeliveryOffer[] = [
-  {
-    id: '1',
-    packageType: 'Electronics',
-    size: 'small',
-    weight: 1.2,
-    pickupLocation: {
-      name: 'Tech Store Downtown',
-      address: '123 Main St, Downtown',
-      lat: 40.7128,
-      lng: -74.0060
-    },
-    dropoffLocation: {
-      name: 'Customer Home',
-      address: '456 Oak Ave, Uptown',
-      lat: 40.7589,
-      lng: -73.9851
-    },
-    distance: 8.5,
-    reward: 25,
-    urgency: 'high',
-    pickupTime: new Date('2024-10-02T14:00:00'),
-    deliveryDeadline: new Date('2024-10-02T18:00:00'),
-    status: 'available',
-    customerRating: 4.8
-  }
-];
+
 
 // Simple map component placeholder
-const DeliveryMap = ({ pickup, dropoff }: { 
+const DeliveryMap = ({ pickup: _pickup, dropoff: _dropoff }: { 
   pickup: DeliveryOffer['pickupLocation'], 
   dropoff: DeliveryOffer['dropoffLocation'] 
 }) => {
@@ -83,12 +58,48 @@ const DeliveryMap = ({ pickup, dropoff }: {
 };
 
 export default function Dashboard() {
-  const [offers, setOffers] = useState<DeliveryOffer[]>(initialOffers);
+  // Use SWR to fetch delivery offers from the backend
+  const { data: backendOffers, error, isLoading } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
+  
+  const [localOffers, setLocalOffers] = useState<DeliveryOffer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUrgency, setFilterUrgency] = useState<string>('all');
 
+  // Use backend data if available, fallback to local offers (for accepted states)
+  // Convert date strings to Date objects when data comes from backend
+  const offers = backendOffers ? backendOffers.map(offer => ({
+    ...offer,
+    pickupTime: new Date(offer.pickupTime),
+    deliveryDeadline: new Date(offer.deliveryDeadline)
+  })) : localOffers;
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="text-center py-12">
+          <div className="text-muted-foreground">Loading delivery offers...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="text-center py-12">
+          <div className="text-red-600">Failed to load delivery offers</div>
+          <p className="text-sm text-muted-foreground mt-2">
+            Please check if the backend server is running on localhost:4000
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Filter offers based on search and urgency
-  const filteredOffers = offers.filter(offer => {
+  const filteredOffers = offers.filter((offer: DeliveryOffer) => {
     const matchesSearch = offer.packageType.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          offer.pickupLocation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          offer.dropoffLocation.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -96,11 +107,20 @@ export default function Dashboard() {
     return matchesSearch && matchesUrgency && offer.status === 'available';
   });
 
-  // Accept offer function
+  // Accept offer function (for now, just local state update)
   const acceptOffer = (id: string) => {
-    setOffers(offers.map(offer => 
-      offer.id === id ? { ...offer, status: 'accepted' } : offer
-    ));
+    setLocalOffers(prevOffers => {
+      const sourceOffers = backendOffers ? backendOffers.map(offer => ({
+        ...offer,
+        pickupTime: new Date(offer.pickupTime),
+        deliveryDeadline: new Date(offer.deliveryDeadline)
+      })) : prevOffers;
+      
+      const updatedOffers = sourceOffers.map((offer: DeliveryOffer) => 
+        offer.id === id ? { ...offer, status: 'accepted' as const } : offer
+      );
+      return updatedOffers;
+    });
   };
 
   const getUrgencyColor = (urgency: string) => {
@@ -159,7 +179,7 @@ export default function Dashboard() {
 
       {/* Delivery Offers List */}
       <div className="space-y-4">
-        {filteredOffers.map((offer) => (
+        {filteredOffers.map((offer: DeliveryOffer) => (
           <div key={offer.id} className="rounded-lg border bg-card hover:shadow-md transition-shadow">
             <div className="flex flex-col lg:flex-row">
               {/* Left: Map Section */}
