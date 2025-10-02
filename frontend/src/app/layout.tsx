@@ -41,22 +41,22 @@ export default function RootLayout({
             {/* Navigation Links */}
             <nav className="flex items-center space-x-6">
               <Link
-                href="/dashboard"
+                href="/"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Dashboard
+                Placeholder
               </Link>
               <Link
-                href="/dashboard"
+                href="/"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Dashboard
+                Placeholder
               </Link>
               <Link
-                href="/dashboard"
+                href="/"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Dashboard
+                Placeholder
               </Link>
             </nav>
           </div>
