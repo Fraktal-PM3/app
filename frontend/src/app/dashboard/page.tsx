@@ -207,7 +207,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{getSizeIcon(offer.size)}</span>
                       <div>
-                        <h3 className="text-lg font-semibold">{offer.packageType}</h3>
+                        <h3 className="text-lg font-semibold text-neutral-400">{offer.packageType}</h3>
                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(offer.urgency)}`}>
                           {offer.urgency} priority
                         </span>
@@ -220,7 +220,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Package Details */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-sm">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-sm text-neutral-400">
                     <div>
                       <span className="text-muted-foreground">Distance</span>
                       <div className="font-medium">{offer.distance} km</div>
@@ -242,7 +242,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Time Information */}
-                  <div className="flex flex-col sm:flex-row gap-4 mb-4 text-sm">
+                  <div className="flex flex-col sm:flex-row gap-4 mb-4 text-sm text-neutral-400">
                     <div>
                       <span className="text-muted-foreground">Pickup Time</span>
                       <div className="font-medium">{offer.pickupTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
@@ -254,7 +254,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-3 mt-auto">
+                  <div className="flex gap-3 mt-auto text-neutral-400">
                     <Link
                       href={`/dashboard/package/${offer.id}`}
                       className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-center"
