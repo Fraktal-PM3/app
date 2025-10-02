@@ -1,0 +1,23 @@
+{
+  "packageType": "Electronics",
+  "size": "small", 
+  "weight": 1.5,
+  "pickupLocation": {
+    "name": "Store Name",
+    "address": "123 Main St",
+    "lat": 40.7128,
+    "lng": -74.0060
+  },
+  "dropoffLocation": {
+    "name": "Customer Home", 
+    "address": "456 Oak Ave",
+    "lat": 40.7589,
+    "lng": -73.9851
+  },
+  "distance": 5.2,
+  "reward": 25,
+  "urgency": "high",
+  "pickupTime": "2024-10-02T14:00:00Z",
+  "deliveryDeadline": "2024-10-02T18:00:00Z", 
+  "customerRating": 4.8
+}

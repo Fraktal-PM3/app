@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/api';
+import { useSocket } from '@/lib/useSocket';
 
 // Delivery offer interface
 interface DeliveryOffer {
@@ -59,11 +60,40 @@ const DeliveryMap = ({ pickup: _pickup, dropoff: _dropoff }: {
 
 export default function Dashboard() {
   // Use SWR to fetch delivery offers from the backend
-  const { data: backendOffers, error, isLoading } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
+  const { data: backendOffers, error, isLoading, mutate } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
+  
+  // Socket connection for real-time updates
+  const { socket, connected } = useSocket();
   
   const [localOffers, setLocalOffers] = useState<DeliveryOffer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUrgency, setFilterUrgency] = useState<string>('all');
+
+  // Listen for new packages from backend
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('newPackage', (newPackage: DeliveryOffer) => {
+      console.log('New package received via WebSocket:', newPackage);
+      
+      // Convert date strings to Date objects
+      const packageWithDates = {
+        ...newPackage,
+        pickupTime: new Date(newPackage.pickupTime),
+        deliveryDeadline: new Date(newPackage.deliveryDeadline)
+      };
+      
+      // Update SWR cache to include the new package
+      mutate((currentData) => {
+        const updatedData = currentData ? [...currentData, packageWithDates] : [packageWithDates];
+        return updatedData;
+      }, false); // false = don't revalidate immediately
+    });
+
+    return () => {
+      socket.off('newPackage');
+    };
+  }, [socket, mutate]);
 
   // Use backend data if available, fallback to local offers (for accepted states)
   // Convert date strings to Date objects when data comes from backend
@@ -145,10 +175,21 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Active Delivery Offers</h1>
-        <p className="text-muted-foreground">
-          Browse and accept available package delivery opportunities in your area.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">Active Delivery Offers</h1>
+            <p className="text-muted-foreground">
+              Browse and accept available package delivery opportunities in your area.
+            </p>
+          </div>
+          {/* Real-time connection status */}
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-muted-foreground">
+              {connected ? 'Real-time updates active' : 'Connecting...'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Controls */}
