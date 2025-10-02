@@ -1,6 +1,10 @@
 
 services:
-  frontend:
-    build: ./frontend
+  backend:
+    build: ./backend
     ports:
-      - "3000:3000"
+      - "4000:4000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - /app/dist

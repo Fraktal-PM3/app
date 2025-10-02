@@ -41,10 +41,10 @@ export default function RootLayout({
             {/* Navigation Links */}
             <nav className="flex items-center space-x-6">
               <Link
-                href="/"
+                href="/dashboard"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Placeholder
+                Dashboard
               </Link>
               <Link
                 href="/"
