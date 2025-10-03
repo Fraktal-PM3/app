@@ -2,11 +2,12 @@
 
 ## Getting Started
 
-```bash
-cd frontend/
-```
-
 To install all node dependencies
 ```bash
-npm i
+cd frontend/ && npm i && cd ../backend && npm i && cd ..
+```
+
+Run backend in docker container
+```bash
+docker compose up --build
 ```
