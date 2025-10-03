@@ -63,7 +63,7 @@ export default function Dashboard() {
   const { data: backendOffers, error, isLoading, mutate } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
   
   // Socket connection for real-time updates
-  const { socket, connected } = useSocket();
+  const { socket, connected, fireflyConnected } = useSocket();
   
   const [localOffers, setLocalOffers] = useState<DeliveryOffer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -183,11 +183,19 @@ export default function Dashboard() {
             </p>
           </div>
           {/* Real-time connection status */}
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-muted-foreground">
-              {connected ? 'Real-time updates active' : 'Connecting...'}
-            </span>
+          <div className="flex flex-col gap-1 text-sm">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-muted-foreground">
+                Backend: {connected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${fireflyConnected ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+              <span className="text-muted-foreground">
+                Firefly: {fireflyConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
