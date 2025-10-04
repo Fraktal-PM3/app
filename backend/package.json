@@ -5,9 +5,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "test:firefly": "ts-node src/test-firefly.ts",
-    "test:firefly-endpoints": "ts-node src/test-firefly-endpoints.ts"
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
