@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
 
 // Initialize Hyperledger Firefly WebSocket connection
 const fireflyClient = new FireflyClient({
-  url: process.env.FIREFLY_WS_URL || 'ws://127.0.0.1:5000/ws',
+  url: process.env.FIREFLY_WS_URL || 'ws://127.0.0.1:7500/ws',
   reconnectInterval: parseInt(process.env.FIREFLY_RECONNECT_INTERVAL || '5000'),
   maxReconnectAttempts: parseInt(process.env.FIREFLY_MAX_RECONNECT_ATTEMPTS || '10')
 });
