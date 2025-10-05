@@ -101,7 +101,6 @@ export class FireflyClient extends EventEmitter {
   }
 
   private handleFireflyMessage(message: any): void {
-    console.log('Received Firefly event:', message);
 
     // Handle protocol errors
     if (message.type === 'protocol_error') {
@@ -109,9 +108,6 @@ export class FireflyClient extends EventEmitter {
       this.emit('protocolError', message);
       return;
     }
-
-    // Emit the raw message for debugging
-    this.emit('message', message);
 
     // Handle specific event types
     if (message.type === 'blockchain_event') {
@@ -128,6 +124,33 @@ export class FireflyClient extends EventEmitter {
       this.emit('tokenMint', message);
     }
 
+    // Check if message has data with hash ID
+    if (message.message && message.message.data && Array.isArray(message.message.data) && message.message.data.length > 0) {
+      const messageData = message.message.data;
+      const hashID = messageData[0].id;
+      console.log("SHA-256 hash id:", hashID);
+
+      if (hashID) {
+        // Fetch data from Firefly REST API
+        fetch(`http://localhost:5000/api/v1/data/${hashID}/value`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(packageData => {
+          console.log("Fetched package data for hashID:", packageData);
+          
+          // Process the package data and emit it as a structured event
+          this.processPackageData(hashID, packageData, message);
+        })
+        .catch(err => {
+          console.error("Error fetching data for hashID:", hashID, err);
+        });
+      }
+    }
+
     // Emit a generic 'fireflyEvent' that can be used to forward to frontend
     const fireflyEvent: FireflyEvent = {
       id: message.id || Date.now().toString(),
@@ -140,6 +163,127 @@ export class FireflyClient extends EventEmitter {
     };
 
     this.emit('fireflyEvent', fireflyEvent);
+  }
+
+  private processPackageData(hashID: string, packageData: any, originalMessage: any): void {
+    try {
+      console.log("Processing package data:", { hashID, packageData, originalMessage });
+      
+      // Transform the Firefly package data into a delivery offer format
+      const deliveryOffer = this.transformToDeliveryOffer(hashID, packageData, originalMessage);
+      
+      if (deliveryOffer) {
+        // Emit the processed delivery offer
+        this.emit('newDeliveryOffer', deliveryOffer);
+        console.log("New delivery offer created from Firefly data:", deliveryOffer.id);
+      }
+      
+      // Also emit the raw data for debugging/other uses
+      this.emit('fireflyData', { hashID, data: packageData, originalMessage });
+      
+    } catch (error) {
+      console.error("Error processing package data:", error);
+      this.emit('dataProcessingError', { hashID, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }
+
+  private transformToDeliveryOffer(hashID: string, packageData: any, originalMessage: any): any {
+    try {
+      // Handle different possible data structures
+      let actualData = packageData;
+      
+      // If the data is a string, try to parse it as JSON
+      if (typeof packageData === 'string') {
+        try {
+          actualData = JSON.parse(packageData);
+        } catch (e) {
+          console.warn("Package data is not valid JSON:", packageData);
+          return null;
+        }
+      }
+      
+      // Extract package information from the data structure
+      // Adjust these field mappings based on your actual Firefly data structure
+      const deliveryOffer = {
+        id: hashID,
+        packageType: actualData.packageType || actualData.type || 'Unknown Package',
+        size: this.validateSize(actualData.size) || 'medium',
+        weight: this.parseNumber(actualData.weight) || 1.0,
+        pickupLocation: {
+          name: actualData.pickup?.name || actualData.pickupLocation?.name || 'Firefly Pickup Location',
+          address: actualData.pickup?.address || actualData.pickupLocation?.address || 'Address from Firefly',
+          lat: this.parseNumber(actualData.pickup?.lat || actualData.pickupLocation?.lat) || 40.7128,
+          lng: this.parseNumber(actualData.pickup?.lng || actualData.pickupLocation?.lng) || -74.0060
+        },
+        dropoffLocation: {
+          name: actualData.dropoff?.name || actualData.dropoffLocation?.name || 'Firefly Dropoff Location',
+          address: actualData.dropoff?.address || actualData.dropoffLocation?.address || 'Address from Firefly',
+          lat: this.parseNumber(actualData.dropoff?.lat || actualData.dropoffLocation?.lat) || 40.7589,
+          lng: this.parseNumber(actualData.dropoff?.lng || actualData.dropoffLocation?.lng) || -73.9851
+        },
+        distance: this.parseNumber(actualData.distance) || 5.0,
+        reward: this.parseNumber(actualData.reward || actualData.price || actualData.payment) || 25,
+        urgency: this.validateUrgency(actualData.urgency) || 'medium',
+        pickupTime: this.parseDate(actualData.pickupTime) || new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+        deliveryDeadline: this.parseDate(actualData.deliveryDeadline || actualData.deadline) || new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 hours from now
+        status: 'available',
+        customerRating: this.parseNumber(actualData.customerRating || actualData.rating) || 4.5,
+        
+        // Firefly-specific metadata
+        fireflyHashID: hashID,
+        fireflyEventId: originalMessage.id,
+        fireflyNamespace: originalMessage.namespace,
+        fireflyCorrelator: originalMessage.correlator,
+        fireflyRawData: actualData,
+        createdAt: new Date().toISOString()
+      };
+
+      return deliveryOffer;
+      
+    } catch (error) {
+      console.error("Error transforming package data to delivery offer:", error);
+      return null;
+    }
+  }
+
+  // Helper methods for data validation and parsing
+  private validateSize(size: string): 'small' | 'medium' | 'large' | null {
+    if (!size) return null;
+    const normalizedSize = size.toLowerCase();
+    if (['small', 'medium', 'large'].includes(normalizedSize)) {
+      return normalizedSize as 'small' | 'medium' | 'large';
+    }
+    return null;
+  }
+
+  private validateUrgency(urgency: string): 'low' | 'medium' | 'high' | null {
+    if (!urgency) return null;
+    const normalizedUrgency = urgency.toLowerCase();
+    if (['low', 'medium', 'high'].includes(normalizedUrgency)) {
+      return normalizedUrgency as 'low' | 'medium' | 'high';
+    }
+    return null;
+  }
+
+  private parseNumber(value: any): number | null {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  }
+
+  private parseDate(value: any): Date | null {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    
+    try {
+      const parsed = new Date(value);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    } catch {
+      return null;
+    }
   }
 
   private scheduleReconnect(): void {

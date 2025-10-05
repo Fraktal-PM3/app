@@ -74,6 +74,7 @@ export const useSocket = () => {
       console.error('Firefly error:', error.error);
     });
 
+
     setSocket(socketInstance);
 
     // Cleanup on unmount

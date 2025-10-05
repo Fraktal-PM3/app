@@ -87,6 +87,17 @@ fireflyClient.on('protocolError', (errorData) => {
   io.emit('fireflyProtocolError', errorData);
 });
 
+// Handle processed delivery offers from Firefly data
+fireflyClient.on('newDeliveryOffer', (deliveryOffer) => {
+  console.log('New delivery offer from Firefly:', deliveryOffer.id, deliveryOffer.packageType);
+  
+  // Add to local storage
+  deliveryOffers.push(deliveryOffer);
+  
+  // Broadcast to all connected frontend clients
+  io.emit('newPackage', deliveryOffer);
+});
+
 // Handle specific Firefly events and forward them to frontend
 fireflyClient.on('blockchainEvent', (event) => {
   console.log('Blockchain event received:', event);
@@ -242,6 +253,39 @@ app.post("/api/packages", (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error adding package' 
+    });
+  }
+});
+
+// Test endpoint to simulate Firefly package data processing
+app.post("/api/firefly/test-package", (req, res) => {
+  try {
+    const testData = req.body;
+    const hashID = 'test_' + Date.now();
+    
+    // Simulate the Firefly data transformation
+    const mockMessage = {
+      id: 'test_message_' + Date.now(),
+      type: 'message_confirmed',
+      namespace: 'default',
+      correlator: 'test_correlator'
+    };
+    
+    // Use the FireflyClient's transformation logic (we'll need to expose this)
+    console.log('Testing Firefly package transformation with data:', testData);
+    
+    res.json({
+      success: true,
+      message: 'Test data received - check backend logs for processing results',
+      testHashID: hashID,
+      testData: testData
+    });
+    
+  } catch (error) {
+    console.error('Error testing Firefly package:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error testing Firefly package'
     });
   }
 });
