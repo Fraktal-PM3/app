@@ -11,3 +11,8 @@ Run backend in docker container
 ```bash
 docker compose up --build
 ```
+
+For development in frontend or backend, use:
+```bash
+npm run dev
+```
