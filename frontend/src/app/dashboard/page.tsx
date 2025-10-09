@@ -5,7 +5,17 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/api';
 import { useSocket } from '@/lib/useSocket';
+import dynamic from 'next/dynamic';
 
+// Dynamically import DeliveryMap to prevent SSR issues
+const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-40 w-full bg-slate-100 rounded-lg flex items-center justify-center border border-border">
+      <div className="text-center text-muted-foreground">Loading map...</div>
+    </div>
+  )
+});
 // Delivery offer interface
 interface DeliveryOffer {
   id: string;
@@ -35,28 +45,7 @@ interface DeliveryOffer {
 
 
 
-// Simple map component placeholder
-const DeliveryMap = ({ pickup: _pickup, dropoff: _dropoff }: { 
-  pickup: DeliveryOffer['pickupLocation'], 
-  dropoff: DeliveryOffer['dropoffLocation'] 
-}) => {
-  return (
-    <div className="h-40 w-full bg-slate-100 rounded-lg flex items-center justify-center relative border border-border">
-      <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-        Pickup
-      </div>
-      <div className="absolute bottom-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-        Dropoff
-      </div>
-      <div className="text-center text-muted-foreground">
-        <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-        </svg>
-        <div className="text-xs">Map View</div>
-      </div>
-    </div>
-  );
-};
+
 
 export default function Dashboard() {
   // Use SWR to fetch delivery offers from the backend

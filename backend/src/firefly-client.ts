@@ -132,7 +132,7 @@ export class FireflyClient extends EventEmitter {
 
       if (hashID) {
         // Fetch data from Firefly REST API
-        fetch(`http://localhost:7500/api/v1/data/${hashID}/value`)
+        fetch(`http://localhost:5000/api/v1/data/${hashID}/value`)
         .then(res => {
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
