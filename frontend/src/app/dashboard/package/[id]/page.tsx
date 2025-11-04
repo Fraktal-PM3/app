@@ -1,10 +1,33 @@
 'use client';
 
 import Link from 'next/link';
+import React from 'react';
+import { TransportTimeline, Stage } from '@/components/TransportTimeline';
+import { Clock, Package, Flag, CheckCircle2 } from 'lucide-react';
 
 export default function PackageDetailPage({ params }: { params: { id: string } }) {
+  // Define demo stages
+  const STAGES: Stage[] = [
+    { key: 'waiting_pickup', label: 'Waiting for pickup', icon: Clock },
+    { key: 'picked_up', label: 'Picked up', icon: Package },
+    { key: 'arrived_destination', label: 'Reached destination', icon: Flag },
+    { key: 'completed', label: 'Completed', icon: CheckCircle2 },
+  ];
+
+  // Local state for demo progression
+  const [currentStage, setCurrentStage] = React.useState(STAGES[0].key);
+  const currentIndex = STAGES.findIndex((s) => s.key === currentStage);
+
+  const nextStage = () => {
+    if (currentIndex < STAGES.length - 1) setCurrentStage(STAGES[currentIndex + 1].key);
+  };
+
+  const prevStage = () => {
+    if (currentIndex > 0) setCurrentStage(STAGES[currentIndex - 1].key);
+  };
+
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="container mx-auto px-4 py-6 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <Link
@@ -17,22 +40,24 @@ export default function PackageDetailPage({ params }: { params: { id: string } }
           Back to Dashboard
         </Link>
       </div>
-
-      {/* Package Content */}
-      <div className="space-y-6">
-        <div className="text-center py-12 border-2 border-dashed border-border rounded-lg">
-          <div className="text-6xl mb-4">📦</div>
-          <h1 className="text-2xl font-bold mb-4">Package Details</h1>
-          <p className="text-muted-foreground mb-6">
+      {/* --- Transport Timeline Demo Section (BOTTOM) --- */}
+        <div className="text-center">
+          <p className="text-xl font-semibold mb-6">
             Package detail page for ID: {params.id}
           </p>
-          <p className="text-sm text-muted-foreground">
-            This page will be implemented with detailed package information, 
-            tracking details, delivery instructions, and customer contact information.
-          </p>
-        </div>
+         
 
-        {/* Placeholder sections */}
+          <div className="flex flex-col items-center gap-7 mb-10">
+            <TransportTimeline
+              stages={STAGES}
+              currentKey={currentStage}
+              onStageChange={setCurrentStage}
+            />
+          </div>
+        </div>
+      {/* Package Overview */}
+      <div className="space-y-  8 mt-10">
+        {/* Package Info + Delivery Info */}
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Package Information</h2>
@@ -70,6 +95,20 @@ export default function PackageDetailPage({ params }: { params: { id: string } }
             </div>
           </div>
         </div>
+        <div className="flex gap-3 justify-center mt-4">
+              <button
+                onClick={prevStage}
+                className="px-4 py-2 bg-transparent border rounded-lg hover:bg-gray-100"
+              >
+                Back
+              </button>
+              <button
+                onClick={nextStage}
+                className="px-4 py-2 bg-transparent border rounded-lg hover:opacity-90"
+              >
+                Next
+              </button>
+            </div>
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
     </div>
   )
 });
+
 // Delivery offer interface
 interface DeliveryOffer {
   id: string;
@@ -43,10 +44,6 @@ interface DeliveryOffer {
   customerRating: number;
 }
 
-
-
-
-
 export default function Dashboard() {
   // Use SWR to fetch delivery offers from the backend
   const { data: backendOffers, error, isLoading, mutate } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
@@ -54,7 +51,6 @@ export default function Dashboard() {
   // Socket connection for real-time updates
   const { socket, connected, fireflyConnected } = useSocket();
   
-  const [localOffers, setLocalOffers] = useState<DeliveryOffer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUrgency, setFilterUrgency] = useState<string>('all');
 
@@ -76,7 +72,7 @@ export default function Dashboard() {
       mutate((currentData) => {
         const updatedData = currentData ? [...currentData, packageWithDates] : [packageWithDates];
         return updatedData;
-      }, false); // false = don't revalidate immediately
+      }, { revalidate: false });
     });
 
     return () => {
@@ -84,13 +80,12 @@ export default function Dashboard() {
     };
   }, [socket, mutate]);
 
-  // Use backend data if available, fallback to local offers (for accepted states)
-  // Convert date strings to Date objects when data comes from backend
+  // Use backend data if available, convert date strings to Date objects
   const offers = backendOffers ? backendOffers.map(offer => ({
     ...offer,
     pickupTime: new Date(offer.pickupTime),
     deliveryDeadline: new Date(offer.deliveryDeadline)
-  })) : localOffers;
+  })) : [];
 
   // Show loading state
   if (isLoading) {
@@ -126,20 +121,15 @@ export default function Dashboard() {
     return matchesSearch && matchesUrgency && offer.status === 'available';
   });
 
-  // Accept offer function (for now, just local state update)
+  // Accept offer function - update using mutate for proper cache management
   const acceptOffer = (id: string) => {
-    setLocalOffers(prevOffers => {
-      const sourceOffers = backendOffers ? backendOffers.map(offer => ({
-        ...offer,
-        pickupTime: new Date(offer.pickupTime),
-        deliveryDeadline: new Date(offer.deliveryDeadline)
-      })) : prevOffers;
+    mutate((currentData) => {
+      if (!currentData) return currentData;
       
-      const updatedOffers = sourceOffers.map((offer: DeliveryOffer) => 
+      return currentData.map((offer: DeliveryOffer) => 
         offer.id === id ? { ...offer, status: 'accepted' as const } : offer
       );
-      return updatedOffers;
-    });
+    }, { revalidate: false });
   };
 
   const getUrgencyColor = (urgency: string) => {

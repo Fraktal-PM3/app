@@ -4,6 +4,14 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Fix default marker icons
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
 interface Location {
   name: string;
   address: string;
@@ -26,18 +34,19 @@ const DeliveryMap = ({ pickup, dropoff }: DeliveryMapProps) => {
     // Prevent reinitializing the map on every re-render
     if (mapInstanceRef.current) return;
 
-    const pickupIcon = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/8589/8589319.png',
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32],
+    // Create custom colored markers using divIcon
+    const pickupIcon = L.divIcon({
+      html: '<div style="background-color: #22c55e; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white;"></div>',
+      className: '',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
     });
 
-    const dropoffIcon = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/484/484167.png', // example: a valid red marker icon
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32],
+    const dropoffIcon = L.divIcon({
+      html: '<div style="background-color: #ef4444; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white;"></div>',
+      className: '',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
     });
 
     // Initialize map
@@ -61,6 +70,14 @@ const DeliveryMap = ({ pickup, dropoff }: DeliveryMapProps) => {
     const dropoffMarker = L.marker([dropoff.lat, dropoff.lng], { icon: dropoffIcon }).addTo(map);
     dropoffMarker.bindPopup(`<b>Dropoff:</b> ${dropoff.name}<br>${dropoff.address}`);
 
+    // Draw a line between pickup and dropoff
+    L.polyline([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]], {
+      color: '#3b82f6',
+      weight: 3,
+      opacity: 0.7,
+      dashArray: '10, 10'
+    }).addTo(map);
+
     // Fit map bounds to both points
     const bounds = L.latLngBounds(
       [pickup.lat, pickup.lng],
@@ -71,6 +88,7 @@ const DeliveryMap = ({ pickup, dropoff }: DeliveryMapProps) => {
     // Cleanup when component unmounts
     return () => {
       map.remove();
+      mapInstanceRef.current = null;
     };
   }, [pickup, dropoff]);
 
