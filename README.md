@@ -16,3 +16,9 @@ For development in frontend or backend, use:
 ```bash
 npm run dev
 ```
+
+## MongoDB
+
+```bash
+docker run -d -p 27017:27017 --name mongodb mongo:7
+```
