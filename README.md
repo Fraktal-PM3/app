@@ -4,15 +4,10 @@
 
 To install all node dependencies
 ```bash
-cd frontend/ && npm i && cd ../backend && npm i && cd ..
+cd frontend/ && npm i
 ```
 
-Run backend in docker container
-```bash
-docker compose up --build
-```
-
-For development in frontend or backend, use:
+For development in frontend, use:
 ```bash
 npm run dev
 ```

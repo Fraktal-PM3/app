@@ -3,10 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { fetcher } from '@/lib/api';
-import { useSocket } from '@/lib/useSocket';
 import dynamic from 'next/dynamic';
-import { PackageService, PackageDetails } from 'fraktal-lib';
 
 
 // Dynamically import DeliveryMap to prevent SSR issues
@@ -21,13 +18,7 @@ const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
 
 
 
-export default function Dashboard() {
-  // Use SWR to fetch delivery offers from the backend
-  const { data: backendOffers, error, isLoading, mutate } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
-  
-  // Socket connection for real-time updates
-  const { socket, connected, fireflyConnected } = useSocket();
-  
+export default function Dashboard() {  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUrgency, setFilterUrgency] = useState<string>('all');
 
@@ -35,7 +26,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('newPackage', (newPackage: DeliveryOffer) => {
+      socket.on('newPackage', (newPackage: DeliveryOffer) => {
       console.log('New package received via WebSocket:', newPackage);
       
       // Convert date strings to Date objects
