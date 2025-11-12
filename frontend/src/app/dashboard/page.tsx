@@ -17,36 +17,11 @@ const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
   )
 });
 
-// Delivery offer interface
-interface DeliveryOffer {
-  id: string;
-  packageType: string;
-  size: 'small' | 'medium' | 'large';
-  weight: number; // in kg
-  pickupLocation: {
-    name: string;
-    address: string;
-    lat: number;
-    lng: number;
-  };
-  dropoffLocation: {
-    name: string;
-    address: string;
-    lat: number;
-    lng: number;
-  };
-  distance: number; // in km
-  reward: number; // in currency
-  urgency: 'low' | 'medium' | 'high';
-  pickupTime: Date;
-  deliveryDeadline: Date;
-  status: 'available' | 'accepted' | 'in-transit' | 'delivered';
-  customerRating: number;
-}
+
 
 export default function Dashboard() {
   // Use SWR to fetch delivery offers from the backend
-  const { data: backendOffers, error, isLoading, mutate } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
+  //const { data: backendOffers, error, isLoading, mutate } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
   
   // Socket connection for real-time updates
   const { socket, connected, fireflyConnected } = useSocket();
