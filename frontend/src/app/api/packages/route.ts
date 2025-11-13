@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbService";
-import Package from "@/models/package";
+import Package, { Urgency } from "@/models/package";
 
 export async function GET() {
   await dbConnect();
@@ -11,26 +11,62 @@ export async function GET() {
 export async function POST(req: Request) {
     console.log("POST /api/packages called");
     await dbConnect();
-    const { packageID } = await req.json();
-    console.log("Creating/updating package with id:", packageID);
+    const body = await req.json();
+    console.log("Creating package with data:", body);
+
+    const { packageID, packageDetails } = body;
 
     if (!packageID) {
         return NextResponse.json({ error: "packageID is required" }, { status: 400 });
+    }
+    
+    // Validate packageDetails if provided
+    if (packageDetails) {
+        const { pickupLocation, dropLocation, size, weightKg, urgency } = packageDetails;
+        
+        if (!pickupLocation?.address || !dropLocation?.address) {
+            return NextResponse.json({ error: "Pickup and drop locations are required" }, { status: 400 });
+        }
+        
+        if (!size?.width || !size?.height || !size?.depth) {
+            return NextResponse.json({ error: "Size dimensions (width, height, depth) are required" }, { status: 400 });
+        }
+        
+        if (!weightKg || weightKg <= 0) {
+            return NextResponse.json({ error: "Valid weight is required" }, { status: 400 });
+        }
+        
+        if (!urgency || !Object.values(Urgency).includes(urgency)) {
+            return NextResponse.json({ error: "Valid urgency level is required" }, { status: 400 });
+        }
     }
 
     const existingPkg = await Package.findOne({ packageID });
     
     if (existingPkg) {
-        console.log("Updating existing package:", existingPkg._id);
+        console.log("Updating existing package:", existingPkg.packageID);
+        
+        // Update packageDetails if provided
+        if (packageDetails) {
+            existingPkg.packageDetails = packageDetails;
+        }
+        
         await existingPkg.save();
         return NextResponse.json(existingPkg, { status: 200 });
     }
 
-    const pkg = await Package.create({ packageID });
-    console.log("Created new package:", pkg._id);
+    // Create new package with default price of 0
+    const pkg = await Package.create({ 
+        packageID,
+        packageDetails: packageDetails || undefined,
+        price: 0
+    });
+    
+    console.log("Created new package:", pkg.packageID);
     return NextResponse.json(pkg, { status: 201 });
 }
 
+// Update active status
 export async function PATCH(req: Request) {
     await dbConnect();
     const { packageID, active } = await req.json();
@@ -39,10 +75,14 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: "packageID is required" }, { status: 400 });
     }
 
+    if (active === undefined) {
+        return NextResponse.json({ error: "active field is required" }, { status: 400 });
+    }
+
     const updatedPkg = await Package.findOneAndUpdate(
         { packageID },
         { 
-            active: active ?? true,
+            active,
             updatedAt: new Date()
         },
         { new: true }
@@ -52,6 +92,36 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: "Package not found" }, { status: 404 });
     }
 
+    console.log("Updated active status for package:", updatedPkg.packageID);
     return NextResponse.json(updatedPkg, { status: 200 });
 }
 
+// Update price
+export async function PUT(req: Request) {
+    await dbConnect();
+    const { packageID, price } = await req.json();
+
+    if (!packageID) {
+        return NextResponse.json({ error: "packageID is required" }, { status: 400 });
+    }
+
+    if (price === undefined || price < 0) {
+        return NextResponse.json({ error: "Valid price is required" }, { status: 400 });
+    }
+
+    const updatedPkg = await Package.findOneAndUpdate(
+        { packageID },
+        { 
+            price,
+            updatedAt: new Date()
+        },
+        { new: true }
+    );
+
+    if (!updatedPkg) {
+        return NextResponse.json({ error: "Package not found" }, { status: 404 });
+    }
+
+    console.log("Updated price for package:", updatedPkg.packageID);
+    return NextResponse.json(updatedPkg, { status: 200 });
+}
