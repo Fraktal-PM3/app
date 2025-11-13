@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import useSWR from 'swr';
 import dynamic from 'next/dynamic';
-
+import { usePackages } from './components/PackageContext';
+import { DeliveryOffer } from '@/types/delivery';
+import { Status } from 'fraktal-lib';
 
 // Dynamically import DeliveryMap to prevent SSR issues
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
@@ -16,69 +17,82 @@ const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
   )
 });
 
-
-
 export default function Dashboard() {  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUrgency, setFilterUrgency] = useState<string>('all');
+  const [offers, setOffers] = useState<DeliveryOffer[]>([]);
+  const [newPackageNotification, setNewPackageNotification] = useState<string | null>(null);
+  const { packages, events, connected } = usePackages();
 
-  // Listen for new packages from backend
+  // Transform blockchain events to DeliveryOffers
+  // Since BlockchainPackage only has hashes, we'll use the events which contain the full data
   useEffect(() => {
-    if (!socket) return;
+    const packageMap = new Map<string, DeliveryOffer>();
 
-      socket.on('newPackage', (newPackage: DeliveryOffer) => {
-      console.log('New package received via WebSocket:', newPackage);
+    // Process events to build package details
+    events.forEach((event) => {
+      const output = event.output;
       
-      // Convert date strings to Date objects
-      const packageWithDates = {
-        ...newPackage,
-        pickupTime: new Date(newPackage.pickupTime),
-        deliveryDeadline: new Date(newPackage.deliveryDeadline)
-      };
-      
-      // Update SWR cache to include the new package
-      mutate((currentData) => {
-        const updatedData = currentData ? [...currentData, packageWithDates] : [packageWithDates];
-        return updatedData;
-      }, { revalidate: false });
+      if (output?.externalId) {
+        const existingOffer = packageMap.get(output.externalId);
+        
+        // CreatePackage event has the full details
+        if (output.pickupLocation && output.dropLocation) {
+          packageMap.set(output.externalId, {
+            id: output.externalId,
+            packageType: 'Standard Package',
+            pickupLocation: {
+              name: output.pickupLocation?.address?.split(',')[0] || 'Unknown',
+              address: output.pickupLocation?.address || '',
+              lat: output.pickupLocation?.lat || 0,
+              lng: output.pickupLocation?.lng || 0,
+            },
+            dropoffLocation: {
+              name: output.dropLocation?.address?.split(',')[0] || 'Unknown',
+              address: output.dropLocation?.address || '',
+              lat: output.dropLocation?.lat || 0,
+              lng: output.dropLocation?.lng || 0,
+            },
+            pickupTime: new Date(),
+            deliveryDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            urgency: output.urgency || 'medium',
+            reward: 250, // Default reward
+            distance: 0,
+            weight: output.weightKg || 0,
+            size: output.size ? 
+              (output.size.width > 50 ? 'large' : 
+               output.size.width > 30 ? 'medium' : 'small') : 'medium',
+            customerRating: 4.5,
+            status: 'available',
+          });
+        }
+        
+        // StatusUpdated event updates the status
+        if (existingOffer && output.status) {
+          packageMap.set(output.externalId, {
+            ...existingOffer,
+            status: output.status === Status.PENDING || output.status === Status.READY_FOR_PICKUP ? 'available' :
+                    output.status === Status.IN_TRANSIT || output.status === Status.PICKED_UP ? 'accepted' : 'completed',
+          });
+        }
+      }
     });
 
-    return () => {
-      socket.off('newPackage');
-    };
-  }, [socket, mutate]);
+    setOffers(Array.from(packageMap.values()));
+  }, [events]);
 
-  // Use backend data if available, convert date strings to Date objects
-  const offers = backendOffers ? backendOffers.map(offer => ({
-    ...offer,
-    pickupTime: new Date(offer.pickupTime),
-    deliveryDeadline: new Date(offer.deliveryDeadline)
-  })) : [];
+  // Listen for new package events and show notifications
+  useEffect(() => {
+    if (events.length === 0) return;
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="text-center py-12">
-          <div className="text-muted-foreground">Loading delivery offers...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="text-center py-12">
-          <div className="text-red-600">Failed to load delivery offers</div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Please check if the backend server is running on localhost:4000
-          </p>
-        </div>
-      </div>
-    );
-  }
+    const latestEvent = events[events.length - 1];
+    
+    // Check if it's a CreatePackage event
+    if (latestEvent.output?.pickupLocation && latestEvent.output?.dropLocation) {
+      setNewPackageNotification(`New delivery available from ${latestEvent.output.pickupLocation.address}!`);
+      setTimeout(() => setNewPackageNotification(null), 5000);
+    }
+  }, [events]);
 
   // Filter offers based on search and urgency
   const filteredOffers = offers.filter((offer: DeliveryOffer) => {
@@ -89,15 +103,22 @@ export default function Dashboard() {
     return matchesSearch && matchesUrgency && offer.status === 'available';
   });
 
-  // Accept offer function - update using mutate for proper cache management
-  const acceptOffer = (id: string) => {
-    mutate((currentData) => {
-      if (!currentData) return currentData;
-      
-      return currentData.map((offer: DeliveryOffer) => 
-        offer.id === id ? { ...offer, status: 'accepted' as const } : offer
+  // Accept offer function - this would update blockchain state via API
+  const acceptOffer = async (id: string) => {
+    try {
+      // Update local state immediately for better UX
+      setOffers(prevOffers => 
+        prevOffers.map(offer => 
+          offer.id === id ? { ...offer, status: 'accepted' as const } : offer
+        )
       );
-    }, { revalidate: false });
+      
+      // In a real implementation, you would call the API to update blockchain
+      // await updatePackageStatus(id, Status.IN_TRANSIT);
+      console.log(`Package ${id} accepted`);
+    } catch (error) {
+      console.error('Failed to accept package:', error);
+    }
   };
 
   const getUrgencyColor = (urgency: string) => {
@@ -120,6 +141,25 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
+      {/* New Package Notification */}
+      {newPackageNotification && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📦</span>
+            <div>
+              <p className="font-medium text-green-900">{newPackageNotification}</p>
+              <p className="text-sm text-green-700">Check the list below for details</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setNewPackageNotification(null)}
+            className="text-green-600 hover:text-green-800 font-medium"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -132,16 +172,13 @@ export default function Dashboard() {
           {/* Real-time connection status */}
           <div className="flex flex-col gap-1 text-sm">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
               <span className="text-muted-foreground">
-                Backend: {connected ? 'Connected' : 'Disconnected'}
+                Firefly: {connected ? 'Connected' : 'Disconnected'}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${fireflyConnected ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-              <span className="text-muted-foreground">
-                Firefly: {fireflyConnected ? 'Connected' : 'Disconnected'}
-              </span>
+            <div className="text-muted-foreground text-xs">
+              {packages.size} packages tracked • {events.length} events received
             </div>
           </div>
         </div>
