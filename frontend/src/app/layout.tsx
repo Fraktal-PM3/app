@@ -47,16 +47,16 @@ export default function RootLayout({
                 Dashboard
               </Link>
               <Link
-                href="/"
+                href="/createPackage"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Placeholder
+                Create Package
               </Link>
               <Link
-                href="/"
+                href="/activePackage"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Placeholder
+                Active Packages
               </Link>
             </nav>
           </div>

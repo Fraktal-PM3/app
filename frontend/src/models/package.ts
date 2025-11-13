@@ -2,7 +2,8 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 // Define the TypeScript interface
 export interface IPackage extends Document {
-  id: string;
+  packageID: string;
+  active: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -10,7 +11,8 @@ export interface IPackage extends Document {
 // Define the schema
 const PackageSchema: Schema<IPackage> = new Schema(
   {
-    id: { type: String, required: true },
+    packageID: { type: String, required: true },
+    active: { type: Boolean, default: true }
   },
   { timestamps: true } // adds createdAt + updatedAt
 );

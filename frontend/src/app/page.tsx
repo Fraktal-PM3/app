@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Pkg = {
   _id: string;
-  id: string;
+  packageID: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -30,11 +30,11 @@ export default function Home() {
 
   // Create or update a package
   const createOrTouch = async () => {
-    if (!pkgId.trim()) return alert("Please enter an ID");
+    if (!pkgId.trim()) return alert("Please enter an packageID");
     const res = await fetch("/api/packages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: pkgId.trim() }),
+      body: JSON.stringify({ packageID: pkgId.trim() }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -71,7 +71,7 @@ export default function Home() {
         <div className="w-full space-y-3">
           {packages.map((p) => (
             <div key={p._id} className="border rounded-xl p-4 shadow-sm">
-              <div className="font-semibold">ID: {p.id}</div>
+              <div className="font-semibold">ID: {p.packageID}</div>
               <div className="text-sm text-gray-600">
                 Created: {p.createdAt ? new Date(p.createdAt).toLocaleString() : "–"}
               </div>
