@@ -1,129 +1,208 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import useSWR from 'swr';
-import { fetcher } from '@/lib/api';
-import { useSocket } from '@/lib/useSocket';
-import dynamic from 'next/dynamic';
-import { PackageService, PackageDetails } from 'fraktal-lib';
-
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import { usePackages } from "./components/PackageContext";
+import { DeliveryOffer, PackageDetailsFromEvent } from "@/types/delivery";
+import { Status } from "fraktal-lib";
 
 // Dynamically import DeliveryMap to prevent SSR issues
-const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
+const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
   ssr: false,
   loading: () => (
     <div className="h-40 w-full bg-slate-100 rounded-lg flex items-center justify-center border border-border">
       <div className="text-center text-muted-foreground">Loading map...</div>
     </div>
-  )
+  ),
 });
 
-
-
 export default function Dashboard() {
-  // Use SWR to fetch delivery offers from the backend
-  const { data: backendOffers, error, isLoading, mutate } = useSWR<DeliveryOffer[]>('/api/posts', fetcher);
-  
-  // Socket connection for real-time updates
-  const { socket, connected, fireflyConnected } = useSocket();
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterUrgency, setFilterUrgency] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterUrgency, setFilterUrgency] = useState<string>("all");
+  const [offers, setOffers] = useState<DeliveryOffer[]>([]);
+  // No transient banner notification; new packages are shown as delivery offers
+  const { packages, events, connected } = usePackages();
 
-  // Listen for new packages from backend
+  // Store package details from events separately
+  const [packageDetailsMap, setPackageDetailsMap] = useState<
+    Map<string, PackageDetailsFromEvent>
+  >(new Map());
+
+  // Extract and store package details ONLY from CreatePackage events
   useEffect(() => {
-    if (!socket) return;
+    const detailsMap = new Map();
 
-    socket.on('newPackage', (newPackage: DeliveryOffer) => {
-      console.log('New package received via WebSocket:', newPackage);
-      
-      // Convert date strings to Date objects
-      const packageWithDates = {
-        ...newPackage,
-        pickupTime: new Date(newPackage.pickupTime),
-        deliveryDeadline: new Date(newPackage.deliveryDeadline)
-      };
-      
-      // Update SWR cache to include the new package
-      mutate((currentData) => {
-        const updatedData = currentData ? [...currentData, packageWithDates] : [packageWithDates];
-        return updatedData;
-      }, { revalidate: false });
+    events.forEach((event) => {
+      const output = event.output;
+      const packageId = output?.externalId || output?.id;
+
+      console.log("event output:", output);
+
+      if (packageId && (output?.pickupLocation || output?.dropLocation)) {
+        detailsMap.set(packageId, {
+          pickupLocation: output.pickupLocation,
+          dropLocation: output.dropLocation,
+          size: output.size,
+          weightKg: output.weightKg,
+          urgency: output.urgency,
+          timestamp: event.timestamp,
+        });
+      }
     });
 
-    return () => {
-      socket.off('newPackage');
-    };
-  }, [socket, mutate]);
+    setPackageDetailsMap(detailsMap);
+  }, [events]);
 
-  // Use backend data if available, convert date strings to Date objects
-  const offers = backendOffers ? backendOffers.map(offer => ({
-    ...offer,
-    pickupTime: new Date(offer.pickupTime),
-    deliveryDeadline: new Date(offer.deliveryDeadline)
-  })) : [];
+  // Create DeliveryOffers ONLY for packages that have a CreatePackage event
+  useEffect(() => {
+    const deliveryOffers: DeliveryOffer[] = [];
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="text-center py-12">
-          <div className="text-muted-foreground">Loading delivery offers...</div>
-        </div>
-      </div>
+    // Only create offers for packages that exist in packageDetailsMap
+    // This ensures we only show packages that were created via "PackageCreated" event
+    packageDetailsMap.forEach((details, packageId) => {
+      const pkg = packages.get(packageId);
+
+      // If package exists in blockchain state, use its status; otherwise default to PENDING
+      if (details) {
+        // Calculate reward based on distance and urgency
+        const calculateReward = (urgency: string) => {
+          switch (urgency) {
+            case "high":
+              return 500;
+            case "medium":
+              return 300;
+            case "low":
+              return 150;
+            case "none":
+              return 100;
+            default:
+              return 250;
+          }
+        };
+
+        deliveryOffers.push({
+          id: packageId,
+          packageType:
+            details.size && details.size.width > 40
+              ? "Large Package"
+              : details.size && details.size.width > 20
+              ? "Standard Package"
+              : "Small Package",
+          pickupLocation: {
+            name:
+              details.pickupLocation?.address?.split(",")[0] ||
+              "Pickup Location",
+            address: details.pickupLocation?.address || "",
+            lat: details.pickupLocation?.lat || 0,
+            lng: details.pickupLocation?.lng || 0,
+          },
+          dropoffLocation: {
+            name:
+              details.dropLocation?.address?.split(",")[0] ||
+              "Dropoff Location",
+            address: details.dropLocation?.address || "",
+            lat: details.dropLocation?.lat || 0,
+            lng: details.dropLocation?.lng || 0,
+          },
+          pickupTime: new Date(details.timestamp || Date.now()),
+          deliveryDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+          urgency: details.urgency || "medium",
+          reward: calculateReward(details.urgency || "medium"),
+          distance: 0, // Could calculate from coordinates
+          weight: details.weightKg || 0,
+          size: details.size
+            ? details.size.width > 50
+              ? "large"
+              : details.size.width > 30
+              ? "medium"
+              : "small"
+            : "medium",
+          customerRating: 4.5,
+          status:
+            pkg &&
+            (pkg.status === Status.PENDING ||
+              pkg.status === Status.READY_FOR_PICKUP)
+              ? "available"
+              : pkg &&
+                (pkg.status === Status.IN_TRANSIT ||
+                  pkg.status === Status.PICKED_UP)
+              ? "accepted"
+              : pkg
+              ? "completed"
+              : "available",
+        });
+      }
+    });
+
+    setOffers(deliveryOffers);
+    console.log(
+      `Created ${deliveryOffers.length} delivery offers from PackageCreated events`
     );
-  }
+  }, [packages, packageDetailsMap]);
 
-  // Show error state
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="text-center py-12">
-          <div className="text-red-600">Failed to load delivery offers</div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Please check if the backend server is running on localhost:4000
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // New packages are reflected in `events` -> `packageDetailsMap` -> `offers`.
+  // We intentionally do not show a transient notification banner; the
+  // delivery offer component itself represents the available work item.
 
   // Filter offers based on search and urgency
   const filteredOffers = offers.filter((offer: DeliveryOffer) => {
-    const matchesSearch = offer.packageType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         offer.pickupLocation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         offer.dropoffLocation.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesUrgency = filterUrgency === 'all' || offer.urgency === filterUrgency;
-    return matchesSearch && matchesUrgency && offer.status === 'available';
+    const matchesSearch =
+      offer.packageType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      offer.pickupLocation.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      offer.dropoffLocation.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+    const matchesUrgency =
+      filterUrgency === "all" || offer.urgency === filterUrgency;
+    return matchesSearch && matchesUrgency;
   });
 
-  // Accept offer function - update using mutate for proper cache management
-  const acceptOffer = (id: string) => {
-    mutate((currentData) => {
-      if (!currentData) return currentData;
-      
-      return currentData.map((offer: DeliveryOffer) => 
-        offer.id === id ? { ...offer, status: 'accepted' as const } : offer
+  // Accept offer function - this would update blockchain state via API
+  const acceptOffer = async (id: string) => {
+    try {
+      // Update local state immediately for better UX
+      setOffers((prevOffers) =>
+        prevOffers.map((offer) =>
+          offer.id === id ? { ...offer, status: "accepted" as const } : offer
+        )
       );
-    }, { revalidate: false });
+
+      // In a real implementation, you would call the API to update blockchain
+      // await updatePackageStatus(id, Status.IN_TRANSIT);
+      console.log(`Package ${id} accepted`);
+    } catch (error) {
+      console.error("Failed to accept package:", error);
+    }
   };
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "high":
+        return "bg-red-100 text-red-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
+      case "none":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getSizeIcon = (size: string) => {
     switch (size) {
-      case 'small': return '📦';
-      case 'medium': return '📫';
-      case 'large': return '📦';
-      default: return '📦';
+      case "small":
+        return "📦";
+      case "medium":
+        return "📫";
+      case "large":
+        return "📦";
+      default:
+        return "📦";
     }
   };
 
@@ -133,24 +212,28 @@ export default function Dashboard() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2">Active Delivery Offers</h1>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">
+              Active Delivery Offers
+            </h1>
             <p className="text-muted-foreground">
-              Browse and accept available package delivery opportunities in your area.
+              Browse and accept available package delivery opportunities in your
+              area.
             </p>
           </div>
           {/* Real-time connection status */}
           <div className="flex flex-col gap-1 text-sm">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  connected ? "bg-blue-500" : "bg-gray-400"
+                }`}
+              ></div>
               <span className="text-muted-foreground">
-                Backend: {connected ? 'Connected' : 'Disconnected'}
+                Firefly: {connected ? "Connected" : "Disconnected"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${fireflyConnected ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-              <span className="text-muted-foreground">
-                Firefly: {fireflyConnected ? 'Connected' : 'Disconnected'}
-              </span>
+            <div className="text-muted-foreground text-xs">
+              {packages.size} packages tracked • {events.length} events received
             </div>
           </div>
         </div>
@@ -179,27 +262,38 @@ export default function Dashboard() {
           <option value="high">High Priority</option>
           <option value="medium">Medium Priority</option>
           <option value="low">Low Priority</option>
+          <option value="none">No Urgency</option>
         </select>
       </div>
 
       {/* Delivery Offers List */}
       <div className="space-y-4">
         {filteredOffers.map((offer: DeliveryOffer) => (
-          <div key={offer.id} className="rounded-lg border bg-card hover:shadow-md transition-shadow">
+          <div
+            key={offer.id}
+            className="rounded-lg border bg-card hover:shadow-md transition-shadow"
+          >
             <div className="flex flex-col lg:flex-row">
               {/* Left: Map Section */}
               <div className="lg:w-1/3 p-4">
-                <DeliveryMap pickup={offer.pickupLocation} dropoff={offer.dropoffLocation} />
+                <DeliveryMap
+                  pickup={offer.pickupLocation}
+                  dropoff={offer.dropoffLocation}
+                />
                 <div className="mt-3 space-y-1 text-sm">
                   <div className="flex items-center gap-2 text-green-600">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span className="font-medium">Pickup:</span>
-                    <span className="text-muted-foreground truncate">{offer.pickupLocation.name}</span>
+                    <span className="text-muted-foreground truncate">
+                      {offer.pickupLocation.name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-red-600">
                     <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                     <span className="font-medium">Dropoff:</span>
-                    <span className="text-muted-foreground truncate">{offer.dropoffLocation.name}</span>
+                    <span className="text-muted-foreground truncate">
+                      {offer.dropoffLocation.name}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -210,17 +304,29 @@ export default function Dashboard() {
                   {/* Header with urgency and reward */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getSizeIcon(offer.size)}</span>
+                      <span className="text-2xl">
+                        {getSizeIcon(offer.size)}
+                      </span>
                       <div>
-                        <h3 className="text-lg font-semibold text-neutral-400">{offer.packageType}</h3>
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(offer.urgency)}`}>
+                        <h3 className="text-lg font-semibold text-neutral-400">
+                          {offer.packageType}
+                        </h3>
+                        <span
+                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(
+                            offer.urgency
+                          )}`}
+                        >
                           {offer.urgency} priority
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">{offer.reward} kr</div>
-                      <div className="text-sm text-muted-foreground">reward</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {offer.reward} kr
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        reward
+                      </div>
                     </div>
                   </div>
 
@@ -250,11 +356,21 @@ export default function Dashboard() {
                   <div className="flex flex-col sm:flex-row gap-4 mb-4 text-sm text-neutral-400">
                     <div>
                       <span className="text-muted-foreground">Pickup Time</span>
-                      <div className="font-medium">{offer.pickupTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="font-medium">
+                        {offer.pickupTime.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Deadline</span>
-                      <div className="font-medium">{offer.deliveryDeadline.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="font-medium">
+                        {offer.deliveryDeadline.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     </div>
                   </div>
 
@@ -284,10 +400,9 @@ export default function Dashboard() {
       {filteredOffers.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">
-            {searchTerm || filterUrgency !== 'all' 
-              ? 'No delivery offers match your current filters.' 
-              : 'No active delivery offers available at the moment.'
-            }
+            {searchTerm || filterUrgency !== "all"
+              ? "No delivery offers match your current filters."
+              : "No active delivery offers available at the moment."}
           </div>
           <p className="text-sm text-muted-foreground mt-2">
             Check back soon for new delivery opportunities!
