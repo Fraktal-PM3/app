@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { id } = await params;
     const service = await getPackageService();
-    const pkg = await service.readBlockchainPackage(id);
+    const pkg = await service.readPackageDetailsAndPII(id);
 
     return NextResponse.json({
       success: true,

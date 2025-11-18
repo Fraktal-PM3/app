@@ -12,9 +12,9 @@ export async function GET(request: Request) {
       let isClosed = false;
 
       // Helper to send SSE message
-      const sendEvent = (eventName: string, data: any) => {
+      const sendEvent = (eventName: string, data: unknown) => {
         if (isClosed) {
-          console.log(`Cannot send event ${eventName}: controller is closed`);
+          // Silently return - this is normal when client disconnects
           return;
         }
         
@@ -23,8 +23,8 @@ export async function GET(request: Request) {
             data
           )}\n\n`;
           controller.enqueue(encoder.encode(message));
-        } catch (error) {
-          console.error(`Error sending event ${eventName}:`, error);
+        } catch {
+          // Mark as closed but don't log - this happens during normal disconnections
           isClosed = true;
         }
       };
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
         isClosed = true;
         try {
           controller.close();
-        } catch (error) {
+        } catch {
           console.log("Controller already closed");
         }
       });

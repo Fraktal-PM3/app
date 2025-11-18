@@ -16,7 +16,12 @@ import {
 
 type PackageEvent = {
   txid?: string;
-  output: any;
+  output: {
+    id?: string;
+    externalId?: string;
+    status?: Status;
+    [key: string]: unknown;
+  };
   timestamp: string;
 };
 
@@ -47,15 +52,25 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       setConnected(true);
     });
 
-    eventSource.addEventListener("CreatePackage", (e) => {
+    eventSource.addEventListener("CreatePackage", async (e) => {
       const event: PackageEvent = JSON.parse(e.data);
       console.log("Package created:", event);
 
-      setEvents((prev) => [...prev, event]);
+      // Fetch full package details from blockchain FIRST
+      const packageId = event.output?.externalId || event.output?.id;
+      if (packageId) {
+        console.log("Fetching package details for:", packageId);
+        const packageDetails = await fetchPackage(packageId);
 
-      // Optionally fetch full package details
-      if (event.output?.id) {
-        fetchPackage(event.output.id);
+        // Merge the fetched packageDetails into the event output so
+        // downstream consumers (dashboard) can read pickup/drop locations
+        const enrichedEvent = packageDetails
+          ? { ...event, output: { ...event.output, ...packageDetails } }
+          : event;
+
+        // Only add event to array after package data is fetched
+        // This ensures the dashboard has the data when it processes the event
+        setEvents((prev) => [...prev, enrichedEvent]);
       }
     });
 
@@ -66,14 +81,15 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       setEvents((prev) => [...prev, event]);
 
       // Update local package state
-      if (event.output?.id) {
+      const packageId = event.output?.externalId || event.output?.id;
+      if (packageId && event.output.status) {
         setPackages((prev) => {
           const updated = new Map(prev);
-          const pkg = updated.get(event.output.id);
+          const pkg = updated.get(packageId);
           if (pkg) {
-            updated.set(event.output.id, {
+            updated.set(packageId, {
               ...pkg,
-              status: event.output.status,
+              status: event.output.status as Status,
             });
           }
           return updated;
@@ -111,10 +127,11 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       setEvents((prev) => [...prev, event]);
 
       // Remove from local state
-      if (event.output?.id) {
+      const packageId = event.output?.id || event.output?.externalId;
+      if (packageId) {
         setPackages((prev) => {
           const updated = new Map(prev);
-          updated.delete(event.output.id);
+          updated.delete(packageId);
           return updated;
         });
       }
@@ -128,19 +145,31 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
     return () => {
       eventSource.close();
     };
+    // Note: Empty dependency array is intentional - we want this to run once
+    // Fast Refresh will cause a full reload when this component changes (expected behavior)
   }, []);
 
-  const fetchPackage = async (id: string) => {
+  const fetchPackage = async (id: string): Promise<PackageDetails | null> => {
     try {
+      // Use the existing server-side service via API route
       const response = await fetch(`/api/packages/${id}`);
       const data = await response.json();
 
-      if (data.success) {
-        setPackages((prev) => new Map(prev).set(id, data.package));
+      if (data.success && data.package) {
+        const pkg = data.package;
+        console.log("Fetched package data:", pkg);
+
+        // Cache the full package object locally (includes pii, salt, packageDetails)
+        setPackages((prev) => new Map(prev).set(id, pkg));
+
+        // Return the nested packageDetails for callers that want the payload
+        return pkg.packageDetails || null;
       }
     } catch (error) {
       console.error("Error fetching package:", error);
     }
+
+    return null;
   };
 
   const createPackage = useCallback(
