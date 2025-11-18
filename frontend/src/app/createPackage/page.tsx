@@ -1,22 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
+import { Urgency, type PackagePII } from "fraktal-lib";
+
+
+type UrgencyChoice = "high" | "medium" | "low" | "none";
 
 export default function CreatePackagePage() {
   const [form, setForm] = useState({
     id: "",
     price: "",
-    size: "medium" as "small" | "medium" | "large",
-    urgency: "normal" as "low" | "normal" | "express",
+    sizeWidth: "",
+    sizeHeight: "",
+    sizeDepth: "",
+    urgency: "medium" as UrgencyChoice,
     weightKg: "",
+    pickupAddress: "",
     pickupLat: "",
     pickupLon: "",
+    dropAddress: "",
     dropLat: "",
     dropLon: "",
+    senderName: "",
+    senderPhone: "",
+    recipientName: "",
+    recipientPhone: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const update = (key: keyof typeof form) =>
+  const update =
+    (key: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -24,52 +37,150 @@ export default function CreatePackagePage() {
     setForm({
       id: "",
       price: "",
-      size: "medium",
-      urgency: "normal",
+      sizeWidth: "",
+      sizeHeight: "",
+      sizeDepth: "",
+      urgency: "medium",
       weightKg: "",
+      pickupAddress: "",
       pickupLat: "",
       pickupLon: "",
+      dropAddress: "",
       dropLat: "",
       dropLon: "",
+      senderName: "",
+      senderPhone: "",
+      recipientName: "",
+      recipientPhone: "",
     });
   };
 
   const validate = () => {
     if (!form.id.trim()) return "Please enter an ID";
-    if (!form.pickupLat.trim() || !form.pickupLon.trim()) return "Please enter pickup latitude and longitude";
-    if (!form.dropLat.trim() || !form.dropLon.trim()) return "Please enter drop latitude and longitude";
+    if (!form.pickupAddress.trim()) return "Please enter pickup address";
+    if (!form.dropAddress.trim()) return "Please enter drop address";
+    if (!form.pickupLat.trim() || !form.pickupLon.trim())
+      return "Please enter pickup latitude and longitude";
+    if (!form.dropLat.trim() || !form.dropLon.trim())
+      return "Please enter drop latitude and longitude";
+
+    if (!form.sizeWidth || !form.sizeHeight || !form.sizeDepth)
+      return "Please enter width, height and depth";
+
+    if (!form.senderName.trim() || !form.recipientName.trim())
+      return "Please enter sender and recipient names";
+
     const price = Number(form.price);
     const weight = Number(form.weightKg);
-    if (Number.isNaN(price) || price < 0) return "Price must be a valid number ≥ 0";
-    if (Number.isNaN(weight) || weight <= 0) return "Weight (kg) must be a valid number > 0";
+    const width = Number(form.sizeWidth);
+    const height = Number(form.sizeHeight);
+    const depth = Number(form.sizeDepth);
+
+    if (Number.isNaN(price) || price < 0)
+      return "Price must be a valid number ≥ 0";
+    if (Number.isNaN(weight) || weight <= 0)
+      return "Weight (kg) must be a valid number > 0";
+    if (Number.isNaN(width) || width <= 0)
+      return "Width must be a valid number > 0";
+    if (Number.isNaN(height) || height <= 0)
+      return "Height must be a valid number > 0";
+    if (Number.isNaN(depth) || depth <= 0)
+      return "Depth must be a valid number > 0";
+
     return null;
+  };
+
+  const toUrgencyEnum = (u: UrgencyChoice): Urgency => {
+    switch (u) {
+      case "low":
+        return Urgency.LOW;
+      case "high":
+        return Urgency.HIGH;
+      case "none":
+        return Urgency.NONE;
+      case "medium":
+      default:
+        return Urgency.MEDIUM;
+    }
   };
 
   const handleSubmit = async () => {
     const err = validate();
     if (err) return alert(err);
+
     setSubmitting(true);
     try {
-      const payload = {
-        id: form.id.trim(),
-        price: Number(form.price),
-        size: form.size,
-        urgency: form.urgency,
-        weightKg: Number(form.weightKg),
-        pickup: {
+      const packageID = form.id.trim();
+
+      const packageDetails = {
+        pickupLocation: {
+          address: form.pickupAddress.trim(),
           lat: parseFloat(form.pickupLat),
-          lon: parseFloat(form.pickupLon),
+          lng: parseFloat(form.pickupLon),
         },
-        drop: {
+        dropLocation: {
+          address: form.dropAddress.trim(),
           lat: parseFloat(form.dropLat),
-          lon: parseFloat(form.dropLon),
+          lng: parseFloat(form.dropLon),
         },
+        size: {
+          width: Number(form.sizeWidth),
+          height: Number(form.sizeHeight),
+          depth: Number(form.sizeDepth),
+        },
+        weightKg: Number(form.weightKg),
+        urgency: toUrgencyEnum(form.urgency),
       };
 
-      console.log("Create package payload", payload);
-      alert("Package created locally with entered coordinates.\nCheck console for payload.");
+      const pii: PackagePII = {
+        senderName: form.senderName.trim(),
+        senderPhone: form.senderPhone.trim(),
+        recipientName: form.recipientName.trim(),
+        recipientPhone: form.recipientPhone.trim(),
+      };
+
+      const price = Number(form.price);
+
+      // 1) Call MongoDB API
+      const mongoRes = await fetch("/api/packages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packageID,
+          price,
+          packageDetails,
+        }),
+      });
+
+      const mongoData = await mongoRes.json();
+      if (!mongoRes.ok || mongoData.error) {
+        throw new Error(mongoData.error || "Failed to save to MongoDB");
+      }
+
+      // 2) Call FireFly createPackage API
+      const fireflyRes = await fetch("/api/packages/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packageId: packageID, // externalId for FireFly
+          packageDetails,
+          pii,
+        }),
+      });
+
+      const fireflyData = await fireflyRes.json();
+      if (!fireflyRes.ok || fireflyData.success === false) {
+        throw new Error(
+          fireflyData.error || "Failed to create package on FireFly"
+        );
+      }
+
+      alert(
+        `Package saved in MongoDB and created on FireFly ✅\nID: ${packageID}`
+      );
       reset();
     } catch (e: any) {
+      console.error(e);
       alert(`Error: ${e?.message || "Something went wrong"}`);
     } finally {
       setSubmitting(false);
@@ -83,6 +194,7 @@ export default function CreatePackagePage() {
 
         <div className="w-full border rounded-xl p-4 space-y-4 shadow bg-white">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* ID & Price */}
             <label className="flex flex-col gap-1">
               <span className="text-sm text-gray-700">Package ID</span>
               <input
@@ -102,6 +214,82 @@ export default function CreatePackagePage() {
                 placeholder="e.g. 199.99"
                 value={form.price}
                 onChange={update("price")}
+              />
+            </label>
+
+            {/* Size (exact dimensions) */}
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Width (m)</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="e.g. 0.40"
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                value={form.sizeWidth}
+                onChange={update("sizeWidth")}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Height (m)</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="e.g. 0.30"
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                value={form.sizeHeight}
+                onChange={update("sizeHeight")}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Depth (m)</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="e.g. 0.20"
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                value={form.sizeDepth}
+                onChange={update("sizeDepth")}
+              />
+            </label>
+
+            {/* Urgency */}
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Urgency</span>
+              <select
+                className="border rounded w-full px-3 py-2 bg-white text-gray-700"
+                value={form.urgency}
+                onChange={update("urgency")}
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="none">None</option>
+              </select>
+            </label>
+
+            {/* Weight */}
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Weight (kg)</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                placeholder="e.g. 3.5"
+                value={form.weightKg}
+                onChange={update("weightKg")}
+              />
+            </label>
+
+            {/* Pickup address + coords */}
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-sm text-gray-700">Pickup Address</span>
+              <input
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                placeholder="e.g. 10 Market St, Stockholm"
+                value={form.pickupAddress}
+                onChange={update("pickupAddress")}
               />
             </label>
 
@@ -127,6 +315,17 @@ export default function CreatePackagePage() {
               />
             </label>
 
+            {/* Drop address + coords */}
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-sm text-gray-700">Drop Address</span>
+              <input
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                placeholder="e.g. 5 Main St, Stockholm"
+                value={form.dropAddress}
+                onChange={update("dropAddress")}
+              />
+            </label>
+
             <label className="flex flex-col gap-1">
               <span className="text-sm text-gray-700">Drop Latitude</span>
               <input
@@ -149,41 +348,40 @@ export default function CreatePackagePage() {
               />
             </label>
 
+            {/* PII */}
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Size</span>
-              <select
-                className="border rounded w-full px-3 py-2 bg-white text-gray-700"
-                value={form.size}
-                onChange={update("size")}
-              >
-                <option value="small">Small</option>
-                <option value="medium">Medium</option>
-                <option value="large">Large</option>
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Urgency</span>
-              <select
-                className="border rounded w-full px-3 py-2 bg-white text-gray-700"
-                value={form.urgency}
-                onChange={update("urgency")}
-              >
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="express">Express</option>
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Weight (kg)</span>
+              <span className="text-sm text-gray-700">Sender Name</span>
               <input
-                type="number"
-                inputMode="decimal"
                 className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 3.5"
-                value={form.weightKg}
-                onChange={update("weightKg")}
+                value={form.senderName}
+                onChange={update("senderName")}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Sender Phone</span>
+              <input
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                value={form.senderPhone}
+                onChange={update("senderPhone")}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Recipient Name</span>
+              <input
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                value={form.recipientName}
+                onChange={update("recipientName")}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">Recipient Phone</span>
+              <input
+                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
+                value={form.recipientPhone}
+                onChange={update("recipientPhone")}
               />
             </label>
           </div>
@@ -203,27 +401,6 @@ export default function CreatePackagePage() {
           >
             Reset
           </button>
-        </div>
-
-        <div className="w-full text-xs text-gray-600">
-          <p className="mb-1 font-semibold">Payload example (for your API):</p>
-          <pre className="whitespace-pre-wrap break-words border rounded-xl p-3 bg-gray-50">
-{`{
-  id: "${form.id || "<id>"}",
-  price: ${form.price ? Number(form.price) : "<number>"},
-  size: "${form.size}",
-  urgency: "${form.urgency}",
-  weightKg: ${form.weightKg ? Number(form.weightKg) : "<number>"},
-  pickup: {
-    lat: ${form.pickupLat || "<lat>"},
-    lon: ${form.pickupLon || "<lon>"}
-  },
-  drop: {
-    lat: ${form.dropLat || "<lat>"},
-    lon: ${form.dropLon || "<lon>"}
-  }
-}`}
-          </pre>
         </div>
       </main>
     </div>
