@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { Urgency, type PackagePII } from "fraktal-lib";
 import crypto from "crypto";
 
-
 type UrgencyChoice = "high" | "medium" | "low" | "none";
 
 export default function CreatePackagePage() {
@@ -53,6 +52,28 @@ export default function CreatePackagePage() {
       senderPhone: "",
       recipientName: "",
       recipientPhone: "",
+    });
+  };
+
+  const test = () => {
+    setForm({
+      id: "PKG-67",
+      price: "100",
+      sizeWidth: "1",
+      sizeHeight: "2",
+      sizeDepth: "3",
+      urgency: "medium" as UrgencyChoice,
+      weightKg: "123",
+      pickupAddress: "Luleå",
+      pickupLat: "65.5848",
+      pickupLon: "22.1567",
+      dropAddress: "Stockholm",
+      dropLat: "59.3327",
+      dropLon: "18.0656",
+      senderName: "Hej",
+      senderPhone: "123",
+      recipientName: "Då",
+      recipientPhone: "456",
     });
   };
 
@@ -405,6 +426,14 @@ export default function CreatePackagePage() {
             className="mt-2 border rounded px-4 py-2 w-full hover:bg-gray-50 text-black"
           >
             Reset
+          </button>
+
+          <button
+            type="button"
+            onClick={test}
+            className="mt-2 border rounded px-4 py-2 w-full hover:bg-gray-50 text-black"
+          >
+            Test
           </button>
         </div>
       </main>
