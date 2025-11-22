@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPackageService } from "../service";
+import { Status } from "fraktal-lib";
 
-export async function GET(
+export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const body = await request.json();
+    const { status } = body;
+
     const service = await getPackageService();
-    const pkg = await service.readPackageDetailsAndPII(id);
+    const result = await service.updatePackageStatus(
+      id,
+      status as Status
+    );
 
     return NextResponse.json({
       success: true,
-      package: pkg,
+      result,
     });
   } catch (error: any) {
     return NextResponse.json(

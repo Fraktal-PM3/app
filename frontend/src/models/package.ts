@@ -36,6 +36,7 @@ const PackageDetailsSchema = new Schema({
 // Define the TypeScript interface
 export interface IPackage extends Document {
   packageID: string;
+  externalId: string;
   active: boolean;
   packageDetails?: {
     pickupLocation: {
@@ -57,6 +58,14 @@ export interface IPackage extends Document {
     urgency: Urgency;
   };
   price?: number;
+  // not safe but working for testing purposes
+  salt?: string;
+  pii?: {
+    senderName?: string;
+    senderContact?: string;
+    recipientName?: string;
+    recipientContact?: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -65,9 +74,18 @@ export interface IPackage extends Document {
 const PackageSchema: Schema<IPackage> = new Schema(
   {
     packageID: { type: String, required: true },
+    externalId: { type: String, required: true, default: () => crypto.randomUUID() },
     active: { type: Boolean, default: true },
     packageDetails: { type: PackageDetailsSchema, required: false },
-    price: { type: Number, required: false, min: 0, default: 0 }
+    price: { type: Number, required: false, min: 0, default: 0 },
+      // not safe but working for testing purposes
+    salt: { type: String, required: false },
+    pii: {
+      senderName: { type: String, required: false },
+      senderContact: { type: String, required: false },
+      recipientName: { type: String, required: false },
+      recipientContact: { type: String, required: false },
+    },
   },
   { timestamps: true } // adds createdAt + updatedAt
 );

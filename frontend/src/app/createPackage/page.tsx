@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Urgency, type PackagePII } from "fraktal-lib";
+import crypto from "crypto";
 
 
 type UrgencyChoice = "high" | "medium" | "low" | "none";
@@ -134,13 +135,14 @@ export default function CreatePackagePage() {
 
       const pii: PackagePII = {
         senderName: form.senderName.trim(),
-        senderPhone: form.senderPhone.trim(),
+        senderContact: form.senderPhone.trim(),      // Changed
         recipientName: form.recipientName.trim(),
-        recipientPhone: form.recipientPhone.trim(),
+        recipientContact: form.recipientPhone.trim(), // Changed
       };
 
       const price = Number(form.price);
-
+      const salt = crypto.randomBytes(16).toString('hex');
+      
       // 1) Call MongoDB API
       const mongoRes = await fetch("/api/packages", {
         method: "POST",
@@ -149,6 +151,8 @@ export default function CreatePackagePage() {
           packageID,
           price,
           packageDetails,
+          pii,
+          salt
         }),
       });
 
@@ -156,15 +160,18 @@ export default function CreatePackagePage() {
       if (!mongoRes.ok || mongoData.error) {
         throw new Error(mongoData.error || "Failed to save to MongoDB");
       }
-
+      const externalId = mongoData.externalId;
+      
+      console.log("MongoDB package created with externalId:", externalId);
       // 2) Call FireFly createPackage API
       const fireflyRes = await fetch("/api/packages/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packageId: packageID, // externalId for FireFly
+          packageId: externalId, // externalId for FireFly
           packageDetails,
           pii,
+          salt
         }),
       });
 
@@ -175,9 +182,7 @@ export default function CreatePackagePage() {
         );
       }
 
-      alert(
-        `Package saved in MongoDB and created on FireFly ✅\nID: ${packageID}`
-      );
+      
       reset();
     } catch (e: any) {
       console.error(e);
