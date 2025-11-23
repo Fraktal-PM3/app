@@ -63,9 +63,10 @@ export async function POST(req: Request) {
         // Create new package with default price of 0 and salt
         const pkg = await Package.create({ 
                 packageID,
+                termsId: "null",
                 packageDetails: packageDetails || undefined,
                 pii: pii || undefined,
-                price: 0,
+                price: body.price ?? 0,
                 salt
         });
         
@@ -76,22 +77,29 @@ export async function POST(req: Request) {
 // Update active status
 export async function PATCH(req: Request) {
         await dbConnect();
-        const { packageID, active } = await req.json();
+        const { packageID, active, termsId } = await req.json();
 
         if (!packageID) {
                 return NextResponse.json({ error: "packageID is required" }, { status: 400 });
         }
 
-        if (active === undefined) {
-                return NextResponse.json({ error: "active field is required" }, { status: 400 });
+        if (active === undefined && termsId === undefined) {
+                return NextResponse.json({ error: "active or termsId field is required" }, { status: 400 });
+        }
+
+        const updateFields: any = { updatedAt: new Date() };
+        
+        if (active !== undefined) {
+                updateFields.active = active;
+        }
+        
+        if (termsId !== undefined) {
+                updateFields.termsId = termsId;
         }
 
         const updatedPkg = await Package.findOneAndUpdate(
                 { packageID },
-                { 
-                        active,
-                        updatedAt: new Date()
-                },
+                updateFields,
                 { new: true }
         );
 
@@ -99,7 +107,7 @@ export async function PATCH(req: Request) {
                 return NextResponse.json({ error: "Package not found" }, { status: 404 });
         }
 
-        console.log("Updated active status for package:", updatedPkg.packageID);
+        console.log("Updated package:", updatedPkg.packageID);
         return NextResponse.json(updatedPkg, { status: 200 });
 }
 

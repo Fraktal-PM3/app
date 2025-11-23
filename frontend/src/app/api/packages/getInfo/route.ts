@@ -21,12 +21,18 @@ export async function GET(request: NextRequest) {
     try {
       // try to get private details and PII, if we are correct org
       const pkg = await service.readPackageDetailsAndPII(externalId);
+      const pkgstatus: BlockchainPackage = await service.readBlockchainPackage(externalId);
+      const status = {
+        status: pkgstatus.status,
+      };
+
       console.log('Fetched private package details: total', pkg);
       return NextResponse.json({
         success: true,
         package: pkg,
         source: "private",
         externalId: externalId,
+        status: status,
       });
     } catch (piiError: any) {
       console.warn(`Failed to read PII for package ${externalId}, falling back to blockchain:`, piiError?.message);
@@ -38,6 +44,7 @@ export async function GET(request: NextRequest) {
         package: pkg,
         source: "blockchain",
         externalId: externalId,
+        status: { status: pkg.status }
       });
     }
   } catch (error: any) {

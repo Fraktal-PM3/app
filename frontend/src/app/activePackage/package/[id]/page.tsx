@@ -5,6 +5,14 @@ import React from 'react';
 import { TransportTimeline, Stage } from '@/components/TransportTimeline';
 import { Clock, Package, Flag, CheckCircle2 } from 'lucide-react';
 
+// Map blockchain status to stage keys
+const STATUS_TO_STAGE: Record<string, string> = {
+  'pending': 'waiting_pickup',
+  'picked_up': 'picked_up',
+  'delivered': 'arrived_destination',
+  'succeeded': 'completed',
+};
+
 export default function PackageDetailPage({ params }: { params: Promise<{ id: string }> }) {
   // Unwrap params using React.use()
   const unwrappedParams = React.use(params);
@@ -55,6 +63,14 @@ export default function PackageDetailPage({ params }: { params: Promise<{ id: st
           console.log('Fetched package info data:', infoData);
           if (infoData.success) {
             setPackageData({ ...targetPackage, ...infoData.package });
+            
+            // Update stage based on blockchain status
+            if (infoData.status?.status) {
+              const mappedStage = STATUS_TO_STAGE[infoData.status.status];
+              if (mappedStage) {
+                setCurrentStage(mappedStage);
+              }
+            }
           } else {
             setPackageData(targetPackage);
           }

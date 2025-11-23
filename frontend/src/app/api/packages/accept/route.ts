@@ -6,7 +6,7 @@ import type { PackageDetails, PackagePII } from "fraktal-lib";
 export const runtime = "nodejs";
 
 interface Body {
-  packageId?: string;
+  externalId?: string;
   packageDetails?: PackageDetails;
   pii?: PackagePII;
   salt?: string;
@@ -15,12 +15,12 @@ interface Body {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Body;
-    const { packageId, packageDetails, pii, salt } = body ?? {};
+    const { externalId, packageDetails, pii, salt } = body ?? {};
 
     // Basic input validation
-    if (!packageDetails || !pii) {
+    if (!packageDetails || !pii || !externalId) {
       return NextResponse.json(
-        { success: false, error: "`packageDetails` and `pii` are required." },
+        { success: false, error: "`packageDetails`, `pii`, and `externalId` are required." },
         { status: 400 }
       );
     }
@@ -32,8 +32,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // FireFly wants a UUID for the external ID
-    const externalId = crypto.randomUUID();
 
     const service = await getPackageService();
 
@@ -48,7 +46,6 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         externalId,
-        packageId: packageId ?? null,
         result,
       },
       { status: 201 }

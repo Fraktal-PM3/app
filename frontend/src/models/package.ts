@@ -8,7 +8,6 @@ export enum Urgency {
   NONE = "none",
 }
 
-// Define nested schemas
 const LocationSchema = new Schema({
   address: { type: String, required: true },
   lat: { type: Number, required: false },
@@ -33,10 +32,10 @@ const PackageDetailsSchema = new Schema({
   }
 }, { _id: false });
 
-// Define the TypeScript interface
 export interface IPackage extends Document {
   packageID: string;
   externalId: string;
+  termsId?: string;
   active: boolean;
   packageDetails?: {
     pickupLocation: {
@@ -70,11 +69,12 @@ export interface IPackage extends Document {
   updatedAt?: Date;
 }
 
-// Define the schema
+// package schema
 const PackageSchema: Schema<IPackage> = new Schema(
   {
     packageID: { type: String, required: true },
     externalId: { type: String, required: true, default: () => crypto.randomUUID() },
+    termsId: { type: String, required: true, default: "null" },
     active: { type: Boolean, default: true },
     packageDetails: { type: PackageDetailsSchema, required: false },
     price: { type: Number, required: false, min: 0, default: 0 },
