@@ -16,4 +16,11 @@ npm run dev
 
 ```bash
 docker run -d -p 27017:27017 --name mongodb mongo:7
+docker exec -it mongodb mongosh
+use fraktal
+db.packages.find().pretty()
+db.packages.deleteMany({})
 ```
+
+
+

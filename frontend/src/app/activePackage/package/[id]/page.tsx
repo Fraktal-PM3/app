@@ -14,10 +14,8 @@ const STATUS_TO_STAGE: Record<string, string> = {
 };
 
 export default function PackageDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  // Unwrap params using React.use()
   const unwrappedParams = React.use(params);
   
-  // Define demo stages
   const STAGES: Stage[] = [
     { key: 'waiting_pickup', label: 'Waiting for pickup', icon: Clock },
     { key: 'picked_up', label: 'Picked up', icon: Package },
@@ -25,7 +23,6 @@ export default function PackageDetailPage({ params }: { params: Promise<{ id: st
     { key: 'completed', label: 'Completed', icon: CheckCircle2 },
   ];
 
-  // Local state for demo progression and data
   const [currentStage, setCurrentStage] = React.useState(STAGES[0].key);
   const [packageData, setPackageData] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
@@ -33,13 +30,12 @@ export default function PackageDetailPage({ params }: { params: Promise<{ id: st
   
   const currentIndex = STAGES.findIndex((s) => s.key === currentStage);
 
-  // Fetch package data on mount
   React.useEffect(() => {
     const fetchPackageData = async () => {
       try {
         setLoading(true);
         
-        // First, get all packages from MongoDB to find the one with matching packageID
+        //get all packages from MongoDB
         const mongoResponse = await fetch('/api/packages');
         if (!mongoResponse.ok) {
           throw new Error('Failed to fetch packages from MongoDB');
@@ -52,21 +48,36 @@ export default function PackageDetailPage({ params }: { params: Promise<{ id: st
           throw new Error('Package not found');
         }
         
-        //externalId exists, fetch detailed info from blockchain
         if (targetPackage.externalId) {
-          const infoResponse = await fetch(`/api/packages/getInfo?externalId=${targetPackage.externalId}`);
-          if (!infoResponse.ok) {
+          // Fetch blockchain info
+          const blockchainResponse = await fetch(`/api/packages/blockchainInfo?externalId=${targetPackage.externalId}`);
+          if (!blockchainResponse.ok) {
+            throw new Error('Failed to fetch blockchain info');
+          }
+          
+          const blockchainData = await blockchainResponse.json();
+          console.log('Fetched blockchain data:', blockchainData);
+          
+          // Fetch private details
+          const detailsResponse = await fetch(`/api/packages/detailsAndPII?externalId=${targetPackage.externalId}`);
+          if (!detailsResponse.ok) {
             throw new Error('Failed to fetch package details');
           }
           
-          const infoData = await infoResponse.json();
-          console.log('Fetched package info data:', infoData);
-          if (infoData.success) {
-            setPackageData({ ...targetPackage, ...infoData.package });
+          const detailsData = await detailsResponse.json();
+          console.log('Fetched private details:', detailsData);
+          
+          if (blockchainData.success && detailsData.success) {
+            // Merge MongoDB, blockchain, and private details
+            setPackageData({
+              ...targetPackage,
+              ...blockchainData.package,
+              ...detailsData.package,
+            });
             
-            // Update stage based on blockchain status
-            if (infoData.status?.status) {
-              const mappedStage = STATUS_TO_STAGE[infoData.status.status];
+            // update stage based on blockchain status (always available)
+            if (blockchainData.package?.status) {
+              const mappedStage = STATUS_TO_STAGE[blockchainData.package.status];
               if (mappedStage) {
                 setCurrentStage(mappedStage);
               }
@@ -154,19 +165,19 @@ export default function PackageDetailPage({ params }: { params: Promise<{ id: st
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Type:</span>
-                <span>{packageData?.packageDetails?.urgency || 'N/A'}</span>
+                <span>{packageData?.packageDetails?.urgency || 'Not in your hand'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Size:</span>
                 <span>
                   {packageData?.packageDetails?.size 
                     ? `${packageData.packageDetails.size.width}x${packageData.packageDetails.size.height}x${packageData.packageDetails.size.depth} cm`
-                    : 'N/A'}
+                    : 'Not in your hand'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Weight:</span>
-                <span>{packageData?.packageDetails?.weightKg ? `${packageData.packageDetails.weightKg} kg` : 'N/A'}</span>
+                <span>{packageData?.packageDetails?.weightKg ? `${packageData.packageDetails.weightKg} kg` : 'Not in your hand'}</span>
               </div>
             </div>
           </div>
@@ -176,15 +187,15 @@ export default function PackageDetailPage({ params }: { params: Promise<{ id: st
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Pickup:</span>
-                <span>{packageData?.packageDetails?.pickupLocation?.address || 'N/A'}</span>
+                <span>{packageData?.packageDetails?.pickupLocation?.address || 'Not in your hand'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Drop-off:</span>
-                <span>{packageData?.packageDetails?.dropLocation?.address || 'N/A'}</span>
+                <span>{packageData?.packageDetails?.dropLocation?.address || 'Not in your hand'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Reward:</span>
-                <span>{packageData?.price ? `${packageData.price} units` : 'N/A'}</span>
+                <span>{packageData?.price ? `${packageData.price} kr` : 'Not in your hand'}</span>
               </div>
             </div>
           </div>
