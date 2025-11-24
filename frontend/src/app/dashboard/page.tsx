@@ -37,8 +37,6 @@ export default function Dashboard() {
       const output = event.output;
       const packageId = output?.externalId || output?.id;
 
-      console.log("event output:", output);
-
       if (packageId && (output?.pickupLocation || output?.dropLocation)) {
         detailsMap.set(packageId, {
           pickupLocation: output.pickupLocation,
@@ -105,8 +103,6 @@ export default function Dashboard() {
             lat: details.dropLocation?.lat || 0,
             lng: details.dropLocation?.lng || 0,
           },
-          pickupTime: new Date(details.timestamp || Date.now()),
-          deliveryDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
           urgency: details.urgency || "medium",
           reward: calculateReward(details.urgency || "medium"),
           distance: 0, // Could calculate from coordinates
@@ -352,28 +348,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Time Information */}
-                  <div className="flex flex-col sm:flex-row gap-4 mb-4 text-sm text-neutral-400">
-                    <div>
-                      <span className="text-muted-foreground">Pickup Time</span>
-                      <div className="font-medium">
-                        {offer.pickupTime.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Deadline</span>
-                      <div className="font-medium">
-                        {offer.deliveryDeadline.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Actions */}
                   <div className="flex gap-3 mt-auto text-neutral-400">
                     <Link
@@ -384,7 +358,7 @@ export default function Dashboard() {
                     </Link>
                     <button
                       onClick={() => acceptOffer(offer.id)}
-                      className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium"
+                      className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-center"
                     >
                       Accept Delivery
                     </button>

@@ -10,8 +10,6 @@ export interface DeliveryOffer {
   packageType: string;
   pickupLocation: Location;
   dropoffLocation: Location;
-  pickupTime: Date;
-  deliveryDeadline: Date;
   urgency: 'high' | 'medium' | 'low' | 'none';
   reward: number;
   distance: number;
