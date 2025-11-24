@@ -48,6 +48,12 @@ export default function RootLayout({
                 Dashboard
               </Link>
               <Link
+                href="/messages"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Messages
+              </Link>
+              <Link
                 href="/createPackage"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >

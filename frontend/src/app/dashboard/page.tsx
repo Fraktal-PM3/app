@@ -21,6 +21,9 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterUrgency, setFilterUrgency] = useState<string>("all");
   const [offers, setOffers] = useState<DeliveryOffer[]>([]);
+  const [showPriceDialog, setShowPriceDialog] = useState(false);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [proposedPrice, setProposedPrice] = useState("");
   // No transient banner notification; new packages are shown as delivery offers
   const { packages, events, connected } = usePackages();
 
@@ -156,21 +159,55 @@ export default function Dashboard() {
     return matchesSearch && matchesUrgency;
   });
 
-  // Accept offer function - this would update blockchain state via API
-  const acceptOffer = async (id: string) => {
+  // Accept offer function - shows price dialog first
+  const acceptOffer = (id: string) => {
+    setSelectedOfferId(id);
+    setProposedPrice("");
+    setShowPriceDialog(true);
+  };
+
+  // Submit the price proposal to blockchain
+  const submitProposal = async () => {
+    if (!selectedOfferId || !proposedPrice) return;
+
     try {
-      // Update local state immediately for better UX
+      const price = parseFloat(proposedPrice);
+      if (isNaN(price) || price <= 0) {
+        alert("Please enter a valid price");
+        return;
+      }
+
+      // Make API call to propose transfer with price
+      const response = await fetch(`/api/packages/${selectedOfferId}/privateMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error);
+      }
+
+      // Update local state
       setOffers((prevOffers) =>
         prevOffers.map((offer) =>
-          offer.id === id ? { ...offer, status: "accepted" as const } : offer
+          offer.id === selectedOfferId
+            ? { ...offer, status: "accepted" as const }
+            : offer
         )
       );
 
-      // In a real implementation, you would call the API to update blockchain
-      // await updatePackageStatus(id, Status.IN_TRANSIT);
-      console.log(`Package ${id} accepted`);
+      // Close dialog and reset
+      setShowPriceDialog(false);
+      setSelectedOfferId(null);
+      setProposedPrice("");
+
+      console.log(`Proposed transfer for package ${selectedOfferId} at ${price} kr`);
     } catch (error) {
-      console.error("Failed to accept package:", error);
+      console.error("Failed to propose transfer:", error);
+      alert("Failed to propose transfer. Please try again.");
     }
   };
 
@@ -381,6 +418,51 @@ export default function Dashboard() {
           <p className="text-sm text-muted-foreground mt-2">
             Check back soon for new delivery opportunities!
           </p>
+        </div>
+      )}
+
+      {/* Price Dialog */}
+      {showPriceDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-semibold mb-4">Propose Delivery Price</h2>
+            <p className="text-muted-foreground mb-4">
+              Enter your proposed price for this delivery:
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">
+                Price (kr)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={proposedPrice}
+                onChange={(e) => setProposedPrice(e.target.value)}
+                placeholder="Enter price..."
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitProposal();
+                  if (e.key === "Escape") setShowPriceDialog(false);
+                }}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPriceDialog(false)}
+                className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitProposal}
+                className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors"
+              >
+                Submit Proposal
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

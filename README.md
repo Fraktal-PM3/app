@@ -4,7 +4,7 @@
 
 To install all node dependencies
 ```bash
-cd frontend/ && npm i
+cd frontend/ && npm i && npm install https://github.com/Fraktal-PM3/fraktal-lib
 ```
 
 For development in frontend, use:

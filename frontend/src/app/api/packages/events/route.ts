@@ -54,6 +54,11 @@ export async function GET(request: Request) {
         sendEvent("DeletePackage", event);
       });
 
+      await service.onEvent("message", (event) => {
+        console.log("message event received!");
+        sendEvent("message", event);
+      });
+
       // Send initial connection message
       sendEvent("connected", { message: "Connected to package events" });
 
