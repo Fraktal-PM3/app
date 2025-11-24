@@ -1,57 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { getPackageService } from "../service";
-import type { PackageDetails, PackagePII } from "fraktal-lib";
 
 export const runtime = "nodejs";
 
 interface Body {
   externalId?: string;
-  packageDetails?: PackageDetails;
-  pii?: PackagePII;
-  salt?: string;
+  termsId?: string;
+  price : number;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Body;
-    const { externalId, packageDetails, pii, salt } = body ?? {};
+    const { externalId, termsId, price } = body ?? {};
+    const privateTransferTerms = {
+      price: body.price
+    };
 
-    // Basic input validation
-    if (!packageDetails || !pii || !externalId) {
+    if (!externalId || !termsId) {
       return NextResponse.json(
-        { success: false, error: "`packageDetails`, `pii`, and `externalId` are required." },
+        { success: false, error: "`externalId` and `termsId` are required." },
         { status: 400 }
       );
     }
     
-    if (!salt) {
+    if (!privateTransferTerms || typeof privateTransferTerms.price !== 'number') {
       return NextResponse.json(
-      { success: false, error: "salt is required" },
-      { status: 400 }
+        { success: false, error: "`privateTransferTerms` is required." },
+        { status: 400 }
       );
     }
 
-
     const service = await getPackageService();
 
-    const result = await service.createPackage(
+    const result = await service.acceptTransfer(
       externalId,
-      packageDetails,
-      pii,
-      salt
+      termsId,
+      privateTransferTerms
     );
 
     return NextResponse.json(
       {
         success: true,
         externalId,
+        termsId,
         result,
       },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error: any) {
-    console.error("Error in /api/packages/create:", error);
+    console.error("Error in /api/packages/accept:", error);
     return NextResponse.json(
       {
         success: false,
