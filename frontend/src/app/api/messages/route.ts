@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFireFly } from "../packages/service";
+import { FireFlyDataResponse } from "@hyperledger/firefly-sdk";
 
 export async function GET() {
   try {
@@ -9,16 +10,31 @@ export async function GET() {
     // The getMessages() method retrieves messages from the FireFly node
     const messages = await firefly.getMessages();
     
-    // Filter for private messages only (exclude blockchain/broadcast messages)
+    // Filter for private messages only
     const privateMessages = messages.filter(
       (msg) => msg.header?.type === "private" || !msg.header?.type
     );
 
-    console.log("private messages:", privateMessages)
+    const fetches: { promise: Promise<FireFlyDataResponse | undefined>; author?: string }[] = []
+
+    privateMessages.forEach((msg) => {
+        msg.data.forEach((obj) => {
+            if (!obj.id) return
+            fetches.push({ promise: firefly.getData(obj.id), author: msg.header?.author })
+        })
+    })
+
+    const results = await Promise.all(fetches.map((f) => f.promise))
+    const combined = results
+      .map((res, i) => {
+        if (!res) return undefined
+        return { ...res, author: fetches[i].author }
+      })
+      .filter(Boolean)
 
     return NextResponse.json({
       success: true,
-      messages: privateMessages,
+      messages: combined,
       count: privateMessages.length,
     });
   } catch (error) {

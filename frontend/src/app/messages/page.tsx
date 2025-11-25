@@ -30,19 +30,18 @@ export default function MessagesPage() {
         const response = await fetch("/api/messages");
         const data = await response.json();
 
-        console.log("message data:", data)
+        console.log(data)
 
         if (data.success && data.messages) {
           // Transform FireFly messages to our PrivateMessage format
-          const transformedMessages: PrivateMessage[] = data.messages.map((msg: { header?: { id?: string; author?: string; namespace?: string; created?: string; group?: { name: string; members: Array<{ identity: string }> } }; localID?: string; data?: { value?: { PID?: string; Price?: number; message?: string; packageId?: string; price?: number; [key: string]: unknown } } }) => ({
-            id: msg.header?.id || msg.localID || Date.now().toString(),
-            sender: msg.header?.author || "Unknown",
-            recipient: msg.header?.namespace || "You",
-            message: msg.data?.value?.message || `Package: ${msg.data?.value?.PID || 'N/A'}, Price: ${msg.data?.value?.Price || 'N/A'} kr`,
-            timestamp: msg.header?.created || new Date().toISOString(),
-            packageId: msg.data?.value?.PID || msg.data?.value?.packageId,
-            price: msg.data?.value?.Price || msg.data?.value?.price,
-            group: msg.header?.group,
+          const transformedMessages: PrivateMessage[] = data.messages.map((msg: { author?: string; created?: string; id?: string; value?: { PID?: string; price?: number; [key: string]: unknown } }) => ({
+            id: msg.id || Date.now().toString(),
+            sender: msg.author || "Unknown",
+            recipient: "You",
+            message: msg.value?.PID ? `Package ID: ${msg.value.PID}` : "",
+            packageId: msg.value?.PID || "N/A", 
+            price: msg.value?.price || undefined,
+            timestamp: msg.created || new Date().toISOString(),
           }));
 
           setMessages(transformedMessages);
@@ -68,14 +67,13 @@ export default function MessagesPage() {
 
         // Extract message data from the event
         const messageData: PrivateMessage = {
-          id: event.header?.id || event.localID || Date.now().toString(),
-          sender: event.header?.author || "Unknown",
-          recipient: event.header?.namespace || "You",
-          message: event.data?.value?.message || `Package: ${event.data?.value?.PID || 'N/A'}, Price: ${event.data?.value?.Price || 'N/A'} kr`,
-          timestamp: event.header?.created || new Date().toISOString(),
-          packageId: event.data?.value?.PID || event.data?.value?.packageId,
-          price: event.data?.value?.Price || event.data?.value?.price,
-          group: event.header?.group,
+          id: event.id || Date.now().toString(),
+          sender: event.author || "Unknown",
+          recipient: "You",
+          message: event.value?.PID ? `Package ID: ${event.value.PID}` : "",
+          timestamp: event.created || new Date().toISOString(),
+          packageId: event.value?.PID,
+          price: event.value?.price,
         };
 
         // Check if message already exists (avoid duplicates)
@@ -151,7 +149,7 @@ export default function MessagesPage() {
         <div className="lg:col-span-1">
           <div className="rounded-lg border bg-card">
             <div className="p-4 border-b">
-              <h2 className="font-semibold">Inbox</h2>
+              <h2 className="font-semibold text-muted-foreground">Inbox</h2>
               <p className="text-sm text-muted-foreground">
                 {messages.length} {messages.length === 1 ? "message" : "messages"}
               </p>
@@ -180,7 +178,7 @@ export default function MessagesPage() {
                     }`}
                   >
                     <div className="flex items-start justify-between mb-1">
-                      <div className="font-medium text-sm truncate flex-1">
+                      <div className="font-medium text-sm text-muted-foreground truncate flex-1">
                         {msg.sender}
                       </div>
                       <div className="text-xs text-muted-foreground ml-2">
@@ -215,13 +213,12 @@ export default function MessagesPage() {
                 <div className="border-b pb-4 mb-4">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h2 className="text-xl font-semibold mb-1">
+                      <h2 className="text-xl text-muted-foreground font-semibold mb-1">
                         From: {selectedMessage.sender}
                       </h2>
                       {selectedMessage.group && (
                         <p className="text-sm text-muted-foreground">
-                          Group: {selectedMessage.group.name} (
-                          {selectedMessage.group.members.length} members)
+                          Group: {selectedMessage.group.name}
                         </p>
                       )}
                     </div>
@@ -243,19 +240,14 @@ export default function MessagesPage() {
                           {selectedMessage.price} kr
                         </div>
                       </div>
-                      {selectedMessage.packageId && (
-                        <div className="text-sm text-muted-foreground">
-                          Package: {selectedMessage.packageId.substring(0, 8)}...
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
 
                 {/* Message Content */}
                 <div className="bg-accent/50 rounded-lg p-4 mb-4">
-                  <div className="text-sm font-medium mb-2">Message:</div>
-                  <div className="whitespace-pre-wrap wrap-break-word">
+                  <div className="text-sm text-muted-foreground font-medium mb-2">Message:</div>
+                  <div className="whitespace-pre-wrap text-muted-foreground wrap-break-word">
                     {selectedMessage.message}
                   </div>
                 </div>
@@ -264,14 +256,14 @@ export default function MessagesPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Message ID:</span>
-                    <div className="font-mono text-xs mt-1 break-all">
+                    <div className="font-mono text-muted-foreground text-xs mt-1 break-all">
                       {selectedMessage.id}
                     </div>
                   </div>
                   {selectedMessage.packageId && (
                     <div>
                       <span className="text-muted-foreground">Package ID:</span>
-                      <div className="font-mono text-xs mt-1 break-all">
+                      <div className="font-mono text-muted-foreground text-xs mt-1 break-all">
                         {selectedMessage.packageId}
                       </div>
                     </div>
@@ -280,15 +272,12 @@ export default function MessagesPage() {
 
                 {/* Actions */}
                 {selectedMessage.price && selectedMessage.packageId && (
-                  <div className="mt-6 pt-6 border-t flex gap-3">
-                    <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
+                  <div className="mt-6 pt-6 text-muted-foreground border-t flex gap-3">
+                    <button className="px-4 py-2 bg-primary rounded-md hover:bg-primary/90 transition-colors">
                       Accept Proposal
                     </button>
                     <button className="px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors">
                       Decline
-                    </button>
-                    <button className="px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors">
-                      Counter Offer
                     </button>
                   </div>
                 )}

@@ -38,7 +38,7 @@ export async function POST(
         },
         group: {
             //TODO: Get target from pkg.ownerOrgMSP
-            members: [{ identity: "did:firefly:org/org_c0fd19" }],
+            members: [{ identity: "did:firefly:org/org_02ec98" }],
         },
         data: [
             {
