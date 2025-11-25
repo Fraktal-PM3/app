@@ -166,6 +166,8 @@ export default function Dashboard() {
     setShowPriceDialog(true);
   };
 
+  
+
   // Submit the price proposal to blockchain
   const submitProposal = async () => {
     if (!selectedOfferId || !proposedPrice) return;
@@ -176,6 +178,8 @@ export default function Dashboard() {
         alert("Please enter a valid price");
         return;
       }
+
+      
 
       // Make API call to propose transfer with price
       const response = await fetch(`/api/packages/${selectedOfferId}/privateMessage`, {
@@ -188,7 +192,35 @@ export default function Dashboard() {
 
       if (!data.success) {
         throw new Error(data.error);
+      }  
+
+      // Fetch all packages and find the one matching selectedOfferId
+      const mongoID = await fetch(`/api/packages`);
+      const allPackages = await mongoID.json();
+      const matchingPackage = allPackages.find(
+        (pkg: any) => pkg.externalId === selectedOfferId
+      );
+      const packageID = matchingPackage?.packageID;
+
+      if (!packageID) {
+        throw new Error("Package not found in database");
       }
+
+      const mongoRes = await fetch("/api/packages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packageID: packageID,
+          price: price,
+        }),
+      });
+
+      const mongoData = await mongoRes.json();
+      if (!mongoRes.ok || mongoData.error) {
+        throw new Error(mongoData.error || "Failed to save to MongoDB");
+      }
+      
+
 
       // Update local state
       setOffers((prevOffers) =>
