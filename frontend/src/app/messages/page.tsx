@@ -30,7 +30,7 @@ export default function MessagesPage() {
         const response = await fetch("/api/messages");
         const data = await response.json();
 
-        console.log(data)
+        //console.log(data)
 
         if (data.success && data.messages) {
           // Transform FireFly messages to our PrivateMessage format

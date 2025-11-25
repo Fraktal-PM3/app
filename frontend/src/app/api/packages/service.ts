@@ -6,8 +6,13 @@ let fireflyInstance: FireFly | null = null;
 
 export async function getPackageService(): Promise<PackageService> {
   if (!packageService) {
+    // Use port 8000 for transporters, 8001 for others
+    const defaultHost = process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE" 
+      ? "http://localhost:8000" 
+      : "http://localhost:8001";
+    
     fireflyInstance = new FireFly({
-      host: process.env.FIREFLY_HOST || "http://localhost:8001",
+      host: process.env.FIREFLY_HOST || defaultHost,
       namespace: process.env.FIREFLY_NAMESPACE || "default",
     });
 

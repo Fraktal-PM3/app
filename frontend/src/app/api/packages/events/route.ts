@@ -1,4 +1,4 @@
-import { getPackageService } from "../service";
+import { getPackageService, getFireFly } from "../service";
 
 // Use dynamic rendering for SSE
 export const dynamic = "force-dynamic";
@@ -10,6 +10,8 @@ export async function GET(request: Request) {
     async start(controller) {
       const service = await getPackageService();
       let isClosed = false;
+
+      const firefly = await getFireFly();
 
       // Helper to send SSE message
       const sendEvent = (eventName: string, data: unknown) => {
@@ -55,7 +57,6 @@ export async function GET(request: Request) {
       });
 
       await service.onEvent("message", (event) => {
-        console.log("message event received!");
         sendEvent("message", event);
       });
 

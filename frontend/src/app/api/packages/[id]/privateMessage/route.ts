@@ -21,38 +21,38 @@ export async function POST(
     // Get the package to verify it exists
     const pkg = await service.readBlockchainPackage(id);
 
-    console.log("pkg:", pkg)
-    
     if (!pkg) {
       return NextResponse.json(
         { success: false, error: "Package not found" },
         { status: 404 }
       );
     }
-    
+
     // Send a private message with the specified price
     const firefly = await getFireFly();
     const msg = await firefly.sendPrivateMessage({
-        header: {
-            
+      header: {},
+      group: {
+        //TODO: Get target from pkg.ownerOrgMSP
+        members: [{ identity: "did:firefly:org/org_02ec98" }],
+      },
+      data: [
+        {
+          value: {
+            PID: id,
+            price: price,
+          },
         },
-        group: {
-            //TODO: Get target from pkg.ownerOrgMSP
-            members: [{ identity: "did:firefly:org/org_02ec98" }],
-        },
-        data: [
-            {
-                value: {
-                    PID: id,
-                    price: price,
-                },
-            },
-        ],
+      ],
     });
 
-    console.log("msg:", msg)
-    
-    console.log(`Transfer proposed for package ${id} at price ${price}`);
+    const author = await firefly.getIdentities();
+
+    //author.forEach(() => {});
+
+    //console.log("author:", author);
+
+    //console.log(`Transfer proposed for package ${id} at price ${price}`);
 
     return NextResponse.json({
       success: true,
@@ -65,7 +65,8 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to propose transfer",
+        error:
+          error instanceof Error ? error.message : "Failed to propose transfer",
       },
       { status: 500 }
     );
