@@ -3,7 +3,7 @@ import { getFireFly } from "../../service";
 import type { PackageDetails, PackagePII } from "fraktal-lib";
 
 type Body = {
-  packageId?: string;
+  externalId?: string;
   packageDetails: PackageDetails;
   pii: PackagePII;
   salt: string;
@@ -14,7 +14,7 @@ export async function POST(
 ) {
   try {
     const body = (await request.json()) as Body;
-    const { packageId, packageDetails, pii, salt } = body;
+    const { externalId, packageDetails, pii, salt } = body;
 
     if (!packageDetails || !pii) {
       return NextResponse.json(
@@ -23,9 +23,9 @@ export async function POST(
       );
     }
 
-    if (!packageId) {
+    if (!externalId) {
       return NextResponse.json(
-      { success: false, error: "packageId is required" },
+      { success: false, error: "externalId is required" },
       { status: 400 }
       );
     }
@@ -43,7 +43,7 @@ export async function POST(
             version: "1.0.0",
           },
           value: {
-            id: packageId,
+            id: externalId,
             pickupLocation: packageDetails.pickupLocation,
             dropLocation: packageDetails.dropLocation,
             size: packageDetails.size,
