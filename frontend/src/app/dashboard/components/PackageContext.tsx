@@ -43,22 +43,25 @@ type PackageContextType = {
 const PackageContext = createContext<PackageContextType | undefined>(undefined);
 
 const isValidPackage = (data: any): boolean => {
-  return data &&
-         typeof data.id === 'string' &&
-         data.pickupLocation &&
-         typeof data.pickupLocation.address === 'string' &&
-         typeof data.pickupLocation.lat === 'number' &&
-         typeof data.pickupLocation.lng === 'number' &&
-         data.dropLocation &&
-         typeof data.dropLocation.address === 'string' &&
-         typeof data.dropLocation.lat === 'number' &&
-         typeof data.dropLocation.lng === 'number' &&
-         data.size &&
-         typeof data.size.width === 'number' &&
-         typeof data.size.height === 'number' &&
-         typeof data.size.depth === 'number' &&
-         typeof data.weightKg === 'number' &&
-         typeof data.urgency === 'string';
+  const validKeys = ['id', 'pickupLocation', 'dropLocation', 'size', 'weightKg', 'urgency'];
+  const hasOnlyValidKeys = Object.keys(data).every(key => validKeys.includes(key));
+  return hasOnlyValidKeys &&
+        data &&
+        typeof data.id === 'string' &&
+        data.pickupLocation &&
+        typeof data.pickupLocation.address === 'string' &&
+        typeof data.pickupLocation.lat === 'number' &&
+        typeof data.pickupLocation.lng === 'number' &&
+        data.dropLocation &&
+        typeof data.dropLocation.address === 'string' &&
+        typeof data.dropLocation.lat === 'number' &&
+        typeof data.dropLocation.lng === 'number' &&
+        data.size &&
+        typeof data.size.width === 'number' &&
+        typeof data.size.height === 'number' &&
+        typeof data.size.depth === 'number' &&
+        typeof data.weightKg === 'number' &&
+        typeof data.urgency === 'string';
 };
 
 export function PackageProvider({ children }: { children: React.ReactNode }) {
