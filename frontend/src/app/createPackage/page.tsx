@@ -202,6 +202,25 @@ export default function CreatePackagePage() {
           fireflyData.error || "Failed to create package on FireFly"
         );
       }
+
+      // Send package broadcast
+      const pkgBroadcast = await fetch("/api/packages/create/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packageId: externalId, // externalId for FireFly
+          packageDetails,
+          pii,
+          salt
+        }),
+      });
+
+      const broadcastResponse = await pkgBroadcast.json();
+      if (broadcastResponse.success === false) {
+        throw new Error(
+          broadcastResponse.error || "Failed to broadcast package on FireFly"
+        );
+      }
       
       reset();
     } catch (e: any) {

@@ -33,6 +33,7 @@ export async function GET(request: Request) {
 
       // Register handlers for all blockchain events
       await service.onEvent("CreatePackage", (event) => {
+        console.log("CreatePackageEvent");
         sendEvent("CreatePackage", event);
       });
 
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
       });
 
       await service.onEvent("message", (event) => {
+        console.log("messageEvent");
         sendEvent("message", event);
       });
 

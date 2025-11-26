@@ -5,20 +5,6 @@ export interface Location {
   lng: number;
 }
 
-export interface DeliveryOffer {
-  id: string;
-  packageType: string;
-  pickupLocation: Location;
-  dropoffLocation: Location;
-  urgency: 'high' | 'medium' | 'low' | 'none';
-  reward: number;
-  distance: number;
-  weight: number;
-  size: string;
-  customerRating: number;
-  status: 'available' | 'accepted' | 'completed';
-}
-
 export interface PackageDetailsFromEvent {
   pickupLocation?: {
     address: string;
@@ -38,4 +24,5 @@ export interface PackageDetailsFromEvent {
   weightKg?: number;
   urgency?: 'high' | 'medium' | 'low' | 'none';
   timestamp?: string;
+  author?: string;
 }

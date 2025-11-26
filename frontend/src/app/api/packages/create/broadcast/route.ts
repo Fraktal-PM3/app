@@ -54,10 +54,11 @@ export async function POST(
       ],
     });
 
+    console.log("broadcast:", broadcast)
+
     return NextResponse.json({
       success: true,
       message: "Broadcast successful",
-      broadcast,
     });
   } catch (error) {
     console.error("Error sending broadcast:", error);

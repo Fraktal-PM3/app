@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePackages } from "./components/PackageContext";
-import { DeliveryOffer, PackageDetailsFromEvent } from "@/types/delivery";
-import { Status } from "fraktal-lib";
+import { PackageDetailsFromEvent } from "@/types/delivery";
 
 const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
   ssr: false,
@@ -19,7 +17,7 @@ const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
 export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterUrgency, setFilterUrgency] = useState<string>("all");
-  const [offers, setOffers] = useState<DeliveryOffer[]>([]);
+  const [offers, setOffers] = useState<PackageDetailsFromEvent[]>([]);
   const [showPriceDialog, setShowPriceDialog] = useState(false);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [proposedPrice, setProposedPrice] = useState("");
@@ -31,12 +29,13 @@ export default function Dashboard() {
     Map<string, PackageDetailsFromEvent>
   >(new Map());
 
-  // Extract and store package details ONLY from CreatePackage events
+  // Extract and store package details from message events with NewPackage tag
   useEffect(() => {
     const detailsMap = new Map();
 
     events.forEach((event) => {
       const output = event.output;
+      console.log("output:", output)
       const packageId = output?.externalId || output?.id;
 
       if (packageId && (output?.pickupLocation || output?.dropLocation)) {
@@ -47,6 +46,7 @@ export default function Dashboard() {
           weightKg: output.weightKg,
           urgency: output.urgency,
           timestamp: event.timestamp,
+          author: output.author as string | undefined,
         });
       }
     });
@@ -54,90 +54,19 @@ export default function Dashboard() {
     setPackageDetailsMap(detailsMap);
   }, [events]);
 
-  // Create DeliveryOffers ONLY for packages that have a CreatePackage event
+  // Create offers from NewPackage message events
   useEffect(() => {
-    const deliveryOffers: DeliveryOffer[] = [];
+    const packageOffers: PackageDetailsFromEvent[] = [];
 
-    // Only create offers for packages that exist in packageDetailsMap
-    // This ensures we only show packages that were created via "PackageCreated" event
-    packageDetailsMap.forEach((details, packageId) => {
-      const pkg = packages.get(packageId);
-
-      // If package exists in blockchain state, use its status; otherwise default to PENDING
-      if (details) {
-        // Calculate reward based on distance and urgency
-        const calculateReward = (urgency: string) => {
-          switch (urgency) {
-            case "high":
-              return 500;
-            case "medium":
-              return 300;
-            case "low":
-              return 150;
-            case "none":
-              return 100;
-            default:
-              return 250;
-          }
-        };
-
-        deliveryOffers.push({
-          id: packageId,
-          packageType:
-            details.size && details.size.width > 40
-              ? "Large Package"
-              : details.size && details.size.width > 20
-              ? "Standard Package"
-              : "Small Package",
-          pickupLocation: {
-            name:
-              details.pickupLocation?.address?.split(",")[0] ||
-              "Pickup Location",
-            address: details.pickupLocation?.address || "",
-            lat: details.pickupLocation?.lat || 0,
-            lng: details.pickupLocation?.lng || 0,
-          },
-          dropoffLocation: {
-            name:
-              details.dropLocation?.address?.split(",")[0] ||
-              "Dropoff Location",
-            address: details.dropLocation?.address || "",
-            lat: details.dropLocation?.lat || 0,
-            lng: details.dropLocation?.lng || 0,
-          },
-          urgency: details.urgency || "medium",
-          reward: calculateReward(details.urgency || "medium"),
-          distance: 0, // Could calculate from coordinates
-          weight: details.weightKg || 0,
-          size: details.size
-            ? details.size.width > 50
-              ? "large"
-              : details.size.width > 30
-              ? "medium"
-              : "small"
-            : "medium",
-          customerRating: 4.5,
-          status:
-            pkg &&
-            (pkg.status === Status.PENDING ||
-              pkg.status === Status.READY_FOR_PICKUP)
-              ? "available"
-              : pkg &&
-                (pkg.status === Status.IN_TRANSIT ||
-                  pkg.status === Status.PICKED_UP)
-              ? "accepted"
-              : pkg
-              ? "completed"
-              : "available",
-        });
-      }
+    // Convert packageDetailsMap to array of offers
+    packageDetailsMap.forEach((details) => {
+      packageOffers.push(details);
     });
 
-    setOffers(deliveryOffers);
+    setOffers(packageOffers);
     console.log(
-      `Created ${deliveryOffers.length} delivery offers from PackageCreated events`
+      `Created ${packageOffers.length} delivery offers from NewPackage messages`
     );
-
   }, [packages, packageDetailsMap]);
 
   // New packages are reflected in `events` -> `packageDetailsMap` -> `offers`.
@@ -145,23 +74,28 @@ export default function Dashboard() {
   // delivery offer component itself represents the available work item.
 
   // Filter offers based on search and urgency
-  const filteredOffers = offers.filter((offer: DeliveryOffer) => {
+  const filteredOffers = offers.filter((offer: PackageDetailsFromEvent) => {
+    const pickupName = offer.pickupLocation?.address?.split(",")[0] || "";
+    const dropName = offer.dropLocation?.address?.split(",")[0] || "";
+    
     const matchesSearch =
-      offer.packageType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      offer.pickupLocation.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      offer.dropoffLocation.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      pickupName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dropName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesUrgency =
       filterUrgency === "all" || offer.urgency === filterUrgency;
     return matchesSearch && matchesUrgency;
   });
 
   // Accept offer function - shows price dialog first
-  const acceptOffer = (id: string) => {
-    setSelectedOfferId(id);
+  const acceptOffer = (details: PackageDetailsFromEvent) => {
+    // Find the package ID from the map
+    let foundId: string | null = null;
+    packageDetailsMap.forEach((value, key) => {
+      if (value === details) {
+        foundId = key;
+      }
+    });
+    setSelectedOfferId(foundId);
     setProposedPrice("");
     setShowPriceDialog(true);
   };
@@ -179,9 +113,7 @@ export default function Dashboard() {
         return;
       }
 
-      
-
-      // Make API call to propose transfer with price
+      // Make API call to send a private message with price
       const response = await fetch(`/api/packages/${selectedOfferId}/privateMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,7 +130,7 @@ export default function Dashboard() {
       const mongoID = await fetch(`/api/packages`);
       const allPackages = await mongoID.json();
       const matchingPackage = allPackages.find(
-        (pkg: any) => pkg.externalId === selectedOfferId
+        (pkg: { externalId: string; packageID: string }) => pkg.externalId === selectedOfferId
       );
       const packageID = matchingPackage?.packageID;
 
@@ -220,16 +152,6 @@ export default function Dashboard() {
         throw new Error(mongoData.error || "Failed to save to MongoDB");
       }
       
-
-
-      // Update local state
-      setOffers((prevOffers) =>
-        prevOffers.map((offer) =>
-          offer.id === selectedOfferId
-            ? { ...offer, status: "accepted" as const }
-            : offer
-        )
-      );
 
       // Close dialog and reset
       setShowPriceDialog(false);
@@ -333,31 +255,41 @@ export default function Dashboard() {
 
       {/* Delivery Offers List */}
       <div className="space-y-4">
-        {filteredOffers.map((offer: DeliveryOffer) => (
+        {filteredOffers.map((offer: PackageDetailsFromEvent, index: number) => (
           <div
-            key={offer.id}
+            key={index}
             className="rounded-lg border bg-card hover:shadow-md transition-shadow"
           >
             <div className="flex flex-col lg:flex-row">
               {/* Left: Map Section */}
               <div className="lg:w-1/3 p-4">
                 <DeliveryMap
-                  pickup={offer.pickupLocation}
-                  dropoff={offer.dropoffLocation}
+                  pickup={{
+                    name: offer.pickupLocation?.address?.split(",")[0] || "Pickup",
+                    address: offer.pickupLocation?.address || "",
+                    lat: offer.pickupLocation?.lat || 0,
+                    lng: offer.pickupLocation?.lng || 0,
+                  }}
+                  dropoff={{
+                    name: offer.dropLocation?.address?.split(",")[0] || "Dropoff",
+                    address: offer.dropLocation?.address || "",
+                    lat: offer.dropLocation?.lat || 0,
+                    lng: offer.dropLocation?.lng || 0,
+                  }}
                 />
                 <div className="mt-3 space-y-1 text-sm">
                   <div className="flex items-center gap-2 text-green-600">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span className="font-medium">Pickup:</span>
                     <span className="text-muted-foreground truncate">
-                      {offer.pickupLocation.name}
+                      {offer.pickupLocation?.address?.split(",")[0] || "Unknown"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-red-600">
                     <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                     <span className="font-medium">Dropoff:</span>
                     <span className="text-muted-foreground truncate">
-                      {offer.dropoffLocation.name}
+                      {offer.dropLocation?.address?.split(",")[0] || "Unknown"}
                     </span>
                   </div>
                 </div>
@@ -366,67 +298,64 @@ export default function Dashboard() {
               {/* Right: Package Info Section */}
               <div className="lg:w-2/3 p-4 lg:pl-0">
                 <div className="flex flex-col h-full">
-                  {/* Header with urgency and reward */}
+                  {/* Header with urgency */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">
-                        {getSizeIcon(offer.size)}
+                        {getSizeIcon(
+                          offer.size
+                            ? offer.size.width > 50
+                              ? "large"
+                              : offer.size.width > 30
+                              ? "medium"
+                              : "small"
+                            : "medium"
+                        )}
                       </span>
                       <div>
                         <h3 className="text-lg font-semibold text-neutral-400">
-                          {offer.packageType}
+                          {offer.size && offer.size.width > 40
+                            ? "Large Package"
+                            : offer.size && offer.size.width > 20
+                            ? "Standard Package"
+                            : "Small Package"}
                         </h3>
                         <span
                           className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(
-                            offer.urgency
+                            offer.urgency || "medium"
                           )}`}
                         >
-                          {offer.urgency} priority
+                          {offer.urgency || "medium"} priority
                         </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">
-                        {offer.reward} kr
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        reward
+                        {offer.author && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            From: {offer.author}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Package Details */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-sm text-neutral-400">
-                    <div>
-                      <span className="text-muted-foreground">Distance</span>
-                      <div className="font-medium">{offer.distance} km</div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-neutral-400">
                     <div>
                       <span className="text-muted-foreground">Weight</span>
-                      <div className="font-medium">{offer.weight} kg</div>
+                      <div className="font-medium">{offer.weightKg || 0} kg</div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Size</span>
-                      <div className="font-medium capitalize">{offer.size}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Rating</span>
-                      <div className="font-medium flex items-center gap-1">
-                        ⭐ {offer.customerRating}
+                      <div className="font-medium">
+                        {offer.size
+                          ? `${offer.size.width}×${offer.size.height}×${offer.size.depth} cm`
+                          : "Unknown"}
                       </div>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="flex gap-3 mt-auto text-neutral-400">
-                    <Link
-                      href={`/dashboard/package/${offer.id}`}
-                      className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-center"
-                    >
-                      View Details
-                    </Link>
                     <button
-                      onClick={() => acceptOffer(offer.id)}
+                      onClick={() => acceptOffer(offer)}
                       className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-center"
                     >
                       Accept Delivery

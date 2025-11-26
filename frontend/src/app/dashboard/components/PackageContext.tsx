@@ -52,90 +52,47 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       setConnected(true);
     });
 
-    eventSource.addEventListener("CreatePackage", async (e) => {
-      const event: PackageEvent = JSON.parse(e.data);
-      console.log("Package created:", event);
+    eventSource.addEventListener("message", (e) => {
+      // The e.data contains the entire message event from FireFly
+      const rawData = JSON.parse(e.data);
+      console.log("Raw message event received:", rawData);
+      
+      // The header is at the top level of the message event
+      const messageHeader = rawData.header;
+      const messageData = rawData.data;
+      
+      console.log("Message header:", messageHeader);
+      console.log("Sender:", messageHeader?.author);
+      console.log("Tag:", messageHeader?.tag);
 
-      // Fetch full package details from blockchain FIRST
-      const packageId = event.output?.externalId || event.output?.id;
-      if (packageId) {
-        console.log("Fetching package details for:", packageId);
-        const packageDetails = await fetchPackage(packageId);
+      // Only process messages with "NewPackage" tag
+      if (messageHeader?.tag === "NewPackage" && messageData && messageData.length > 0) {
+        const packageData = messageData[0]?.value;
+        if (packageData && packageData.id) {
+          console.log("New package from broadcast:", packageData);
 
-        // Merge the fetched packageDetails into the event output so
-        // downstream consumers (dashboard) can read pickup/drop locations
-        const enrichedEvent = packageDetails
-          ? { ...event, output: { ...event.output, ...packageDetails } }
-          : event;
+          // Create a synthetic event with package details from message
+          const syntheticEvent: PackageEvent = {
+            output: {
+              externalId: packageData.id,
+              id: packageData.id,
+              pickupLocation: packageData.pickupLocation,
+              dropLocation: packageData.dropLocation,
+              size: packageData.size,
+              weightKg: packageData.weightKg,
+              urgency: packageData.urgency,
+              author: messageHeader?.author,
+            },
+            timestamp: rawData.timestamp || new Date().toISOString(),
+          };
 
-        // Only add event to array after package data is fetched
-        // This ensures the dashboard has the data when it processes the event
-        setEvents((prev) => [...prev, enrichedEvent]);
+          setEvents((prev) => [...prev, syntheticEvent]);
+        }
       }
     });
 
-    eventSource.addEventListener("StatusUpdated", (e) => {
-      const event: PackageEvent = JSON.parse(e.data);
-      console.log("Status updated:", event);
-
-      setEvents((prev) => [...prev, event]);
-
-      // Update local package state
-      const packageId = event.output?.externalId || event.output?.id;
-      if (packageId && event.output.status) {
-        setPackages((prev) => {
-          const updated = new Map(prev);
-          const pkg = updated.get(packageId);
-          if (pkg) {
-            updated.set(packageId, {
-              ...pkg,
-              status: event.output.status as Status,
-            });
-          }
-          return updated;
-        });
-      }
-    });
-
-    eventSource.addEventListener("ProposeTransfer", (e) => {
-      const event: PackageEvent = JSON.parse(e.data);
-      console.log("Transfer proposed:", event);
-      setEvents((prev) => [...prev, event]);
-    });
-
-    eventSource.addEventListener("AcceptTransfer", (e) => {
-      const event: PackageEvent = JSON.parse(e.data);
-      console.log("Transfer accepted:", event);
-      setEvents((prev) => [...prev, event]);
-    });
-
-    eventSource.addEventListener("ExecuteTransfer", (e) => {
-      const event: PackageEvent = JSON.parse(e.data);
-      console.log("Transfer executed:", event);
-      setEvents((prev) => [...prev, event]);
-
-      // Refresh package to get new owner
-      if (event.output?.externalId) {
-        fetchPackage(event.output.externalId);
-      }
-    });
-
-    eventSource.addEventListener("DeletePackage", (e) => {
-      const event: PackageEvent = JSON.parse(e.data);
-      console.log("Package deleted:", event);
-
-      setEvents((prev) => [...prev, event]);
-
-      // Remove from local state
-      const packageId = event.output?.id || event.output?.externalId;
-      if (packageId) {
-        setPackages((prev) => {
-          const updated = new Map(prev);
-          updated.delete(packageId);
-          return updated;
-        });
-      }
-    });
+    // We only listen to message events with NewPackage tag now
+    // Remove other event listeners as they are no longer needed for the dashboard
 
     eventSource.onerror = (error) => {
       console.error("SSE Error:", error);

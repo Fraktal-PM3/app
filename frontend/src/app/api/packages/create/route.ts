@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       externalId!,
       packageDetails,
       pii,
-      salt
+      salt,
     );
 
     return NextResponse.json({
