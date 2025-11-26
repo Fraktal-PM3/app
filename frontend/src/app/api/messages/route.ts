@@ -22,7 +22,7 @@ export async function GET() {
             if (!obj.id) return
             fetches.push({ promise: firefly.getData(obj.id), author: msg.header?.author })
         })
-    })
+    });
 
     const results = await Promise.all(fetches.map((f) => f.promise))
     const combined = results

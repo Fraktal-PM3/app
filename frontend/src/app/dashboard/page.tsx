@@ -7,7 +7,6 @@ import { usePackages } from "./components/PackageContext";
 import { DeliveryOffer, PackageDetailsFromEvent } from "@/types/delivery";
 import { Status } from "fraktal-lib";
 
-// Dynamically import DeliveryMap to prevent SSR issues
 const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
   ssr: false,
   loading: () => (
@@ -138,6 +137,7 @@ export default function Dashboard() {
     console.log(
       `Created ${deliveryOffers.length} delivery offers from PackageCreated events`
     );
+
   }, [packages, packageDetailsMap]);
 
   // New packages are reflected in `events` -> `packageDetailsMap` -> `offers`.

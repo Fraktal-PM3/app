@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "transporter": "NEXT_PUBLIC_TRANSPORTER=TRUE next dev --turbopack",
+    "sender": "NEXT_PUBLIC_TRANSPORTER=FALSE next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
