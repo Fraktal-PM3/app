@@ -8,6 +8,12 @@ export enum Urgency {
   NONE = "none",
 }
 
+export enum status {
+  PENDING = "pending",
+  TRUE = "true",
+  FALSE = "false"
+}
+
 const LocationSchema = new Schema({
   address: { type: String, required: true },
   lat: { type: Number, required: false },
@@ -36,7 +42,7 @@ export interface IPackage extends Document {
   packageID: string;
   externalId: string;
   termsId?: string;
-  active: boolean;
+  active: string;
   packageDetails?: {
     pickupLocation: {
       address: string;
@@ -75,7 +81,7 @@ const PackageSchema: Schema<IPackage> = new Schema(
     packageID: { type: String, required: true },
     externalId: { type: String, required: true, default: () => crypto.randomUUID() },
     termsId: { type: String, required: true, default: "null" },
-    active: { type: Boolean, default: true },
+    active: { type: String, default: status.PENDING},  
     packageDetails: { type: PackageDetailsSchema, required: false },
     price: { type: Number, required: false, min: 0, default: 0 },
       // not safe but working for testing purposes
