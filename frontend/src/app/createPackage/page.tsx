@@ -202,7 +202,6 @@ export default function CreatePackagePage() {
           fireflyData.error || "Failed to create package on FireFly"
         );
       }
-
       
       reset();
     } catch (e: any) {

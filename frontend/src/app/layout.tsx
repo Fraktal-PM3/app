@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "../styles/globals.css";
@@ -20,8 +21,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Check if user is a transporter (use NEXT_PUBLIC_ prefix for client-side access)
-  const isTransporter = process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE";
+  // Use state to avoid hydration mismatch
+  const [isTransporter, setIsTransporter] = useState(false);
+
+  useEffect(() => {
+    // Check role only on client side after mount
+    setIsTransporter(process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE");
+  }, []);
 
   return (
     <html lang="en" className="scrollbar-hide">
@@ -70,9 +76,7 @@ export default function RootLayout({
           </div>
         </header>
         <PackageProvider>
-          <main className="flex-1">
-            {children}
-          </main>
+          <main className="flex-1">{children}</main>
         </PackageProvider>
       </body>
     </html>

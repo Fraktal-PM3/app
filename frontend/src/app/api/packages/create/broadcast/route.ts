@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFireFly } from "../../service";
+import type { PackageDetails, PackagePII } from "fraktal-lib";
+
+type Body = {
+  packageId?: string;
+  packageDetails: PackageDetails;
+  pii: PackagePII;
+  salt: string;
+};
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
   try {
-    const { pkg } = await params;
+    const body = (await request.json()) as Body;
+    const { packageId, packageDetails, pii, salt } = body;
+
+    if (!packageDetails || !pii) {
+      return NextResponse.json(
+      { success: false, error: "packageDetails and pii are required" },
+      { status: 400 }
+      );
+    }
+
+    if (!packageId) {
+      return NextResponse.json(
+      { success: false, error: "packageId is required" },
+      { status: 400 }
+      );
+    }
 
     // Send a broadcast with the specified package details
     const firefly = await getFireFly();
@@ -21,12 +43,12 @@ export async function POST(
             version: "1.0.0",
           },
           value: {
-            id: "string",
-            pickupLocation: null,
-            dropLocation: null,
-            size: null,
-            weightKg: 50.5,
-            urgency: null,
+            id: packageId,
+            pickupLocation: packageDetails.pickupLocation,
+            dropLocation: packageDetails.dropLocation,
+            size: packageDetails.size,
+            weightKg: packageDetails.weightKg,
+            urgency: packageDetails.urgency,
           },
         },
       ],
@@ -35,6 +57,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: "Broadcast successful",
+      broadcast,
     });
   } catch (error) {
     console.error("Error sending broadcast:", error);

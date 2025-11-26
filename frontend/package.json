@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "transporter": "NEXT_PUBLIC_TRANSPORTER=TRUE next dev --turbopack",
-    "sender": "NEXT_PUBLIC_TRANSPORTER=FALSE next dev --turbopack",
+    "transporter": "NEXT_PUBLIC_TRANSPORTER=TRUE MONGODB_URI=mongodb://localhost:27067/fraktal next dev --turbopack",
+    "sender": "NEXT_PUBLIC_TRANSPORTER=FALSE MONGODB_URI=mongodb://localhost:27017/fraktal next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
