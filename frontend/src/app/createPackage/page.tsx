@@ -208,7 +208,7 @@ export default function CreatePackagePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packageId: externalId, // externalId for FireFly
+          externalId: externalId, // externalId for FireFly
           packageDetails,
           pii,
           salt

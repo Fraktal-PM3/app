@@ -20,6 +20,12 @@ type PackageEvent = {
     id?: string;
     externalId?: string;
     status?: Status;
+    pickupLocation?: any;
+    dropLocation?: any;
+    size?: any;
+    weightKg?: number;
+    urgency?: string;
+    author?: string;
     [key: string]: unknown;
   };
   timestamp: string;
@@ -35,6 +41,25 @@ type PackageContextType = {
 };
 
 const PackageContext = createContext<PackageContextType | undefined>(undefined);
+
+const isValidPackage = (data: any): boolean => {
+  return data &&
+         typeof data.id === 'string' &&
+         data.pickupLocation &&
+         typeof data.pickupLocation.address === 'string' &&
+         typeof data.pickupLocation.lat === 'number' &&
+         typeof data.pickupLocation.lng === 'number' &&
+         data.dropLocation &&
+         typeof data.dropLocation.address === 'string' &&
+         typeof data.dropLocation.lat === 'number' &&
+         typeof data.dropLocation.lng === 'number' &&
+         data.size &&
+         typeof data.size.width === 'number' &&
+         typeof data.size.height === 'number' &&
+         typeof data.size.depth === 'number' &&
+         typeof data.weightKg === 'number' &&
+         typeof data.urgency === 'string';
+};
 
 export function PackageProvider({ children }: { children: React.ReactNode }) {
   const [packages, setPackages] = useState<Map<string, BlockchainPackage>>(
@@ -53,46 +78,31 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
     });
 
     eventSource.addEventListener("message", (e) => {
-      // The e.data contains the entire message event from FireFly
       const rawData = JSON.parse(e.data);
-      console.log("Raw message event received:", rawData);
       
-      // The header is at the top level of the message event
-      const messageHeader = rawData.header;
-      const messageData = rawData.data;
+      const packageData = rawData.value;
+      const author = rawData.author;
       
-      console.log("Message header:", messageHeader);
-      console.log("Sender:", messageHeader?.author);
-      console.log("Tag:", messageHeader?.tag);
+      if (isValidPackage(packageData)) {
+        const syntheticEvent: PackageEvent = {
+          output: {
+            externalId: packageData.id,
+            id: packageData.id,
+            pickupLocation: packageData.pickupLocation,
+            dropLocation: packageData.dropLocation,
+            size: packageData.size,
+            weightKg: packageData.weightKg,
+            urgency: packageData.urgency,
+            author: author,
+          },
+          timestamp: rawData.created || new Date().toISOString(),
+        };
 
-      // Only process messages with "NewPackage" tag
-      if (messageHeader?.tag === "NewPackage" && messageData && messageData.length > 0) {
-        const packageData = messageData[0]?.value;
-        if (packageData && packageData.id) {
-          console.log("New package from broadcast:", packageData);
-
-          // Create a synthetic event with package details from message
-          const syntheticEvent: PackageEvent = {
-            output: {
-              externalId: packageData.id,
-              id: packageData.id,
-              pickupLocation: packageData.pickupLocation,
-              dropLocation: packageData.dropLocation,
-              size: packageData.size,
-              weightKg: packageData.weightKg,
-              urgency: packageData.urgency,
-              author: messageHeader?.author,
-            },
-            timestamp: rawData.timestamp || new Date().toISOString(),
-          };
-
-          setEvents((prev) => [...prev, syntheticEvent]);
-        }
+        setEvents((prev) => [...prev, syntheticEvent]);
+      } else {
+        console.log("Invalid package structure, ignoring message");
       }
     });
-
-    // We only listen to message events with NewPackage tag now
-    // Remove other event listeners as they are no longer needed for the dashboard
 
     eventSource.onerror = (error) => {
       console.error("SSE Error:", error);
@@ -102,13 +112,10 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
     return () => {
       eventSource.close();
     };
-    // Note: Empty dependency array is intentional - we want this to run once
-    // Fast Refresh will cause a full reload when this component changes (expected behavior)
   }, []);
 
   const fetchPackage = async (id: string): Promise<PackageDetails | null> => {
     try {
-      // Use the existing server-side service via API route
       const response = await fetch(`/api/packages/${id}`);
       const data = await response.json();
 
@@ -116,10 +123,8 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         const pkg = data.package;
         console.log("Fetched package data:", pkg);
 
-        // Cache the full package object locally (includes pii, salt, packageDetails)
         setPackages((prev) => new Map(prev).set(id, pkg));
 
-        // Return the nested packageDetails for callers that want the payload
         return pkg.packageDetails || null;
       }
     } catch (error) {
@@ -177,12 +182,10 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
 
   const getPackage = useCallback(
     async (id: string): Promise<BlockchainPackage | null> => {
-      // Check local cache first
       if (packages.has(id)) {
         return packages.get(id)!;
       }
 
-      // Fetch from API
       await fetchPackage(id);
       return packages.get(id) || null;
     },
