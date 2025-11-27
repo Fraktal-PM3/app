@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { UserRole } from "./useRoleDetection";
 import { addHours, differenceInHours, format, startOfWeek } from "date-fns";
-import { Package } from "@/types/package";
+import { Package, Transfer, TransferStatus } from "@/types/package";
 
 export type PackageMetrics = {
   activeShipments: number;
@@ -33,6 +33,7 @@ export type PackageMetrics = {
 
 export function usePackageMetrics(
   packages: Package[],
+  transfers: Transfer[],
   role: UserRole,
 ): PackageMetrics {
   return useMemo(() => {
@@ -41,16 +42,23 @@ export function usePackageMetrics(
       (pkg) => pkg.active === "true" && pkg.packageDetails,
     ).length;
 
-    // Earnings - for transporters (packages with price set)
-    const totalEarnings = packages
-      .filter((pkg) => pkg.price && pkg.price > 0)
-      .reduce((sum, pkg) => sum + (pkg.price || 0), 0);
+    // Get only EXECUTED transfers for financial calculations
+    const executedTransfers = transfers.filter(
+      (t) => t.status === TransferStatus.EXECUTED && t.price && t.price > 0
+    );
 
-    // Spending - for senders (all packages they created)
-    // Note: In a real app, we'd filter by user ID
-    const totalSpending = packages
-      .filter((pkg) => pkg.price && pkg.price > 0)
-      .reduce((sum, pkg) => sum + (pkg.price || 0), 0);
+    // Earnings - for transporters (sum of executed transfer prices received)
+    const totalEarnings = executedTransfers.reduce(
+      (sum, transfer) => sum + (transfer.price || 0),
+      0
+    );
+
+    // Spending - for senders (sum of executed transfer prices paid)
+    // Note: In a real app, we'd filter by user MSP to distinguish sender vs transporter
+    const totalSpending = executedTransfers.reduce(
+      (sum, transfer) => sum + (transfer.price || 0),
+      0
+    );
 
     // Acceptance rate - for transporters
     // Simplified: ratio of packages with terms vs total packages
@@ -101,7 +109,7 @@ export function usePackageMetrics(
     const packagesOverTime = getPackagesOverTime(packages);
 
     // Earnings by week
-    const earningsByWeek = getEarningsByWeek(packages);
+    const earningsByWeek = getEarningsByWeek(executedTransfers);
 
     // Status distribution
     const statusDistribution = getStatusDistribution(packages);
@@ -117,7 +125,7 @@ export function usePackageMetrics(
       earningsByWeek,
       statusDistribution,
     };
-  }, [packages, role]);
+  }, [packages, transfers, role]);
 }
 
 function getExpectedHours(urgency: string): number {
@@ -153,18 +161,18 @@ function getPackagesOverTime(
 }
 
 function getEarningsByWeek(
-  packages: Package[],
+  transfers: Transfer[],
 ): Array<{ week: string; amount: number }> {
-  // Group packages with prices by week
+  // Group executed transfers by week
   const weekGroups = new Map<string, number>();
 
-  packages
-    .filter((pkg) => pkg.price && pkg.price > 0 && pkg.updatedAt)
-    .forEach((pkg) => {
-      const updated = new Date(pkg.updatedAt!);
+  transfers
+    .filter((transfer) => transfer.price && transfer.price > 0 && transfer.updatedAt)
+    .forEach((transfer) => {
+      const updated = new Date(transfer.updatedAt!);
       const weekStart = startOfWeek(updated, { weekStartsOn: 1 });
       const week = format(weekStart, "MMM dd");
-      weekGroups.set(week, (weekGroups.get(week) || 0) + (pkg.price || 0));
+      weekGroups.set(week, (weekGroups.get(week) || 0) + (transfer.price || 0));
     });
 
   // Convert to array and sort

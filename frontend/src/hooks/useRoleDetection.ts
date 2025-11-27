@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package } from "./usePackages";
+import type { Package } from "@/types/package";
 
 export type UserRole = "sender" | "transporter";
 

@@ -106,13 +106,10 @@ export class Package {
   public termsId?: string;
 
   @prop({ default: Status.PENDING, enum: Status })
-  public active!: string;
+  public status!: string;
 
   @prop({ _id: false })
   public packageDetails?: PackageDetails;
-
-  @prop({ min: 0, default: 0 })
-  public price?: number;
 
   // not safe but working for testing purposes
   @prop()
@@ -120,6 +117,10 @@ export class Package {
 
   @prop({ _id: false })
   public pii?: PII;
+
+  // Blockchain metadata
+  @prop()
+  public mspId?: string; // MSP ID of the organization that created/owns this package
 
   // Timestamps (added automatically by timestamps: true)
   public createdAt?: Date;
@@ -129,7 +130,9 @@ export class Package {
 // Export the model with hot reload handling for Next.js
 let PackageModel: ReturnType<typeof getModelForClass<typeof Package>>;
 try {
-  PackageModel = (mongoose.models && (mongoose.models.Package as any)) || getModelForClass(Package);
+  PackageModel =
+    (mongoose.models && (mongoose.models.Package as any)) ||
+    getModelForClass(Package);
 } catch (err) {
   PackageModel = getModelForClass(Package);
 }
@@ -138,4 +141,3 @@ try {
 export type PackageDocument = DocumentType<Package>;
 
 export default PackageModel;
-

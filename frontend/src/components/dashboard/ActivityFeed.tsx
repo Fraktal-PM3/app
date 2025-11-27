@@ -5,182 +5,141 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
   Package as PackageIcon,
-  MapPin,
+  Activity as ActivityIcon,
   Clock,
-  Activity,
-  Circle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import type { Package } from "@/types/package";
-import { Status } from "@/types/package";
+import { useRecentActivity, type Activity } from "@/hooks/useRecentActivity";
 
-type ActivityFeedProps = {
-  packages: Package[];
-};
+export function ActivityFeed() {
+  const { activities, isConnected } = useRecentActivity();
 
-export function ActivityFeed({ packages }: ActivityFeedProps) {
-  const recentPackages = [...packages]
-    .sort((a, b) => {
-      const dateA = new Date(a.updatedAt || a.createdAt || 0);
-      const dateB = new Date(b.updatedAt || b.createdAt || 0);
-      return dateB.getTime() - dateA.getTime();
-    })
-    .slice(0, 10);
-
-  const getStatusBadge = (active?: string) => {
-    switch (active) {
-      case "true":
+  const getActivityBadge = (type: Activity["type"]) => {
+    switch (type) {
+      case "CreatePackage":
         return (
-          <Badge className="bg-foreground text-background font-mono text-xs">
-            ACTIVE
+          <Badge className="bg-blue-600 text-white font-mono text-xs">
+            CREATE
           </Badge>
         );
-      case Status.PENDING:
+      case "StatusUpdated":
         return (
           <Badge variant="outline" className="font-mono text-xs">
-            PENDING
+            STATUS
           </Badge>
         );
-      case Status.READY_FOR_PICKUP:
+      case "ProposeTransfer":
         return (
-          <Badge className="bg-foreground text-background font-mono text-xs">
-            READY
+          <Badge className="bg-yellow-600 text-white font-mono text-xs">
+            PROPOSE
           </Badge>
         );
-      case Status.PICKED_UP:
+      case "AcceptTransfer":
         return (
-          <Badge variant="outline" className="font-mono text-xs">
-            PICKED UP
+          <Badge className="bg-green-600 text-white font-mono text-xs">
+            ACCEPT
           </Badge>
         );
-      case Status.IN_TRANSIT:
+      case "TransferExecuted":
         return (
-          <Badge className="bg-foreground text-background font-mono text-xs">
-            IN TRANSIT
+          <Badge className="bg-purple-600 text-white font-mono text-xs">
+            EXECUTE
           </Badge>
         );
-      case Status.DELIVERED:
-      case Status.SUCCEEDED:
-      case "false":
+      case "DeletePackage":
         return (
-          <Badge
-            variant="outline"
-            className="border-muted-foreground/30 text-muted-foreground font-mono text-xs"
-          >
-            DONE
+          <Badge className="bg-red-600 text-white font-mono text-xs">
+            DELETE
           </Badge>
         );
-      case Status.FAILED:
+      case "PackageAnnouncement":
         return (
-          <Badge className="bg-red-600 text-background font-mono text-xs">
-            FAILED
+          <Badge className="bg-indigo-600 text-white font-mono text-xs">
+            ANNOUNCE
           </Badge>
         );
-      case Status.PROPOSED:
+      case "TransferOffer":
         return (
-          <Badge variant="outline" className="font-mono text-xs">
-            PROPOSED
+          <Badge className="bg-amber-600 text-white font-mono text-xs">
+            OFFER
           </Badge>
         );
-      default: {
-        const label = String(active ?? "unknown").toUpperCase();
+      case "Message":
         return (
           <Badge variant="outline" className="font-mono text-xs">
-            {label}
+            MESSAGE
           </Badge>
         );
-      }
+      default:
+        return (
+          <Badge variant="outline" className="font-mono text-xs">
+            UNKNOWN
+          </Badge>
+        );
     }
-  };
-
-  const getUrgencyIndicator = (urgency?: string) => {
-    if (urgency === "high") {
-      return <Circle className="h-2 w-2 fill-foreground" />;
-    }
-    return null;
   };
 
   return (
     <Card className="border-border bg-card">
       <CardHeader className="border-b border-border">
-        <CardTitle className="flex items-center gap-2 font-mono text-sm uppercase tracking-wider">
-          <Activity className="h-4 w-4" />
-          Recent Activity
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-mono text-sm uppercase tracking-wider">
+            <ActivityIcon className="h-4 w-4" />
+            Recent Activity
+          </div>
+          {isConnected && (
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="font-mono text-xs text-muted-foreground">
+                LIVE
+              </span>
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[450px]">
           <div className="space-y-px p-4">
-            {recentPackages.length === 0 ? (
+            {activities.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <PackageIcon className="mb-4 h-12 w-12 text-muted-foreground" />
+                <ActivityIcon className="mb-4 h-12 w-12 text-muted-foreground" />
                 <p className="font-mono text-sm text-foreground">
-                  No packages yet
+                  No activity yet
                 </p>
                 <p className="font-mono text-xs text-muted-foreground mt-1">
-                  Create your first package to get started
+                  Activity will appear here as events occur
                 </p>
               </div>
             ) : (
-              recentPackages.map((pkg) => (
+              activities.map((activity) => (
                 <div
-                  key={String(pkg._id)}
+                  key={activity.id}
                   className="border border-border bg-card p-3 transition-all hover:border-foreground/20 hover:bg-muted/30"
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <PackageIcon className="h-3 w-3 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-mono text-sm font-bold break-all">
-                          {pkg.packageID}
+                        <p className="font-mono text-sm font-bold">
+                          {activity.title}
                         </p>
-                        {pkg.price && pkg.price > 0 && (
-                          <p className="font-mono text-xs text-muted-foreground">
-                            {pkg.price.toLocaleString()} kr
-                          </p>
-                        )}
+                        <p className="font-mono text-xs text-muted-foreground mt-0.5 break-words">
+                          {activity.description}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {pkg.packageDetails?.urgency &&
-                        getUrgencyIndicator(pkg.packageDetails.urgency)}
-                      {getStatusBadge(pkg.active)}
+                    <div className="shrink-0">
+                      {getActivityBadge(activity.type)}
                     </div>
                   </div>
 
-                  {pkg.packageDetails && (
-                    <div className="space-y-1.5 text-xs font-mono">
-                      <div className="flex items-start gap-2 text-muted-foreground">
-                        <MapPin className="mt-0.5 h-3 w-3 flex-shrink-0" />
-                        <div className="flex-1 min-w-0 space-y-0.5">
-                          <div className="truncate">
-                            {pkg.packageDetails.pickupLocation.address}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span>→</span>
-                            <div className="truncate">
-                              {pkg.packageDetails.dropLocation.address}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-muted-foreground pt-1 border-t border-border">
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          {pkg.updatedAt
-                            ? formatDistanceToNow(new Date(pkg.updatedAt), {
-                                addSuffix: true,
-                              })
-                            : pkg.createdAt
-                              ? formatDistanceToNow(new Date(pkg.createdAt), {
-                                  addSuffix: true,
-                                })
-                              : "Unknown"}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 text-muted-foreground pt-2 border-t border-border">
+                    <Clock className="h-3 w-3" />
+                    <span className="font-mono text-xs">
+                      {formatDistanceToNow(new Date(activity.timestamp), {
+                        addSuffix: true,
+                      })}
+                    </span>
+                  </div>
                 </div>
               ))
             )}

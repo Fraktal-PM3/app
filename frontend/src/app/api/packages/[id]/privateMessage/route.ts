@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPackageService, getFireFly } from "../../service";
+import dbConnect from "@/lib/dbService";
+import PackageAnnouncementModel from "@/models/packageAnnouncement";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const { price } = await request.json();
+    const { price, message } = await request.json();
 
     if (!price || typeof price !== "number" || price <= 0) {
       return NextResponse.json(
@@ -28,19 +30,42 @@ export async function POST(
       );
     }
 
-    // Send a private message with the specified price
+    // Look up the package announcement to get the announcer's identity
+    await dbConnect();
+    const announcement = await PackageAnnouncementModel.findOne({
+      packageExternalId: id,
+      isActive: true,
+    }).sort({ createdAt: -1 });
+
+    if (!announcement || !announcement.announcerNode) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Package announcement not found or announcer identity unavailable",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Send a private message with the specified price to the announcer
     const firefly = await getFireFly();
     const msg = await firefly.sendPrivateMessage({
-      header: {},
+      header: {
+        tag: "TRANSFER_OFFER",
+      },
       group: {
-        //TODO: Get target from pkg.ownerOrgMSP
-        members: [{ identity: "did:firefly:org/org_02ec98" }],
+        members: [{ identity: announcement.announcerNode }],
       },
       data: [
         {
+          datatype: {
+            name: "TransferOffer",
+            version: "1.0.0",
+          },
           value: {
-            PID: id,
+            packageId: id,
             price: price,
+            message: message || undefined,
           },
         },
       ],

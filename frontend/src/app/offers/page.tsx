@@ -1,431 +1,210 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-import { usePackages } from "./components/PackageContext";
-import { PackageDetailsFromEvent } from "@/types/delivery";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { usePackageAnnouncements, PackageAnnouncement } from "@/hooks/usePackageAnnouncements";
+import { AnnouncementCard } from "@/components/announcements/AnnouncementCard";
+import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
+import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
+import { Badge } from "@/components/ui/badge";
+import { Briefcase, Search } from "lucide-react";
 
-const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-40 w-full bg-slate-100 rounded-lg flex items-center justify-center border border-border">
-      <div className="text-center text-muted-foreground">Loading map...</div>
-    </div>
-  ),
-});
+export default function OffersPage() {
+  const {
+    announcements,
+    isLoading,
+    isConnected,
+    error,
+    refetch,
+  } = usePackageAnnouncements(true); // Only active announcements
 
-export default function Dashboard() {
+  const [selectedAnnouncement, setSelectedAnnouncement] =
+    useState<PackageAnnouncement | null>(null);
+  const [showOfferModal, setShowOfferModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterUrgency, setFilterUrgency] = useState<string>("all");
-  const [offers, setOffers] = useState<PackageDetailsFromEvent[]>([]);
-  const [showPriceDialog, setShowPriceDialog] = useState(false);
-  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
-  const [proposedPrice, setProposedPrice] = useState("");
-  // No transient banner notification; new packages are shown as delivery offers
-  const { packages, events, connected } = usePackages();
+  const [sentOffers, setSentOffers] = useState<Set<string>>(new Set());
 
-  // Store package details from events separately
-  const [packageDetailsMap, setPackageDetailsMap] = useState<
-    Map<string, PackageDetailsFromEvent>
-  >(new Map());
+  const handleSendOffer = (announcement: PackageAnnouncement) => {
+    setSelectedAnnouncement(announcement);
+    setShowOfferModal(true);
+  };
 
-  // Extract and store package details from message events with NewPackage tag
-  useEffect(() => {
-    const detailsMap = new Map();
+  const handleOfferSuccess = () => {
+    if (selectedAnnouncement) {
+      setSentOffers((prev) => new Set(prev).add(selectedAnnouncement._id));
+    }
+    refetch();
+  };
 
-    events.forEach((event) => {
-      const output = event.output;
-      console.log("output:", output)
-      const packageId = output?.externalId || output?.id;
+  // Filter announcements based on search and urgency
+  const filteredAnnouncements = announcements.filter((announcement) => {
+    const pkg = announcement.packageDetails;
+    if (!pkg) return false;
 
-      if (packageId && (output?.pickupLocation || output?.dropLocation)) {
-        detailsMap.set(packageId, {
-          pickupLocation: output.pickupLocation,
-          dropLocation: output.dropLocation,
-          size: output.size,
-          weightKg: output.weightKg,
-          urgency: output.urgency,
-          timestamp: event.timestamp,
-          author: output.author as string | undefined,
-        });
-      }
-    });
+    const pickupAddress = pkg.pickupLocation?.address || "";
+    const dropAddress = pkg.dropLocation?.address || "";
 
-    setPackageDetailsMap(detailsMap);
-  }, [events]);
-
-  // Create offers from NewPackage message events
-  useEffect(() => {
-    const packageOffers: PackageDetailsFromEvent[] = [];
-
-    // Convert packageDetailsMap to array of offers
-    packageDetailsMap.forEach((details) => {
-      packageOffers.push(details);
-    });
-
-    setOffers(packageOffers);
-    console.log(
-      `Created ${packageOffers.length} delivery offers from NewPackage messages`
-    );
-  }, [packages, packageDetailsMap]);
-
-  // New packages are reflected in `events` -> `packageDetailsMap` -> `offers`.
-  // We intentionally do not show a transient notification banner; the
-  // delivery offer component itself represents the available work item.
-
-  // Filter offers based on search and urgency
-  const filteredOffers = offers.filter((offer: PackageDetailsFromEvent) => {
-    const pickupName = offer.pickupLocation?.address?.split(",")[0] || "";
-    const dropName = offer.dropLocation?.address?.split(",")[0] || "";
-    
     const matchesSearch =
-      pickupName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dropName.toLowerCase().includes(searchTerm.toLowerCase());
+      searchTerm === "" ||
+      pickupAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dropAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      announcement.packageExternalId
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
     const matchesUrgency =
-      filterUrgency === "all" || offer.urgency === filterUrgency;
+      filterUrgency === "all" || pkg.urgency === filterUrgency;
+
     return matchesSearch && matchesUrgency;
   });
 
-  // Accept offer function - shows price dialog first
-  const acceptOffer = (details: PackageDetailsFromEvent) => {
-    // Find the package ID from the map
-    let foundId: string | null = null;
-    packageDetailsMap.forEach((value, key) => {
-      if (value === details) {
-        foundId = key;
-      }
-    });
-    setSelectedOfferId(foundId);
-    setProposedPrice("");
-    setShowPriceDialog(true);
-  };
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="border border-destructive/50 bg-destructive/10 p-6">
+          <h2 className="mb-2 font-mono text-sm font-bold uppercase">
+            Connection Error
+          </h2>
+          <p className="font-mono text-xs text-destructive/90">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
-  
-
-  // Submit the price proposal to blockchain
-  const submitProposal = async () => {
-    if (!selectedOfferId || !proposedPrice) return;
-
-    try {
-      const price = parseFloat(proposedPrice);
-      if (isNaN(price) || price <= 0) {
-        alert("Please enter a valid price");
-        return;
-      }
-
-      // Make API call to send a private message with price
-      const response = await fetch(`/api/packages/${selectedOfferId}/privateMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ price }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error);
-      }  
-
-      // Fetch all packages and find the one matching selectedOfferId
-      const mongoID = await fetch(`/api/packages`);
-      const allPackages = await mongoID.json();
-      const matchingPackage = allPackages.find(
-        (pkg: { externalId: string; packageID: string }) => pkg.externalId === selectedOfferId
-      );
-      const packageID = matchingPackage?.packageID;
-
-      if (!packageID) {
-        throw new Error("Package not found in database");
-      }
-
-      const mongoRes = await fetch("/api/packages", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          packageID: packageID,
-          price: price,
-        }),
-      });
-
-      const mongoData = await mongoRes.json();
-      if (!mongoRes.ok || mongoData.error) {
-        throw new Error(mongoData.error || "Failed to save to MongoDB");
-      }
-      
-
-      // Close dialog and reset
-      setShowPriceDialog(false);
-      setSelectedOfferId(null);
-      setProposedPrice("");
-
-      console.log(`Proposed transfer for package ${selectedOfferId} at ${price} kr`);
-    } catch (error) {
-      console.error("Failed to propose transfer:", error);
-      alert("Failed to propose transfer. Please try again.");
-    }
-  };
-
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case "high":
-        return "bg-red-100 text-red-800";
-      case "medium":
-        return "bg-yellow-100 text-yellow-800";
-      case "low":
-        return "bg-green-100 text-green-800";
-      case "none":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getSizeIcon = (size: string) => {
-    switch (size) {
-      case "small":
-        return "📦";
-      case "medium":
-        return "📫";
-      case "large":
-        return "📦";
-      default:
-        return "📦";
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="container mx-auto space-y-8 py-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <Separator className="bg-border" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-[500px]" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2">
-              Active Delivery Offers
-            </h1>
-            <p className="text-muted-foreground">
-              Browse and accept available package delivery opportunities in your
-              area.
-            </p>
-          </div>
-          {/* Real-time connection status */}
-          <div className="flex flex-col gap-1 text-sm">
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  connected ? "bg-blue-500" : "bg-gray-400"
-                }`}
-              ></div>
-              <span className="text-muted-foreground">
-                Firefly: {connected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
-            <div className="text-muted-foreground text-xs">
-              {packages.size} packages tracked • {events.length} events received
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        {/* Search */}
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search by package type or location..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-
-        {/* Filter */}
-        <select
-          value={filterUrgency}
-          onChange={(e) => setFilterUrgency(e.target.value)}
-          className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto space-y-8 py-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"
         >
-          <option value="all">All Urgency</option>
-          <option value="high">High Priority</option>
-          <option value="medium">Medium Priority</option>
-          <option value="low">Low Priority</option>
-          <option value="none">No Urgency</option>
-        </select>
-      </div>
-
-      {/* Delivery Offers List */}
-      <div className="space-y-4">
-        {filteredOffers.map((offer: PackageDetailsFromEvent, index: number) => (
-          <div
-            key={index}
-            className="rounded-lg border bg-card hover:shadow-md transition-shadow"
-          >
-            <div className="flex flex-col lg:flex-row">
-              {/* Left: Map Section */}
-              <div className="lg:w-1/3 p-4">
-                <DeliveryMap
-                  pickup={{
-                    name: offer.pickupLocation?.address?.split(",")[0] || "Pickup",
-                    address: offer.pickupLocation?.address || "",
-                    lat: offer.pickupLocation?.lat || 0,
-                    lng: offer.pickupLocation?.lng || 0,
-                  }}
-                  dropoff={{
-                    name: offer.dropLocation?.address?.split(",")[0] || "Dropoff",
-                    address: offer.dropLocation?.address || "",
-                    lat: offer.dropLocation?.lat || 0,
-                    lng: offer.dropLocation?.lng || 0,
-                  }}
-                />
-                <div className="mt-3 space-y-1 text-sm">
-                  <div className="flex items-center gap-2 text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="font-medium">Pickup:</span>
-                    <span className="text-muted-foreground truncate">
-                      {offer.pickupLocation?.address?.split(",")[0] || "Unknown"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-red-600">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    <span className="font-medium">Dropoff:</span>
-                    <span className="text-muted-foreground truncate">
-                      {offer.dropLocation?.address?.split(",")[0] || "Unknown"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Package Info Section */}
-              <div className="lg:w-2/3 p-4 lg:pl-0">
-                <div className="flex flex-col h-full">
-                  {/* Header with urgency */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        {getSizeIcon(
-                          offer.size
-                            ? offer.size.width > 50
-                              ? "large"
-                              : offer.size.width > 30
-                              ? "medium"
-                              : "small"
-                            : "medium"
-                        )}
-                      </span>
-                      <div>
-                        <h3 className="text-lg font-semibold text-neutral-400">
-                          {offer.size && offer.size.width > 40
-                            ? "Large Package"
-                            : offer.size && offer.size.width > 20
-                            ? "Standard Package"
-                            : "Small Package"}
-                        </h3>
-                        <span
-                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(
-                            offer.urgency || "medium"
-                          )}`}
-                        >
-                          {offer.urgency || "medium"} priority
-                        </span>
-                        {offer.author && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            From: {offer.author}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Package Details */}
-                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-neutral-400">
-                    <div>
-                      <span className="text-muted-foreground">Weight</span>
-                      <div className="font-medium">{offer.weightKg || 0} kg</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Size</span>
-                      <div className="font-medium">
-                        {offer.size
-                          ? `${offer.size.width}×${offer.size.height}×${offer.size.depth} cm`
-                          : "Unknown"}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-3 mt-auto text-neutral-400">
-                    <button
-                      onClick={() => acceptOffer(offer)}
-                      className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-center"
-                    >
-                      Accept Delivery
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <Briefcase className="h-8 w-8 text-primary" />
+              <h1 className="font-mono text-3xl font-bold uppercase tracking-tight">
+                Available Offers
+              </h1>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {filteredOffers.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-muted-foreground">
-            {searchTerm || filterUrgency !== "all"
-              ? "No delivery offers match your current filters."
-              : "No active delivery offers available at the moment."}
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Check back soon for new delivery opportunities!
-          </p>
-        </div>
-      )}
-
-      {/* Price Dialog */}
-      {showPriceDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold mb-4">Propose Delivery Price</h2>
-            <p className="text-muted-foreground mb-4">
-              Enter your proposed price for this delivery:
+            <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+              Browse package delivery opportunities
             </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">
-                Price (kr)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={proposedPrice}
-                onChange={(e) => setProposedPrice(e.target.value)}
-                placeholder="Enter price..."
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitProposal();
-                  if (e.key === "Escape") setShowPriceDialog(false);
-                }}
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowPriceDialog(false)}
-                className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitProposal}
-                className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors"
-              >
-                Submit Proposal
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="font-mono text-xs">
+              {filteredAnnouncements.length} Available
+            </Badge>
+            <RealtimeIndicator isConnected={isConnected} />
+          </div>
+        </motion.div>
+
+        <Separator className="bg-border" />
+
+        {/* Filters */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="flex flex-col gap-4 sm:flex-row"
+        >
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by location or package ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 font-mono text-xs"
+            />
+          </div>
+
+          {/* Urgency Filter */}
+          <select
+            value={filterUrgency}
+            onChange={(e) => setFilterUrgency(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 font-mono text-xs uppercase ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <option value="all">All Urgency</option>
+            <option value="high">High Priority</option>
+            <option value="medium">Medium Priority</option>
+            <option value="low">Low Priority</option>
+            <option value="none">No Urgency</option>
+          </select>
+        </motion.div>
+
+        {/* Announcements Grid */}
+        {filteredAnnouncements.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="rounded-md border border-border bg-card p-12 text-center"
+          >
+            <Briefcase className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <h3 className="mb-2 font-mono text-sm font-bold uppercase">
+              No Offers Available
+            </h3>
+            <p className="font-mono text-xs text-muted-foreground">
+              {searchTerm || filterUrgency !== "all"
+                ? "No offers match your current filters"
+                : "Check back soon for new delivery opportunities"}
+            </p>
+          </motion.div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredAnnouncements.map((announcement, index) => (
+              <motion.div
+                key={announcement._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <AnnouncementCard
+                  announcement={announcement}
+                  onSendOffer={handleSendOffer}
+                  offerSent={sentOffers.has(announcement._id)}
+                />
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Transfer Offer Modal */}
+        {selectedAnnouncement && (
+          <TransferOfferModal
+            announcement={selectedAnnouncement}
+            open={showOfferModal}
+            onOpenChange={setShowOfferModal}
+            onSuccess={handleOfferSuccess}
+          />
+        )}
+      </div>
     </div>
   );
 }

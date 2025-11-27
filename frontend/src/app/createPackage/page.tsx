@@ -1,15 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Urgency, type PackagePII } from "fraktal-lib";
 import crypto from "crypto";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Package as PackageIcon,
+  MapPin,
+  User,
+  Check,
+  ArrowRight,
+  ArrowLeft,
+} from "lucide-react";
+import { toast, Toaster } from "sonner";
 
 type UrgencyChoice = "high" | "medium" | "low" | "none";
 
 export default function CreatePackagePage() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("details");
+  const [submitting, setSubmitting] = useState(false);
+
   const [form, setForm] = useState({
     id: "",
-    price: "",
     sizeWidth: "",
     sizeHeight: "",
     sizeDepth: "",
@@ -26,7 +47,6 @@ export default function CreatePackagePage() {
     recipientName: "",
     recipientPhone: "",
   });
-  const [submitting, setSubmitting] = useState(false);
 
   const update =
     (key: keyof typeof form) =>
@@ -36,7 +56,6 @@ export default function CreatePackagePage() {
   const reset = () => {
     setForm({
       id: "",
-      price: "",
       sizeWidth: "",
       sizeHeight: "",
       sizeDepth: "",
@@ -53,63 +72,70 @@ export default function CreatePackagePage() {
       recipientName: "",
       recipientPhone: "",
     });
+    setActiveTab("details");
   };
 
-  const test = () => {
+  const fillTestData = () => {
     setForm({
-      id: "PKG-67",
-      price: "100",
-      sizeWidth: "1",
-      sizeHeight: "2",
-      sizeDepth: "3",
+      id: `PKG-${Date.now().toString().slice(-6)}`,
+      sizeWidth: "40",
+      sizeHeight: "30",
+      sizeDepth: "20",
       urgency: "medium" as UrgencyChoice,
-      weightKg: "123",
-      pickupAddress: "Luleå",
-      pickupLat: "65.5848",
-      pickupLon: "22.1567",
-      dropAddress: "Stockholm",
-      dropLat: "59.3327",
-      dropLon: "18.0656",
-      senderName: "Hej",
-      senderPhone: "123",
-      recipientName: "Då",
-      recipientPhone: "456",
+      weightKg: "5",
+      pickupAddress: "Luleå University of Technology, Luleå, Sweden",
+      pickupLat: "65.6178",
+      pickupLon: "22.1401",
+      dropAddress: "Kungliga Tekniska Högskolan, Stockholm, Sweden",
+      dropLat: "59.3498",
+      dropLon: "18.0686",
+      senderName: "John Doe",
+      senderPhone: "+46701234567",
+      recipientName: "Jane Smith",
+      recipientPhone: "+46709876543",
     });
+    toast.success("Test data filled");
   };
 
-  const validate = () => {
-    if (!form.id.trim()) return "Please enter an ID";
-    if (!form.pickupAddress.trim()) return "Please enter pickup address";
-    if (!form.dropAddress.trim()) return "Please enter drop address";
-    if (!form.pickupLat.trim() || !form.pickupLon.trim())
-      return "Please enter pickup latitude and longitude";
-    if (!form.dropLat.trim() || !form.dropLon.trim())
-      return "Please enter drop latitude and longitude";
-
+  const validateDetails = () => {
+    if (!form.id.trim()) return "Package ID is required";
     if (!form.sizeWidth || !form.sizeHeight || !form.sizeDepth)
-      return "Please enter width, height and depth";
+      return "All dimensions are required";
+    if (!form.weightKg) return "Weight is required";
 
-    if (!form.senderName.trim() || !form.recipientName.trim())
-      return "Please enter sender and recipient names";
-
-    const price = Number(form.price);
     const weight = Number(form.weightKg);
     const width = Number(form.sizeWidth);
     const height = Number(form.sizeHeight);
     const depth = Number(form.sizeDepth);
 
-    if (Number.isNaN(price) || price < 0)
-      return "Price must be a valid number ≥ 0";
-    if (Number.isNaN(weight) || weight <= 0)
-      return "Weight (kg) must be a valid number > 0";
-    if (Number.isNaN(width) || width <= 0)
-      return "Width must be a valid number > 0";
-    if (Number.isNaN(height) || height <= 0)
-      return "Height must be a valid number > 0";
-    if (Number.isNaN(depth) || depth <= 0)
-      return "Depth must be a valid number > 0";
+    if (Number.isNaN(weight) || weight <= 0) return "Weight must be greater than 0";
+    if (Number.isNaN(width) || width <= 0) return "Width must be greater than 0";
+    if (Number.isNaN(height) || height <= 0) return "Height must be greater than 0";
+    if (Number.isNaN(depth) || depth <= 0) return "Depth must be greater than 0";
 
     return null;
+  };
+
+  const validateLocations = () => {
+    if (!form.pickupAddress.trim()) return "Pickup address is required";
+    if (!form.dropAddress.trim()) return "Drop-off address is required";
+    if (!form.pickupLat.trim() || !form.pickupLon.trim())
+      return "Pickup coordinates are required";
+    if (!form.dropLat.trim() || !form.dropLon.trim())
+      return "Drop-off coordinates are required";
+
+    return null;
+  };
+
+  const validateContact = () => {
+    if (!form.senderName.trim()) return "Sender name is required";
+    if (!form.recipientName.trim()) return "Recipient name is required";
+
+    return null;
+  };
+
+  const validateAll = () => {
+    return validateDetails() || validateLocations() || validateContact();
   };
 
   const toUrgencyEnum = (u: UrgencyChoice): Urgency => {
@@ -126,11 +152,42 @@ export default function CreatePackagePage() {
     }
   };
 
+  const handleNext = () => {
+    if (activeTab === "details") {
+      const error = validateDetails();
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      setActiveTab("locations");
+    } else if (activeTab === "locations") {
+      const error = validateLocations();
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      setActiveTab("contact");
+    }
+  };
+
+  const handleBack = () => {
+    if (activeTab === "locations") {
+      setActiveTab("details");
+    } else if (activeTab === "contact") {
+      setActiveTab("locations");
+    }
+  };
+
   const handleSubmit = async () => {
-    const err = validate();
-    if (err) return alert(err);
+    const err = validateAll();
+    if (err) {
+      toast.error(err);
+      return;
+    }
 
     setSubmitting(true);
+    const loadingToast = toast.loading("Creating package...");
+
     try {
       const packageID = form.id.trim();
 
@@ -156,305 +213,485 @@ export default function CreatePackagePage() {
 
       const pii: PackagePII = {
         senderName: form.senderName.trim(),
-        senderContact: form.senderPhone.trim(),      // Changed
+        senderContact: form.senderPhone.trim(),
         recipientName: form.recipientName.trim(),
-        recipientContact: form.recipientPhone.trim(), // Changed
+        recipientContact: form.recipientPhone.trim(),
       };
 
-      const price = Number(form.price);
-      const salt = crypto.randomBytes(16).toString('hex');
-      
-      // 1) Call MongoDB API
+      const salt = crypto.randomBytes(16).toString("hex");
+
+      // Step 1: Create in MongoDB
+      toast.loading("Saving to database...", { id: loadingToast });
       const mongoRes = await fetch("/api/packages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           packageID,
-          price,
           packageDetails,
           pii,
-          salt
+          salt,
         }),
       });
 
       const mongoData = await mongoRes.json();
       if (!mongoRes.ok || mongoData.error) {
-        throw new Error(mongoData.error || "Failed to save to MongoDB");
+        throw new Error(mongoData.error || "Failed to save to database");
       }
+
       const externalId = mongoData.externalId;
-      
-      console.log("MongoDB package created with externalId:", externalId);
-      // 2) Call FireFly createPackage API
+
+      // Step 2: Create on blockchain
+      toast.loading("Creating on blockchain...", { id: loadingToast });
       const fireflyRes = await fetch("/api/packages/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packageId: externalId, // externalId for FireFly
+          packageId: externalId,
           packageDetails,
           pii,
-          salt
+          salt,
         }),
       });
 
       const fireflyData = await fireflyRes.json();
       if (!fireflyRes.ok || fireflyData.success === false) {
-        throw new Error(
-          fireflyData.error || "Failed to create package on FireFly"
-        );
+        throw new Error(fireflyData.error || "Failed to create on blockchain");
       }
 
-      // Send package broadcast
-      const pkgBroadcast = await fetch("/api/packages/create/broadcast", {
+      // Step 3: Broadcast package
+      toast.loading("Broadcasting package...", { id: loadingToast });
+      const broadcastRes = await fetch("/api/packages/create/broadcast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          externalId: externalId, // externalId for FireFly
+          externalId,
           packageDetails,
           pii,
-          salt
+          salt,
         }),
       });
 
-      const broadcastResponse = await pkgBroadcast.json();
-      if (broadcastResponse.success === false) {
-        throw new Error(
-          broadcastResponse.error || "Failed to broadcast package on FireFly"
-        );
+      const broadcastData = await broadcastRes.json();
+      if (!broadcastRes.ok || broadcastData.success === false) {
+        throw new Error(broadcastData.error || "Failed to broadcast package");
       }
-      
+
+      toast.success("Package created successfully!", { id: loadingToast });
+
+      // Reset form and navigate
       reset();
+      setTimeout(() => {
+        router.push("/my-packages");
+      }, 1000);
     } catch (e: any) {
       console.error(e);
-      alert(`Error: ${e?.message || "Something went wrong"}`);
+      toast.error(e?.message || "Failed to create package", { id: loadingToast });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start w-full max-w-xl">
-        <h1 className="text-3xl font-bold">Create Package</h1>
-
-        <div className="w-full border rounded-xl p-4 space-y-4 shadow bg-white">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* ID & Price */}
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Package ID</span>
-              <input
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. PKG-001"
-                value={form.id}
-                onChange={update("id")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Price</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 199.99"
-                value={form.price}
-                onChange={update("price")}
-              />
-            </label>
-
-            {/* Size (exact dimensions) */}
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Width (m)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="e.g. 0.40"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                value={form.sizeWidth}
-                onChange={update("sizeWidth")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Height (m)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="e.g. 0.30"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                value={form.sizeHeight}
-                onChange={update("sizeHeight")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Depth (m)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="e.g. 0.20"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                value={form.sizeDepth}
-                onChange={update("sizeDepth")}
-              />
-            </label>
-
-            {/* Urgency */}
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Urgency</span>
-              <select
-                className="border rounded w-full px-3 py-2 bg-white text-gray-700"
-                value={form.urgency}
-                onChange={update("urgency")}
-              >
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="none">None</option>
-              </select>
-            </label>
-
-            {/* Weight */}
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Weight (kg)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 3.5"
-                value={form.weightKg}
-                onChange={update("weightKg")}
-              />
-            </label>
-
-            {/* Pickup address + coords */}
-            <label className="flex flex-col gap-1 sm:col-span-2">
-              <span className="text-sm text-gray-700">Pickup Address</span>
-              <input
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 10 Market St, Stockholm"
-                value={form.pickupAddress}
-                onChange={update("pickupAddress")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Pickup Latitude</span>
-              <input
-                type="number"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 59.3293"
-                value={form.pickupLat}
-                onChange={update("pickupLat")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Pickup Longitude</span>
-              <input
-                type="number"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 18.0686"
-                value={form.pickupLon}
-                onChange={update("pickupLon")}
-              />
-            </label>
-
-            {/* Drop address + coords */}
-            <label className="flex flex-col gap-1 sm:col-span-2">
-              <span className="text-sm text-gray-700">Drop Address</span>
-              <input
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 5 Main St, Stockholm"
-                value={form.dropAddress}
-                onChange={update("dropAddress")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Drop Latitude</span>
-              <input
-                type="number"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 59.3346"
-                value={form.dropLat}
-                onChange={update("dropLat")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Drop Longitude</span>
-              <input
-                type="number"
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                placeholder="e.g. 18.0632"
-                value={form.dropLon}
-                onChange={update("dropLon")}
-              />
-            </label>
-
-            {/* PII */}
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Sender Name</span>
-              <input
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                value={form.senderName}
-                onChange={update("senderName")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Sender Phone</span>
-              <input
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                value={form.senderPhone}
-                onChange={update("senderPhone")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Recipient Name</span>
-              <input
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                value={form.recipientName}
-                onChange={update("recipientName")}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-gray-700">Recipient Phone</span>
-              <input
-                className="border rounded w-full px-3 py-2 text-gray-700 placeholder:text-gray-400"
-                value={form.recipientPhone}
-                onChange={update("recipientPhone")}
-              />
-            </label>
+    <div className="min-h-screen bg-background">
+      <Toaster position="top-right" richColors />
+      <div className="container mx-auto space-y-8 py-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-1"
+        >
+          <div className="flex items-center gap-3">
+            <PackageIcon className="h-8 w-8 text-primary" />
+            <h1 className="font-mono text-3xl font-bold uppercase tracking-tight">
+              Create Package
+            </h1>
           </div>
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Fill in the details to create a new package
+          </p>
+        </motion.div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="bg-blue-600 text-white rounded px-4 py-2 w-full hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {submitting ? "Saving…" : "Create Package"}
-          </button>
+        <Separator className="bg-border" />
 
-          <button
-            type="button"
-            onClick={reset}
-            className="mt-2 border rounded px-4 py-2 w-full hover:bg-gray-50 text-black"
-          >
-            Reset
-          </button>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="mx-auto max-w-3xl"
+        >
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="font-mono text-lg uppercase tracking-wider">
+                  Package Information
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fillTestData}
+                  className="font-mono text-xs uppercase"
+                >
+                  Fill Test Data
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-3 font-mono">
+                  <TabsTrigger value="details" className="text-xs uppercase">
+                    Details
+                  </TabsTrigger>
+                  <TabsTrigger value="locations" className="text-xs uppercase">
+                    Locations
+                  </TabsTrigger>
+                  <TabsTrigger value="contact" className="text-xs uppercase">
+                    Contact
+                  </TabsTrigger>
+                </TabsList>
 
-          <button
-            type="button"
-            onClick={test}
-            className="mt-2 border rounded px-4 py-2 w-full hover:bg-gray-50 text-black"
-          >
-            Test
-          </button>
-        </div>
-      </main>
+                {/* Package Details Tab */}
+                <TabsContent value="details" className="space-y-6 pt-6">
+                  <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="id" className="font-mono text-xs uppercase">
+                          Package ID *
+                        </Label>
+                        <Input
+                          id="id"
+                          placeholder="e.g., PKG-001"
+                          value={form.id}
+                          onChange={update("id")}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="urgency"
+                          className="font-mono text-xs uppercase"
+                        >
+                          Urgency *
+                        </Label>
+                        <select
+                          id="urgency"
+                          value={form.urgency}
+                          onChange={update("urgency")}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <option value="high">HIGH</option>
+                          <option value="medium">MEDIUM</option>
+                          <option value="low">LOW</option>
+                          <option value="none">NONE</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="mb-3 font-mono text-sm font-bold uppercase">
+                        Dimensions (cm)
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="width"
+                            className="font-mono text-xs uppercase"
+                          >
+                            Width *
+                          </Label>
+                          <Input
+                            id="width"
+                            type="number"
+                            placeholder="e.g., 40"
+                            value={form.sizeWidth}
+                            onChange={update("sizeWidth")}
+                            className="font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="height"
+                            className="font-mono text-xs uppercase"
+                          >
+                            Height *
+                          </Label>
+                          <Input
+                            id="height"
+                            type="number"
+                            placeholder="e.g., 30"
+                            value={form.sizeHeight}
+                            onChange={update("sizeHeight")}
+                            className="font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="depth"
+                            className="font-mono text-xs uppercase"
+                          >
+                            Depth *
+                          </Label>
+                          <Input
+                            id="depth"
+                            type="number"
+                            placeholder="e.g., 20"
+                            value={form.sizeDepth}
+                            onChange={update("sizeDepth")}
+                            className="font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="weight"
+                        className="font-mono text-xs uppercase"
+                      >
+                        Weight (kg) *
+                      </Label>
+                      <Input
+                        id="weight"
+                        type="number"
+                        placeholder="e.g., 5.0"
+                        value={form.weightKg}
+                        onChange={update("weightKg")}
+                        className="font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={handleNext} className="font-mono uppercase">
+                      Next
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Locations Tab */}
+                <TabsContent value="locations" className="space-y-6 pt-6">
+                  <div className="space-y-4">
+                    <div className="rounded-md border border-green-200 bg-green-50 p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-green-600" />
+                        <h3 className="font-mono text-sm font-bold uppercase text-green-900">
+                          Pickup Location
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="font-mono text-xs uppercase text-green-900">
+                            Address *
+                          </Label>
+                          <Input
+                            placeholder="e.g., Luleå University, Luleå, Sweden"
+                            value={form.pickupAddress}
+                            onChange={update("pickupAddress")}
+                            className="font-mono"
+                          />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label className="font-mono text-xs uppercase text-green-900">
+                              Latitude *
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="e.g., 65.6178"
+                              value={form.pickupLat}
+                              onChange={update("pickupLat")}
+                              className="font-mono"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="font-mono text-xs uppercase text-green-900">
+                              Longitude *
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="e.g., 22.1401"
+                              value={form.pickupLon}
+                              onChange={update("pickupLon")}
+                              className="font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-red-600" />
+                        <h3 className="font-mono text-sm font-bold uppercase text-red-900">
+                          Drop-off Location
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="font-mono text-xs uppercase text-red-900">
+                            Address *
+                          </Label>
+                          <Input
+                            placeholder="e.g., KTH, Stockholm, Sweden"
+                            value={form.dropAddress}
+                            onChange={update("dropAddress")}
+                            className="font-mono"
+                          />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label className="font-mono text-xs uppercase text-red-900">
+                              Latitude *
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="e.g., 59.3498"
+                              value={form.dropLat}
+                              onChange={update("dropLat")}
+                              className="font-mono"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="font-mono text-xs uppercase text-red-900">
+                              Longitude *
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="e.g., 18.0686"
+                              value={form.dropLon}
+                              onChange={update("dropLon")}
+                              className="font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={handleBack}
+                      className="font-mono uppercase"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                    <Button onClick={handleNext} className="font-mono uppercase">
+                      Next
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Contact Tab */}
+                <TabsContent value="contact" className="space-y-6 pt-6">
+                  <div className="space-y-4">
+                    <div className="rounded-md border border-border bg-muted/30 p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-mono text-sm font-bold uppercase">
+                          Sender Information
+                        </h3>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label className="font-mono text-xs uppercase">
+                            Name *
+                          </Label>
+                          <Input
+                            placeholder="e.g., John Doe"
+                            value={form.senderName}
+                            onChange={update("senderName")}
+                            className="font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-mono text-xs uppercase">
+                            Phone
+                          </Label>
+                          <Input
+                            placeholder="e.g., +46701234567"
+                            value={form.senderPhone}
+                            onChange={update("senderPhone")}
+                            className="font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-border bg-muted/30 p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-mono text-sm font-bold uppercase">
+                          Recipient Information
+                        </h3>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label className="font-mono text-xs uppercase">
+                            Name *
+                          </Label>
+                          <Input
+                            placeholder="e.g., Jane Smith"
+                            value={form.recipientName}
+                            onChange={update("recipientName")}
+                            className="font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-mono text-xs uppercase">
+                            Phone
+                          </Label>
+                          <Input
+                            placeholder="e.g., +46709876543"
+                            value={form.recipientPhone}
+                            onChange={update("recipientPhone")}
+                            className="font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={handleBack}
+                      className="font-mono uppercase"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="font-mono uppercase"
+                    >
+                      {submitting ? (
+                        "Creating..."
+                      ) : (
+                        <>
+                          Create Package
+                          <Check className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   );
 }

@@ -26,10 +26,10 @@ export function QuickActions({ role }: QuickActionsProps) {
       primary: true,
     },
     {
-      title: "Active Packages",
-      description: "View your shipments",
+      title: "My Packages",
+      description: "Manage & announce packages",
       icon: Package,
-      href: "/activePackage",
+      href: "/my-packages",
       primary: false,
     },
     {

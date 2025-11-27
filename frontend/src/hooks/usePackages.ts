@@ -131,15 +131,6 @@ export function usePackages() {
       }
     });
 
-    eventSource.addEventListener("message", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("Generic message received:", data);
-      } catch (err) {
-        console.error("Error parsing message event:", err);
-      }
-    });
-
     eventSource.onerror = (error) => {
       console.error("SSE connection error:", error);
       setIsConnected(false);

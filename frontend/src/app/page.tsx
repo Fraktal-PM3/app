@@ -3,6 +3,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { usePackages } from "@/hooks/usePackages";
+import { useTransfers } from "@/hooks/useTransfers";
 import { useRoleDetection } from "@/hooks/useRoleDetection";
 import { usePackageMetrics } from "@/hooks/usePackageMetrics";
 import { StatsCards } from "@/components/dashboard/StatsCards";
@@ -15,8 +16,9 @@ import { motion } from "framer-motion";
 
 export default function Home() {
   const { packages, isLoading, isConnected, error } = usePackages();
+  const { transfers, isLoading: transfersLoading } = useTransfers();
   const { role, isRoleDetected, setRole } = useRoleDetection(packages);
-  const metrics = usePackageMetrics(packages, role);
+  const metrics = usePackageMetrics(packages, transfers, role);
 
   if (error) {
     return (
@@ -31,7 +33,7 @@ export default function Home() {
     );
   }
 
-  if (isLoading || !isRoleDetected) {
+  if (isLoading || transfersLoading || !isRoleDetected) {
     return (
       <div className="container mx-auto space-y-8 py-8">
         <div className="flex items-center justify-between">
@@ -125,7 +127,7 @@ export default function Home() {
           </div>
           <div className="grid gap-6 md:grid-cols-2">
             <PackageCharts metrics={metrics} role={role} />
-            <ActivityFeed packages={packages} />
+            <ActivityFeed />
           </div>
         </motion.div>
 
