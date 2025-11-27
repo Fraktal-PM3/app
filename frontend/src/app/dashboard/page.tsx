@@ -17,7 +17,6 @@ const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
 export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterUrgency, setFilterUrgency] = useState<string>("all");
-  const [offers, setOffers] = useState<PackageDetailsFromEvent[]>([]);
   const [showPriceDialog, setShowPriceDialog] = useState(false);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [proposedPrice, setProposedPrice] = useState("");
@@ -52,22 +51,13 @@ export default function Dashboard() {
     });
 
     setPackageDetailsMap(detailsMap);
+    console.log(
+      `Created ${detailsMap.size} delivery offers from NewPackage messages`
+    );
   }, [events]);
 
-  // Create offers from NewPackage message events
-  useEffect(() => {
-    const packageOffers: PackageDetailsFromEvent[] = [];
-
-    // Convert packageDetailsMap to array of offers
-    packageDetailsMap.forEach((details) => {
-      packageOffers.push(details);
-    });
-
-    setOffers(packageOffers);
-    console.log(
-      `Created ${packageOffers.length} delivery offers from NewPackage messages`
-    );
-  }, [packages, packageDetailsMap]);
+  // Convert map to array for rendering
+  const offers = Array.from(packageDetailsMap.values());
 
   // New packages are reflected in `events` -> `packageDetailsMap` -> `offers`.
   // We intentionally do not show a transient notification banner; the
@@ -86,6 +76,9 @@ export default function Dashboard() {
     return matchesSearch && matchesUrgency;
   });
 
+  // Track selected offer details
+  const [selectedOffer, setSelectedOffer] = useState<PackageDetailsFromEvent | null>(null);
+
   // Accept offer function - shows price dialog first
   const acceptOffer = (details: PackageDetailsFromEvent) => {
     // Find the package ID from the map
@@ -96,11 +89,10 @@ export default function Dashboard() {
       }
     });
     setSelectedOfferId(foundId);
+    setSelectedOffer(details);
     setProposedPrice("");
     setShowPriceDialog(true);
-  };
-
-  
+  };  
 
   // Submit the price proposal to blockchain
   const submitProposal = async () => {
@@ -117,7 +109,10 @@ export default function Dashboard() {
       const response = await fetch(`/api/packages/${selectedOfferId}/privateMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ price }),
+        body: JSON.stringify({ 
+          price,
+          author: selectedOffer?.author 
+        }),
       });
 
       const data = await response.json();
@@ -156,6 +151,7 @@ export default function Dashboard() {
       // Close dialog and reset
       setShowPriceDialog(false);
       setSelectedOfferId(null);
+      setSelectedOffer(null);
       setProposedPrice("");
 
       console.log(`Proposed transfer for package ${selectedOfferId} at ${price} kr`);
@@ -322,10 +318,10 @@ export default function Dashboard() {
                         </h3>
                         <span
                           className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(
-                            offer.urgency || "medium"
+                            offer.urgency || "none"
                           )}`}
                         >
-                          {offer.urgency || "medium"} priority
+                          {offer.urgency || "no"} priority
                         </span>
                         {offer.author && (
                           <div className="text-xs text-muted-foreground mt-1">

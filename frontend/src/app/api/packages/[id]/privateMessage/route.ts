@@ -7,11 +7,18 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { price } = await request.json();
+    const { price, author } = await request.json();
 
     if (!price || typeof price !== "number" || price <= 0) {
       return NextResponse.json(
         { success: false, error: "Valid price is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!author) {
+      return NextResponse.json(
+        { success: false, error: "Author is required" },
         { status: 400 }
       );
     }
@@ -30,11 +37,10 @@ export async function POST(
 
     // Send a private message with the specified price
     const firefly = await getFireFly();
-    const msg = await firefly.sendPrivateMessage({
+    await firefly.sendPrivateMessage({
       header: {},
       group: {
-        //TODO: Get target from pkg.ownerOrgMSP
-        members: [{ identity: "did:firefly:org/org_02ec98" }],
+        members: [{ identity: author }],
       },
       data: [
         {
@@ -45,14 +51,6 @@ export async function POST(
         },
       ],
     });
-
-    const author = await firefly.getIdentities();
-
-    //author.forEach(() => {});
-
-    //console.log("author:", author);
-
-    //console.log(`Transfer proposed for package ${id} at price ${price}`);
 
     return NextResponse.json({
       success: true,
