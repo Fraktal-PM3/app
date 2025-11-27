@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePackages } from "../dashboard/components/PackageContext";
+import { usePackages } from "../offers/components/PackageContext";
 
 type PrivateMessage = {
   id: string;
@@ -19,7 +19,9 @@ type PrivateMessage = {
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState<PrivateMessage[]>([]);
-  const [selectedMessage, setSelectedMessage] = useState<PrivateMessage | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<PrivateMessage | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const { connected } = usePackages();
 
@@ -34,15 +36,22 @@ export default function MessagesPage() {
 
         if (data.success && data.messages) {
           // Transform FireFly messages to our PrivateMessage format
-          const transformedMessages: PrivateMessage[] = data.messages.map((msg: { author?: string; created?: string; id?: string; value?: { PID?: string; price?: number; [key: string]: unknown } }) => ({
-            id: msg.id || Date.now().toString(),
-            sender: msg.author || "Unknown",
-            recipient: "You",
-            message: msg.value?.PID ? `Package ID: ${msg.value.PID}` : "",
-            packageId: msg.value?.PID || "N/A", 
-            price: msg.value?.price || undefined,
-            timestamp: msg.created || new Date().toISOString(),
-          }));
+          const transformedMessages: PrivateMessage[] = data.messages.map(
+            (msg: {
+              author?: string;
+              created?: string;
+              id?: string;
+              value?: { PID?: string; price?: number; [key: string]: unknown };
+            }) => ({
+              id: msg.id || Date.now().toString(),
+              sender: msg.author || "Unknown",
+              recipient: "You",
+              message: msg.value?.PID ? `Package ID: ${msg.value.PID}` : "",
+              packageId: msg.value?.PID || "N/A",
+              price: msg.value?.price || undefined,
+              timestamp: msg.created || new Date().toISOString(),
+            }),
+          );
 
           setMessages(transformedMessages);
         }
@@ -108,7 +117,7 @@ export default function MessagesPage() {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -151,7 +160,8 @@ export default function MessagesPage() {
             <div className="p-4 border-b">
               <h2 className="font-semibold text-muted-foreground">Inbox</h2>
               <p className="text-sm text-muted-foreground">
-                {messages.length} {messages.length === 1 ? "message" : "messages"}
+                {messages.length}{" "}
+                {messages.length === 1 ? "message" : "messages"}
               </p>
             </div>
             <div className="divide-y max-h-[600px] overflow-y-auto">
@@ -246,7 +256,9 @@ export default function MessagesPage() {
 
                 {/* Message Content */}
                 <div className="bg-accent/50 rounded-lg p-4 mb-4">
-                  <div className="text-sm text-muted-foreground font-medium mb-2">Message:</div>
+                  <div className="text-sm text-muted-foreground font-medium mb-2">
+                    Message:
+                  </div>
                   <div className="whitespace-pre-wrap text-muted-foreground wrap-break-word">
                     {selectedMessage.message}
                   </div>
