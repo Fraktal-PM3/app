@@ -5,6 +5,12 @@ export interface Location {
   lng: number;
 }
 
+export enum status {
+  PENDING = "pending",
+  TRUE = "true",
+  FALSE = "false"
+}
+
 export interface PackageDetailsFromEvent {
   pickupLocation?: {
     address: string;

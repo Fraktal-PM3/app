@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { usePackages } from "./components/PackageContext";
-import { PackageDetailsFromEvent } from "@/types/delivery";
+import { PackageDetailsFromEvent, status } from "@/types/delivery";
+
 
 const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
   ssr: false,
@@ -96,7 +97,7 @@ export default function Dashboard() {
 
   // Submit the price proposal to blockchain
   const submitProposal = async () => {
-    if (!selectedOfferId || !proposedPrice) return;
+    if (!selectedOfferId || !proposedPrice || !selectedOffer) return;
 
     try {
       const price = parseFloat(proposedPrice);
@@ -121,23 +122,21 @@ export default function Dashboard() {
         throw new Error(data.error);
       }  
 
-      // Fetch all packages and find the one matching selectedOfferId
-      const mongoID = await fetch(`/api/packages`);
-      const allPackages = await mongoID.json();
-      const matchingPackage = allPackages.find(
-        (pkg: { externalId: string; packageID: string }) => pkg.externalId === selectedOfferId
-      );
-      const packageID = matchingPackage?.packageID;
-
-      if (!packageID) {
-        throw new Error("Package not found in database");
-      }
-
       const mongoRes = await fetch("/api/packages", {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packageID: packageID,
+          packageID: selectedOfferId,
+          externalId: selectedOfferId,
+          active: status.PENDING,
+          fromAddress: selectedOffer.author|| "N/A",
+          packageDetails: {
+            pickupLocation: selectedOffer.pickupLocation,
+            dropLocation: selectedOffer.dropLocation,
+            size: selectedOffer.size,
+            weightKg: selectedOffer.weightKg,
+            urgency: selectedOffer.urgency,
+          },
           price: price,
         }),
       });

@@ -43,6 +43,7 @@ export interface IPackage extends Document {
   externalId: string;
   termsId?: string;
   active: string;
+  fromAddress?: string;
   packageDetails?: {
     pickupLocation: {
       address: string;

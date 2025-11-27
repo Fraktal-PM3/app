@@ -14,7 +14,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         console.log("Creating package with data:", body);
 
-        const { packageID, packageDetails, pii, salt } = body;
+        const { packageID, externalId, termsId, active, fromAddress, packageDetails, price, salt, pii } = body || {};
         if (!packageID) {
                 return NextResponse.json({ error: "packageID is required" }, { status: 400 });
         }
@@ -63,13 +63,15 @@ export async function POST(req: Request) {
         // Create new package with default price of 0 and salt
         const pkg = await Package.create({ 
                 packageID,
-                termsId: "null",
+                externalId: body.externalId || `EXT-${packageID}`,
+                termsId: body.termsId || "default-terms",
+                active: body.active ?? "false",
+                fromAddress: body.fromAddress || packageDetails?.pickupLocation?.address || "N/A",
                 packageDetails: packageDetails || undefined,
-                pii: pii || undefined,
                 price: body.price ?? 0,
-                salt
+                salt: salt || undefined,
+                pii: pii || undefined
         });
-        
         console.log("Created new package:", pkg.packageID);
         return NextResponse.json(pkg, { status: 201 });
 }
