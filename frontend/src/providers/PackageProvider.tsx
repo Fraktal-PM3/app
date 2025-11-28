@@ -1,16 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { useSSEConnection } from "./SSEConnectionProvider";
-import type { Package, Transfer } from "@/types/package";
 import type {
+  AcceptTransferEvent,
   CreatePackageEvent,
-  StatusUpdatedEvent,
   DeletePackageEvent,
   ProposeTransferEvent,
-  AcceptTransferEvent,
+  StatusUpdatedEvent,
   TransferExecutedEvent,
 } from "@/types/events";
+import type { Package, Transfer } from "@/types/package";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useSSEConnection } from "./SSEConnectionProvider";
 
 // Helper to normalize date fields to ISO strings
 function toIso(s?: string | null | undefined): string | undefined {
@@ -97,15 +97,11 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribes = [
       // CreatePackage - add new package
-      subscribe<CreatePackageEvent>("CreatePackage", (data) => {
+      subscribe<CreatePackageEvent>("CreatePackage", async (data) => {
+        setIsLoading(true);
         console.log("[PackageProvider] CreatePackage event:", data);
-        const newPackage = normalizePackage(data);
-        setPackages((prev) => {
-          // Check if package already exists
-          const exists = prev.some((p) => p.packageID === newPackage.packageID);
-          if (exists) return prev;
-          return [newPackage, ...prev];
-        });
+        await refetchPackages();
+        setIsLoading(false);
       }),
 
       // StatusUpdated - update package status
@@ -116,7 +112,7 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         if (packageId) {
           setPackages((prev) =>
             prev.map((pkg) =>
-              pkg.packageID === packageId ? { ...pkg, active: status } : pkg
+              pkg.id === packageId ? { ...pkg, active: status } : pkg
             )
           );
         }
@@ -127,7 +123,7 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         console.log("[PackageProvider] DeletePackage event:", data);
         const packageId = data.output?.externalId;
         if (packageId) {
-          setPackages((prev) => prev.filter((pkg) => pkg.packageID !== packageId));
+          setPackages((prev) => prev.filter((pkg) => pkg.id !== packageId));
         }
       }),
 

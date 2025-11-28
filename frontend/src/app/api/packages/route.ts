@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import dbConnect from "@/lib/dbService";
-import Package from "@/models/package";
 import { CreatePackageRequestSchema } from "@/lib/packageSchemas";
+import Package from "@/models/package";
+import { randomUUID } from "crypto";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   await dbConnect();
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: validationResult.error.errors,
+          details: validationResult.error,
         },
         { status: 400 },
       );

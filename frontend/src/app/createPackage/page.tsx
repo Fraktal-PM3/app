@@ -1,25 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Urgency, type PackagePII } from "fraktal-lib";
-import crypto from "crypto";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import crypto from "crypto";
+import { Urgency, type PackagePII } from "fraktal-lib";
+import { motion } from "framer-motion";
 import {
-  Package as PackageIcon,
-  MapPin,
-  User,
-  Check,
-  ArrowRight,
   ArrowLeft,
+  ArrowRight,
+  Check,
+  MapPin,
+  Package as PackageIcon,
+  User,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast, Toaster } from "sonner";
 
 type UrgencyChoice = "high" | "medium" | "low" | "none";
@@ -50,8 +49,8 @@ export default function CreatePackagePage() {
 
   const update =
     (key: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm((f) => ({ ...f, [key]: e.target.value }));
+      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+        setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const reset = () => {
     setForm({
@@ -187,7 +186,7 @@ export default function CreatePackagePage() {
 
     setSubmitting(true);
     const loadingToast = toast.loading("Creating package...");
-
+    router.push("/packages");
     try {
       const name = form.name.trim();
 
@@ -258,11 +257,7 @@ export default function CreatePackagePage() {
       // Step 3: Announce package (optional - user can trigger later)
       toast.success("Package created successfully! You can announce it later.", { id: loadingToast });
 
-      // Reset form and navigate
-      reset();
-      setTimeout(() => {
-        router.push("/my-packages");
-      }, 1000);
+
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "Failed to create package", { id: loadingToast });
@@ -460,16 +455,16 @@ export default function CreatePackagePage() {
                 {/* Locations Tab */}
                 <TabsContent value="locations" className="space-y-6 pt-6">
                   <div className="space-y-4">
-                    <div className="rounded-md border border-green-200 bg-green-50 p-4">
+                    <div className="rounded-md border p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-green-600" />
-                        <h3 className="font-mono text-sm font-bold uppercase text-green-900">
+                        <h3 className="font-mono text-sm font-bold uppercase">
                           Pickup Location
                         </h3>
                       </div>
                       <div className="space-y-3">
                         <div className="space-y-2">
-                          <Label className="font-mono text-xs uppercase text-green-900">
+                          <Label className="font-mono text-xs uppercase">
                             Address *
                           </Label>
                           <Input
@@ -481,7 +476,7 @@ export default function CreatePackagePage() {
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2">
-                            <Label className="font-mono text-xs uppercase text-green-900">
+                            <Label className="font-mono text-xs uppercase">
                               Latitude *
                             </Label>
                             <Input
@@ -494,7 +489,7 @@ export default function CreatePackagePage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label className="font-mono text-xs uppercase text-green-900">
+                            <Label className="font-mono text-xs uppercase">
                               Longitude *
                             </Label>
                             <Input
@@ -510,16 +505,16 @@ export default function CreatePackagePage() {
                       </div>
                     </div>
 
-                    <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                    <div className="rounded-md border  p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-red-600" />
-                        <h3 className="font-mono text-sm font-bold uppercase text-red-900">
+                        <h3 className="font-mono text-sm font-bold uppercase">
                           Drop-off Location
                         </h3>
                       </div>
                       <div className="space-y-3">
                         <div className="space-y-2">
-                          <Label className="font-mono text-xs uppercase text-red-900">
+                          <Label className="font-mono text-xs uppercase ">
                             Address *
                           </Label>
                           <Input
@@ -531,7 +526,7 @@ export default function CreatePackagePage() {
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2">
-                            <Label className="font-mono text-xs uppercase text-red-900">
+                            <Label className="font-mono text-xs uppercase">
                               Latitude *
                             </Label>
                             <Input
@@ -544,7 +539,7 @@ export default function CreatePackagePage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label className="font-mono text-xs uppercase text-red-900">
+                            <Label className="font-mono text-xs uppercase">
                               Longitude *
                             </Label>
                             <Input

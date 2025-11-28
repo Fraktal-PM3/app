@@ -79,7 +79,7 @@ export function PackageCard({
           <div className="flex items-center gap-2">
             <PackageIcon className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-sm font-bold uppercase tracking-wider">
-              {pkg.packageID || pkg.externalId}
+              {pkg.name || "Unnamed Package"}
             </CardTitle>
           </div>
           <div className="flex gap-2">
@@ -108,7 +108,7 @@ export function PackageCard({
                 <div className="flex-1">
                   <div className="text-muted-foreground">PICKUP</div>
                   <div className="font-semibold">
-                    {pkg.packageDetails.pickupLocation.address}
+                    {pkg.packageDetails?.pickupLocation.address}
                   </div>
                 </div>
               </div>
@@ -117,7 +117,7 @@ export function PackageCard({
                 <div className="flex-1">
                   <div className="text-muted-foreground">DROPOFF</div>
                   <div className="font-semibold">
-                    {pkg.packageDetails.dropLocation.address}
+                    {pkg.packageDetails?.dropLocation.address}
                   </div>
                 </div>
               </div>
@@ -132,7 +132,7 @@ export function PackageCard({
                 <div>
                   <div className="text-muted-foreground">WEIGHT</div>
                   <div className="font-semibold">
-                    {pkg.packageDetails.weightKg} kg
+                    {pkg.packageDetails?.weightKg} kg
                   </div>
                 </div>
               </div>
@@ -153,9 +153,9 @@ export function PackageCard({
             <div className="text-xs">
               <div className="text-muted-foreground">SIZE (W × H × D)</div>
               <div className="font-semibold">
-                {pkg.packageDetails.size.width} ×{" "}
-                {pkg.packageDetails.size.height} ×{" "}
-                {pkg.packageDetails.size.depth} cm
+                {pkg.packageDetails?.size.width} ×{" "}
+                {pkg.packageDetails?.size.height} ×{" "}
+                {pkg.packageDetails?.size.depth} cm
               </div>
             </div>
           </>

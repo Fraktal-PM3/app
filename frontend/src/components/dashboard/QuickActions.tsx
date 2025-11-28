@@ -29,7 +29,7 @@ export function QuickActions({ role }: QuickActionsProps) {
       title: "My Packages",
       description: "Manage & announce packages",
       icon: Package,
-      href: "/my-packages",
+      href: "/packages",
       primary: false,
     },
     {

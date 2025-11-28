@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/dbService";
 import Package from "@/models/package";
+import { NextRequest, NextResponse } from "next/server";
 import { getPackageService } from "../service";
 
 export const runtime = "nodejs";
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       pkg.packageDetails,
       pkg.pii,
       pkg.salt,
+      false
     );
 
     return NextResponse.json({

@@ -1,18 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePackages, useAnnouncements } from "@/providers";
-import { PackageCard } from "@/components/packages/PackageCard";
 import { AnnouncementModal } from "@/components/announcement/AnnouncementModal";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
+import { PackageCard } from "@/components/packages/PackageCard";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAnnouncements, usePackages } from "@/providers";
 import { Package } from "@/types/package";
+import { motion } from "framer-motion";
 import { Package as PackageIcon } from "lucide-react";
+import { useState } from "react";
 
-//FIXME: Diplays weird extra package after creation, likely something to do with the package hook
 export default function MyPackagesPage() {
   const { packages, isLoading, isConnected, error, refetch } = usePackages();
   const {
@@ -94,7 +93,7 @@ export default function MyPackagesPage() {
             <div className="flex items-center gap-3">
               <PackageIcon className="h-8 w-8 text-primary" />
               <h1 className="font-mono text-3xl font-bold uppercase tracking-tight">
-                My Packages
+                Packages
               </h1>
             </div>
             <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
@@ -139,20 +138,22 @@ export default function MyPackagesPage() {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {packages.map((pkg, index) => (
-                    <motion.div
-                      key={pkg._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <PackageCard
-                        package={pkg}
-                        isAnnounced={announcedPackageIds.has(pkg.externalId)}
-                        onAnnounce={handleAnnounce}
-                      />
-                    </motion.div>
-                  ))}
+                  {packages.map((pkg, index) => {
+                    return (
+                      <motion.div
+                        key={pkg._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <PackageCard
+                          package={pkg}
+                          isAnnounced={announcedPackageIds.has(pkg.id)}
+                          onAnnounce={handleAnnounce}
+                        />
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
@@ -180,7 +181,7 @@ export default function MyPackagesPage() {
                     >
                       <PackageCard
                         package={pkg}
-                        isAnnounced={announcedPackageIds.has(pkg.externalId)}
+                        isAnnounced={announcedPackageIds.has(pkg.id)}
                         onAnnounce={handleAnnounce}
                       />
                     </motion.div>
@@ -212,7 +213,7 @@ export default function MyPackagesPage() {
                     >
                       <PackageCard
                         package={pkg}
-                        isAnnounced={announcedPackageIds.has(pkg.externalId)}
+                        isAnnounced={announcedPackageIds.has(pkg.id)}
                         onAnnounce={handleAnnounce}
                       />
                     </motion.div>
