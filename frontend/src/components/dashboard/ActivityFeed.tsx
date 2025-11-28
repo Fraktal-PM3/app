@@ -9,7 +9,7 @@ import {
   Clock,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useRecentActivity, type Activity } from "@/hooks/useRecentActivity";
+import { useRecentActivity, type Activity } from "@/providers";
 
 export function ActivityFeed() {
   const { activities, isConnected } = useRecentActivity();

@@ -45,15 +45,12 @@ class EventBus extends EventEmitter {
    */
   emitBlockchainEvent(eventName: string, data: TypedBlockchainEvent): void {
     this.emit("blockchain-event", { eventName, data });
-    this.emit(`blockchain-event:${eventName}`, data);
   }
 
   /**
    * Subscribe to all blockchain events
    */
-  onBlockchainEvent(
-    callback: (event: TypedEventEnvelope) => void
-  ): () => void {
+  onBlockchainEvent(callback: (event: TypedEventEnvelope) => void): () => void {
     this.on("blockchain-event", callback);
     return () => this.off("blockchain-event", callback);
   }
@@ -63,15 +60,28 @@ class EventBus extends EventEmitter {
    */
   onSpecificEvent(
     eventName: string,
-    callback: (data: TypedBlockchainEvent) => void
+    callback: (data: TypedBlockchainEvent) => void,
   ): () => void {
     this.on(`blockchain-event:${eventName}`, callback);
     return () => this.off(`blockchain-event:${eventName}`, callback);
   }
 }
 
-// Singleton instance
-const eventBus = new EventBus();
+// Global singleton - stored on globalThis to ensure it's truly global
+declare global {
+  var eventBusInstance: EventBus | undefined;
+}
+
+function getEventBus(): EventBus {
+  if (!globalThis.eventBusInstance) {
+    globalThis.eventBusInstance = new EventBus();
+  }
+  return globalThis.eventBusInstance;
+}
+
+// Get the singleton instance
+const eventBus = getEventBus();
 
 export default eventBus;
+export { getEventBus };
 export type { TypedBlockchainEvent, TypedEventEnvelope };

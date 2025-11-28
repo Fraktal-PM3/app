@@ -267,9 +267,9 @@ class EventListenerService {
       async (
         event: BlockchainEventDelivery & { output: CreatePackageEvent },
       ) => {
-        console.log("[EventListener] CreatePackage event received: ", event);
-
         if (!this.isRelevantEvent(event)) return;
+
+        console.log("[EventListener] CreatePackage event received: ", event);
 
         try {
           await this.handleCreatePackage(event);
@@ -415,56 +415,28 @@ class EventListenerService {
   }
 
   /**
-   * Handle CreatePackage event - persist to MongoDB
+   * Handle CreatePackage event - only emit event, DB is managed via API endpoints
+   * Package is already created in DB via POST /api/packages
    */
   private async handleCreatePackage(
     event: BlockchainEventDelivery & { output: CreatePackageEvent },
   ): Promise<void> {
     try {
       const output = event.output;
-
-      // Check if package already exists (may have been created via API with packageDetails)
-      const existing = await PackageModel.findOne({ packageID: output.externalId });
-
-      if (existing) {
-        // Package already exists - only update blockchain-related fields
-        await PackageModel.findOneAndUpdate(
-          { packageID: output.externalId },
-          {
-            $set: {
-              status: output.status,
-              mspId: this.extractMSP(event),
-              active: "true", // Mark as active when blockchain confirms creation
-            },
-          },
-          { new: true },
-        );
-        console.log(
-          `[EventListener] Package blockchain status updated: ${output.externalId}`,
-        );
-      } else {
-        // New package from blockchain - create minimal record
-        const packageData = {
-          packageID: output.externalId,
-          externalId: output.externalId,
-          status: output.status,
-          mspId: this.extractMSP(event),
-          active: "true",
-        } as Partial<PackageDocument>;
-
-        await PackageModel.create(packageData);
-        console.log(
-          `[EventListener] Package created from blockchain: ${output.externalId}`,
-        );
-      }
+      console.log(
+        `[EventListener] CreatePackage event processed (DB not modified): ${output.externalId}`,
+      );
+      // Just log the event - DB modifications are handled exclusively via API endpoints
+      // Package creation in DB: POST /api/packages
+      // Package blockchain submission: POST /api/packages/create
     } catch (error) {
-      console.error("[EventListener] Error persisting CreatePackage:", error);
+      console.error("[EventListener] Error processing CreatePackage:", error);
       throw error;
     }
   }
 
   /**
-   * Handle StatusUpdated event - update package status
+   * Handle StatusUpdated event - update existing package status only
    */
   private async handleStatusUpdated(
     event: BlockchainEventDelivery & { output: StatusUpdatedEvent },
@@ -472,14 +444,22 @@ class EventListenerService {
     try {
       const output = event.output;
 
-      await PackageModel.findOneAndUpdate(
-        { packageID: output.externalId },
+      // Only update existing packages (don't create new ones)
+      const updated = await PackageModel.findOneAndUpdate(
+        { id: output.externalId },
         {
           status: output.status,
           mspId: this.extractMSP(event),
         },
         { new: true },
       );
+
+      if (!updated) {
+        console.warn(
+          `[EventListener] Package not found for StatusUpdated event: ${output.externalId}. Skipping update.`,
+        );
+        return;
+      }
 
       console.log(
         `[EventListener] Package status updated: ${output.externalId} -> ${output.status}`,
@@ -498,9 +478,9 @@ class EventListenerService {
   ): Promise<void> {
     try {
       const output = event.output;
-      // Find package by externalId and link it
+      // Find package by id and link it
       const pkg = await PackageModel.findOne({
-        externalId: output.externalId,
+        id: output.externalId,
       });
 
       if (!pkg) {
@@ -536,7 +516,7 @@ class EventListenerService {
   }
 
   /**
-   * Handle AcceptTransfer event - update transfer status
+   * Handle AcceptTransfer event - update transfer status (transfer must exist)
    */
   private async handleAcceptTransfer(
     event: BlockchainEventDelivery & { output: AcceptTransferEvent },
@@ -544,7 +524,7 @@ class EventListenerService {
     try {
       const output = event.output;
 
-      await TransferModel.findOneAndUpdate(
+      const updated = await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },
         {
           status: TransferStatus.ACCEPTED,
@@ -553,6 +533,13 @@ class EventListenerService {
         },
         { new: true },
       );
+
+      if (!updated) {
+        console.warn(
+          `[EventListener] Transfer not found for AcceptTransfer event: ${output.termsId}. Skipping update.`,
+        );
+        return;
+      }
 
       console.log(`[EventListener] Transfer accepted: ${output.termsId}`);
     } catch (error) {
@@ -565,7 +552,7 @@ class EventListenerService {
   }
 
   /**
-   * Handle TransferExecuted event - finalize transfer
+   * Handle TransferExecuted event - finalize transfer (transfer must exist)
    */
   private async handleTransferExecuted(
     event: BlockchainEventDelivery & { output: TransferExecutedEvent },
@@ -573,7 +560,7 @@ class EventListenerService {
     try {
       const output = event.output;
 
-      await TransferModel.findOneAndUpdate(
+      const executed = await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },
         {
           status: TransferStatus.EXECUTED,
@@ -582,6 +569,13 @@ class EventListenerService {
         },
         { new: true },
       );
+
+      if (!executed) {
+        console.warn(
+          `[EventListener] Transfer not found for TransferExecuted event: ${output.termsId}. Skipping update.`,
+        );
+        return;
+      }
 
       // Mark all active announcements for this package as inactive
       // since it has been transferred to a new owner
@@ -609,7 +603,7 @@ class EventListenerService {
   }
 
   /**
-   * Handle DeletePackage event - soft delete or mark as deleted
+   * Handle DeletePackage event - soft delete existing packages only
    */
   private async handleDeletePackage(
     event: BlockchainEventDelivery & { output: DeletePackageEvent },
@@ -617,15 +611,22 @@ class EventListenerService {
     try {
       const output = event.output;
 
-      // Soft delete by setting status to failed
-      await PackageModel.findOneAndUpdate(
-        { packageID: output.externalId },
+      // Soft delete by setting status to failed (only if package exists)
+      const deleted = await PackageModel.findOneAndUpdate(
+        { id: output.externalId },
         {
           status: "failed",
           mspId: this.extractMSP(event),
         },
         { new: true },
       );
+
+      if (!deleted) {
+        console.warn(
+          `[EventListener] Package not found for DeletePackage event: ${output.externalId}. Skipping delete.`,
+        );
+        return;
+      }
 
       // Mark all active announcements for this package as inactive
       await PackageAnnouncementModel.updateMany(
@@ -660,7 +661,7 @@ class EventListenerService {
       const announcerNode = event.author;
 
       // The value should contain package details with an id field
-      const packageExternalId = event.value.externalId;
+      const packageExternalId = event.value.externalId || event.value.id;
 
       if (!packageExternalId) {
         console.warn(
@@ -671,7 +672,7 @@ class EventListenerService {
 
       // Try to find the package in our database
       const pkg = await PackageModel.findOne({
-        externalId: packageExternalId,
+        id: packageExternalId,
       });
 
       const announcementData = {

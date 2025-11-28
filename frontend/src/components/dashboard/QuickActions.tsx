@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { UserRole } from "@/hooks/useRoleDetection";
+import { UserRole } from "@/providers";
 import Link from "next/link";
 import {
   Package,

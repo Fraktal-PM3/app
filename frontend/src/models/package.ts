@@ -6,6 +6,7 @@ import {
   DocumentType,
 } from "@typegoose/typegoose";
 import mongoose from "mongoose";
+import { randomUUID } from "crypto";
 
 // Define enums
 export enum Urgency {
@@ -96,11 +97,12 @@ class PII {
 })
 export class Package {
   public _id!: mongoose.Types.ObjectId;
-  @prop({ required: true })
-  public packageID!: string;
 
-  @prop({ required: true, default: () => crypto.randomUUID() })
-  public externalId!: string;
+  @prop({ required: true, unique: true, default: () => randomUUID() })
+  public id!: string; // UUID - same as blockchain externalId
+
+  @prop({ required: true })
+  public name!: string; // Human-readable package name/identifier
 
   @prop({ default: "null" })
   public termsId?: string;

@@ -1,8 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PackageMetrics } from "@/hooks/usePackageMetrics";
-import { UserRole } from "@/hooks/useRoleDetection";
+import { PackageMetrics, UserRole } from "@/providers";
 import {
   Package,
   TrendingUp,

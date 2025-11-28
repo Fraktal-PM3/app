@@ -1,59 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
+import dbConnect from "@/lib/dbService";
+import Package from "@/models/package";
 import { getPackageService } from "../service";
-import type { PackageDetails, PackagePII } from "fraktal-lib";
 
 export const runtime = "nodejs";
 
 type Body = {
-  packageId?: string;
-  packageDetails: PackageDetails;
-  pii: PackagePII;
-  salt: string;
+  id: string; // Package ID from DB
 };
 
 export async function POST(request: NextRequest) {
   try {
+    await dbConnect();
     const body = (await request.json()) as Body;
-    const { packageId, packageDetails, pii, salt} = body;
+    const { id } = body;
 
-    if (!packageDetails || !pii) {
+    if (!id) {
       return NextResponse.json(
-      { success: false, error: "packageDetails and pii are required" },
-      { status: 400 }
+        { success: false, error: "id is required" },
+        { status: 400 }
       );
     }
 
-    if (!packageId) {
+    // Fetch package from database
+    const pkg = await Package.findOne({ id });
+
+    if (!pkg) {
       return NextResponse.json(
-      { success: false, error: "packageId is required" },
-      { status: 400 }
+        { success: false, error: "Package not found" },
+        { status: 404 }
       );
     }
 
+    if (!pkg.packageDetails || !pkg.pii || !pkg.salt) {
+      return NextResponse.json(
+        { success: false, error: "Package is missing required fields" },
+        { status: 400 }
+      );
+    }
 
+    // Submit to blockchain
     const service = await getPackageService();
-    const externalId = body.packageId
-  
-
-    if (!salt) {
-      return NextResponse.json(
-      { success: false, error: "salt is required" },
-      { status: 400 }
-      );
-    }
-
     const result = await service.createPackage(
-      externalId!,
-      packageDetails,
-      pii,
-      salt,
+      pkg.id,
+      pkg.packageDetails,
+      pkg.pii,
+      pkg.salt,
     );
 
     return NextResponse.json({
       success: true,
-      externalId,
-      packageId: packageId ?? null,
+      id: pkg.id,
       result,
     });
   } catch (error: any) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePackages } from "../offers/components/PackageContext";
+import { usePackages } from "@/providers";
 
 type PrivateMessage = {
   id: string;
@@ -23,7 +23,7 @@ export default function MessagesPage() {
     null,
   );
   const [loading, setLoading] = useState(true);
-  const { connected } = usePackages();
+  const { isConnected } = usePackages();
 
   // Fetch historical messages on page load
   useEffect(() => {
@@ -143,11 +143,11 @@ export default function MessagesPage() {
           <div className="flex items-center gap-2 text-sm">
             <div
               className={`w-2 h-2 rounded-full ${
-                connected ? "bg-blue-500" : "bg-gray-400"
+                isConnected ? "bg-blue-500" : "bg-gray-400"
               }`}
             ></div>
             <span className="text-muted-foreground">
-              {connected ? "Connected" : "Disconnected"}
+              {isConnected ? "Connected" : "Disconnected"}
             </span>
           </div>
         </div>

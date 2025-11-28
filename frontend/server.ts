@@ -67,9 +67,9 @@ app.prepare().then(async () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║   Next.js Server with Background Event Listener          ║
+║   Next.js Server with Background Event Listener           ║
 ║                                                           ║
-║   🚀 Server:     http://${hostname}:${port}             ║
+║   🚀 Server:     http://${hostname}:${port}               ║
 ║   🔗 Firefly:    ${process.env.FIREFLY_HOST || "Auto-detect"}           ║
 ║   📦 Database:   ${process.env.MONGODB_URI || "mongodb://localhost:27017/fraktal"} ║
 ║   🔧 Mode:       ${dev ? "Development" : "Production"}                    ║
@@ -89,7 +89,9 @@ app.prepare().then(async () => {
       isTransporter,
     });
 
-    console.log("[Server] ✅ Background event listener initialized successfully");
+    console.log(
+      "[Server] ✅ Background event listener initialized successfully",
+    );
 
     // Sync historical events
     const status = eventListenerService.getStatus();
@@ -104,19 +106,28 @@ app.prepare().then(async () => {
       const syncResult = await eventSyncService.getLastSyncStatus();
       if (syncResult?.lastSyncTimestamp) {
         console.log(
-          `[Server] Last event sync was at: ${syncResult.lastSyncTimestamp.toISOString()}`
+          `[Server] Last event sync was at: ${syncResult.lastSyncTimestamp.toISOString()}`,
         );
       } else {
-        console.log("[Server] No previous sync record found. This is the first run.");
+        console.log(
+          "[Server] No previous sync record found. This is the first run.",
+        );
       }
 
-      console.log("[Server] Historical sync completed (or skipped if API not available)");
+      console.log(
+        "[Server] Historical sync completed (or skipped if API not available)",
+      );
     }
 
     console.log("\n[Server] 🎉 All systems operational!\n");
   } catch (error) {
-    console.error("\n[Server] ❌ Failed to initialize background service:", error);
-    console.error("[Server] Server will continue but events may not be persisted\n");
+    console.error(
+      "\n[Server] ❌ Failed to initialize background service:",
+      error,
+    );
+    console.error(
+      "[Server] Server will continue but events may not be persisted\n",
+    );
   }
 
   // Error handling for uncaught exceptions

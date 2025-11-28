@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PackageAnnouncement } from "@/hooks/usePackageAnnouncements";
+import { PackageAnnouncement } from "@/types/package";
 import {
   Dialog,
   DialogContent,

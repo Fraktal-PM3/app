@@ -30,7 +30,7 @@ export default function CreatePackagePage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
-    id: "",
+    name: "",
     sizeWidth: "",
     sizeHeight: "",
     sizeDepth: "",
@@ -55,7 +55,7 @@ export default function CreatePackagePage() {
 
   const reset = () => {
     setForm({
-      id: "",
+      name: "",
       sizeWidth: "",
       sizeHeight: "",
       sizeDepth: "",
@@ -77,7 +77,7 @@ export default function CreatePackagePage() {
 
   const fillTestData = () => {
     setForm({
-      id: `PKG-${Date.now().toString().slice(-6)}`,
+      name: `PKG-${Date.now().toString().slice(-6)}`,
       sizeWidth: "40",
       sizeHeight: "30",
       sizeDepth: "20",
@@ -98,7 +98,7 @@ export default function CreatePackagePage() {
   };
 
   const validateDetails = () => {
-    if (!form.id.trim()) return "Package ID is required";
+    if (!form.name.trim()) return "Package name is required";
     if (!form.sizeWidth || !form.sizeHeight || !form.sizeDepth)
       return "All dimensions are required";
     if (!form.weightKg) return "Weight is required";
@@ -189,7 +189,7 @@ export default function CreatePackagePage() {
     const loadingToast = toast.loading("Creating package...");
 
     try {
-      const packageID = form.id.trim();
+      const name = form.name.trim();
 
       const packageDetails = {
         pickupLocation: {
@@ -226,7 +226,7 @@ export default function CreatePackagePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packageID,
+          name,
           packageDetails,
           pii,
           salt,
@@ -238,7 +238,7 @@ export default function CreatePackagePage() {
         throw new Error(mongoData.error || "Failed to save to database");
       }
 
-      const externalId = mongoData.externalId;
+      const packageId = mongoData.id;
 
       // Step 2: Create on blockchain
       toast.loading("Creating on blockchain...", { id: loadingToast });
@@ -246,10 +246,7 @@ export default function CreatePackagePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packageId: externalId,
-          packageDetails,
-          pii,
-          salt,
+          id: packageId,
         }),
       });
 
@@ -258,25 +255,8 @@ export default function CreatePackagePage() {
         throw new Error(fireflyData.error || "Failed to create on blockchain");
       }
 
-      // Step 3: Broadcast package
-      toast.loading("Broadcasting package...", { id: loadingToast });
-      const broadcastRes = await fetch("/api/packages/create/broadcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          externalId,
-          packageDetails,
-          pii,
-          salt,
-        }),
-      });
-
-      const broadcastData = await broadcastRes.json();
-      if (!broadcastRes.ok || broadcastData.success === false) {
-        throw new Error(broadcastData.error || "Failed to broadcast package");
-      }
-
-      toast.success("Package created successfully!", { id: loadingToast });
+      // Step 3: Announce package (optional - user can trigger later)
+      toast.success("Package created successfully! You can announce it later.", { id: loadingToast });
 
       // Reset form and navigate
       reset();
@@ -353,16 +333,21 @@ export default function CreatePackagePage() {
                 {/* Package Details Tab */}
                 <TabsContent value="details" className="space-y-6 pt-6">
                   <div className="space-y-4">
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 mb-4">
+                      <p className="font-mono text-xs text-blue-900">
+                        <span className="font-bold">Note:</span> A unique identifier (UUID) will be automatically generated for your package and used for blockchain operations.
+                      </p>
+                    </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="id" className="font-mono text-xs uppercase">
-                          Package ID *
+                        <Label htmlFor="name" className="font-mono text-xs uppercase">
+                          Package Name *
                         </Label>
                         <Input
-                          id="id"
+                          id="name"
                           placeholder="e.g., PKG-001"
-                          value={form.id}
-                          onChange={update("id")}
+                          value={form.name}
+                          onChange={update("name")}
                           className="font-mono"
                         />
                       </div>

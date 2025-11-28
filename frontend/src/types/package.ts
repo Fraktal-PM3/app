@@ -50,8 +50,8 @@ export type PII = {
  */
 export type Package = {
   _id: string;
-  packageID: string;
-  externalId: string;
+  id: string; // UUID - same as blockchain externalId
+  name: string; // Human-readable package name/identifier
   termsId?: string;
   status: string;
   packageDetails?: PackageDetails;

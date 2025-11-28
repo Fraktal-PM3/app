@@ -5,21 +5,21 @@ import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePackages } from "@/hooks/usePackages";
-import { usePackageAnnouncements } from "@/hooks/usePackageAnnouncements";
+import { usePackages, useAnnouncements } from "@/providers";
 import { PackageCard } from "@/components/packages/PackageCard";
 import { AnnouncementModal } from "@/components/announcement/AnnouncementModal";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { Package } from "@/types/package";
 import { Package as PackageIcon } from "lucide-react";
 
+//FIXME: Diplays weird extra package after creation, likely something to do with the package hook
 export default function MyPackagesPage() {
   const { packages, isLoading, isConnected, error, refetch } = usePackages();
   const {
     announcements,
     isLoading: announcementsLoading,
     refetch: refetchAnnouncements,
-  } = usePackageAnnouncements(false);
+  } = useAnnouncements(false);
 
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
@@ -37,17 +37,15 @@ export default function MyPackagesPage() {
 
   // Check which packages are announced
   const announcedPackageIds = new Set(
-    announcements
-      .filter((a) => a.isActive)
-      .map((a) => a.packageExternalId)
+    announcements.filter((a) => a.isActive).map((a) => a.packageExternalId),
   );
 
   // Filter packages by status
   const activePackages = packages.filter(
-    (pkg) => pkg.active === "true" && pkg.status !== "succeeded"
+    (pkg) => pkg.active === "true" && pkg.status !== "succeeded",
   );
   const completedPackages = packages.filter(
-    (pkg) => pkg.active === "false" || pkg.status === "succeeded"
+    (pkg) => pkg.active === "false" || pkg.status === "succeeded",
   );
 
   if (error) {

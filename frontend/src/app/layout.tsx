@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "../styles/globals.css";
-import { PackageProvider } from "./offers/components/PackageContext";
+import {
+  SSEConnectionProvider,
+  PackageProvider,
+  AuctionProvider,
+  MetricsProvider,
+  MessageProvider,
+} from "@/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,9 +65,17 @@ export default function RootLayout({
             </nav>
           </div>
         </header>
-        <PackageProvider>
-          <main className="flex-1">{children}</main>
-        </PackageProvider>
+        <SSEConnectionProvider>
+          <PackageProvider>
+            <AuctionProvider>
+              <MetricsProvider>
+                <MessageProvider>
+                  <main className="flex-1">{children}</main>
+                </MessageProvider>
+              </MetricsProvider>
+            </AuctionProvider>
+          </PackageProvider>
+        </SSEConnectionProvider>
       </body>
     </html>
   );

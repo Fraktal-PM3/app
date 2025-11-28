@@ -18,11 +18,7 @@ export async function GET(request: Request) {
         }
 
         try {
-          const messageData = {
-            event: eventName,
-            data,
-          };
-          const message = JSON.stringify(messageData) + "\n";
+          const message = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
           controller.enqueue(encoder.encode(message));
         } catch {
           // Mark as closed but don't log - this happens during normal disconnections
@@ -39,8 +35,6 @@ export async function GET(request: Request) {
 
       // Send initial connection message
       sendEvent("connected", { message: "Connected to package events" });
-
-      console.log("[SSE] Client connected to event stream");
 
       // Handle client disconnect
       request.signal.addEventListener("abort", () => {

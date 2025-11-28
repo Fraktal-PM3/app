@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { usePackageAnnouncements, PackageAnnouncement } from "@/hooks/usePackageAnnouncements";
+import { useAnnouncements } from "@/providers";
+import { PackageAnnouncement } from "@/types/package";
 import { AnnouncementCard } from "@/components/announcements/AnnouncementCard";
 import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
@@ -19,7 +20,7 @@ export default function OffersPage() {
     isConnected,
     error,
     refetch,
-  } = usePackageAnnouncements(true); // Only active announcements
+  } = useAnnouncements(true); // Only active announcements
 
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<PackageAnnouncement | null>(null);

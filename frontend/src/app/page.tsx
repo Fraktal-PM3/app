@@ -2,10 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { usePackages } from "@/hooks/usePackages";
-import { useTransfers } from "@/hooks/useTransfers";
-import { useRoleDetection } from "@/hooks/useRoleDetection";
-import { usePackageMetrics } from "@/hooks/usePackageMetrics";
+import { usePackages, useMetrics, useRoleDetection } from "@/providers";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { PackageCharts } from "@/components/dashboard/PackageCharts";
@@ -16,9 +13,8 @@ import { motion } from "framer-motion";
 
 export default function Home() {
   const { packages, isLoading, isConnected, error } = usePackages();
-  const { transfers, isLoading: transfersLoading } = useTransfers();
-  const { role, isRoleDetected, setRole } = useRoleDetection(packages);
-  const metrics = usePackageMetrics(packages, transfers, role);
+  const { role, isRoleDetected, setRole } = useRoleDetection();
+  const metrics = useMetrics();
 
   if (error) {
     return (
@@ -33,7 +29,7 @@ export default function Home() {
     );
   }
 
-  if (isLoading || transfersLoading || !isRoleDetected) {
+  if (isLoading || !isRoleDetected) {
     return (
       <div className="container mx-auto space-y-8 py-8">
         <div className="flex items-center justify-between">

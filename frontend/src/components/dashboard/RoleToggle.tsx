@@ -1,6 +1,6 @@
 "use client";
 
-import { UserRole } from "@/hooks/useRoleDetection";
+import { UserRole } from "@/providers";
 import { Truck, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 

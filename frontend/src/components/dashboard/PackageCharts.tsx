@@ -2,8 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PackageMetrics } from "@/hooks/usePackageMetrics";
-import { UserRole } from "@/hooks/useRoleDetection";
+import { PackageMetrics, UserRole } from "@/providers";
 import {
   LineChart,
   Line,
