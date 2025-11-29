@@ -2,15 +2,14 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { UserRole } from "@/providers";
-import Link from "next/link";
 import {
-  Package,
-  Send,
-  MessageSquare,
-  LayoutDashboard,
-  Search,
   ArrowRight,
+  MessageSquare,
+  Package,
+  Search,
+  Send
 } from "lucide-react";
+import Link from "next/link";
 
 type QuickActionsProps = {
   role: UserRole;
@@ -50,10 +49,10 @@ export function QuickActions({ role }: QuickActionsProps) {
       primary: true,
     },
     {
-      title: "Active Deliveries",
-      description: "Manage current jobs",
+      title: "My Packages",
+      description: "Manage your active shipments",
       icon: Package,
-      href: "/activePackage",
+      href: "/packages",
       primary: false,
     },
     {

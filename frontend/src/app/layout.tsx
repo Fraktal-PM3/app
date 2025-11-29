@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  AuctionProvider,
+  MessageProvider,
+  MetricsProvider,
+  PackageProvider,
+  SSEConnectionProvider,
+} from "@/providers";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Toaster } from "sonner";
 import "../styles/globals.css";
-import {
-  SSEConnectionProvider,
-  PackageProvider,
-  AuctionProvider,
-  MetricsProvider,
-  MessageProvider,
-} from "@/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,12 +32,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased scrollbar-hide overflow-x-hidden bg-background text-foreground`}
       >
+        <Toaster position="top-right" richColors />
         <header className="sticky top-0 z-50 w-full border-b border-border bg-background">
           <div className="container mx-auto flex h-14 items-center justify-between px-6">
             {/* Logo */}
             <Link
               href="/"
-              className="font-mono text-lg font-bold uppercase tracking-wider transition-colors hover:text-muted-foreground"
+              className="font-mono text-2xl font-bold uppercase tracking-wider transition-colors hover:text-muted-foreground"
             >
               Fraktal
             </Link>

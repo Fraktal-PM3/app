@@ -50,7 +50,7 @@ export function AnnouncementModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          packageId: pkg.packageID,
+          packageId: pkg.id,
           price: priceValue,
         }),
       });
@@ -99,7 +99,7 @@ export function AnnouncementModal({
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Package ID:</span>
-                <span className="font-semibold">{pkg.packageID}</span>
+                <span className="font-semibold">{pkg.id}</span>
               </div>
               {pkg.packageDetails && (
                 <>

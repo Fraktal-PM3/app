@@ -12,6 +12,7 @@ import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, Search } from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export default function OffersPage() {
   const {
@@ -65,12 +66,14 @@ export default function OffersPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8">
-        <div className="border border-destructive/50 bg-destructive/10 p-6">
-          <h2 className="mb-2 font-mono text-sm font-bold uppercase">
-            Connection Error
-          </h2>
-          <p className="font-mono text-xs text-destructive/90">{error}</p>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-6 md:py-8">
+          <div className="border border-destructive/50 bg-destructive/10 p-6">
+            <h2 className="mb-2 font-mono text-sm font-bold uppercase">
+              Connection Error
+            </h2>
+            <p className="font-mono text-xs text-destructive/90">{error}</p>
+          </div>
         </div>
       </div>
     );
@@ -78,7 +81,8 @@ export default function OffersPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto space-y-8 py-8">
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto space-y-6 px-4 py-6 md:py-8">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <Skeleton className="h-10 w-48" />
@@ -87,10 +91,11 @@ export default function OffersPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <Separator className="bg-border" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-[500px]" />
-          ))}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[500px]" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -98,31 +103,24 @@ export default function OffersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto space-y-8 py-8">
+      <div className="container mx-auto space-y-6 px-4 py-6 md:py-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"
-        >
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <Briefcase className="h-8 w-8 text-primary" />
-              <h1 className="font-mono text-3xl font-bold uppercase tracking-tight">
-                Available Offers
-              </h1>
-            </div>
-            <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-              Browse package delivery opportunities
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="font-mono text-xs">
-              {filteredAnnouncements.length} Available
-            </Badge>
-            <RealtimeIndicator isConnected={isConnected} />
-          </div>
-        </motion.div>
+        <PageHeader
+          title="Available Offers"
+          subtitle="Browse package delivery opportunities"
+          icon={Briefcase}
+          breadcrumbLabels={{
+            offers: "Available Offers",
+          }}
+          rightContent={
+            <>
+              <Badge variant="outline" className="font-mono text-xs">
+                {filteredAnnouncements.length} Available
+              </Badge>
+              <RealtimeIndicator isConnected={isConnected} />
+            </>
+          }
+        />
 
         <Separator className="bg-border" />
 

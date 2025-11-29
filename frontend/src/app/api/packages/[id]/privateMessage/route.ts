@@ -63,7 +63,7 @@ export async function POST(
             version: "1.0.0",
           },
           value: {
-            packageId: id,
+            externalPackageId: id,
             price: price,
             message: message || undefined,
           },

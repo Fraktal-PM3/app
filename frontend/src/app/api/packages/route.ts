@@ -3,6 +3,7 @@ import { CreatePackageRequestSchema } from "@/lib/packageSchemas";
 import Package from "@/models/package";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { getMspIdentity } from "./service";
 
 export async function GET() {
   await dbConnect();
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
 
     // Generate UUID automatically
     const packageId = randomUUID();
+    const mspIdentity = await getMspIdentity();
 
     // Create package in database
     const newPackage = await Package.create({
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
       packageDetails,
       pii,
       salt,
+      mspId: mspIdentity.mspId,
     });
 
     return NextResponse.json(

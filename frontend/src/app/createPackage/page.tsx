@@ -268,7 +268,6 @@ export default function CreatePackagePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Toaster position="top-right" richColors />
       <div className="container mx-auto space-y-8 py-8">
         {/* Header */}
         <motion.div

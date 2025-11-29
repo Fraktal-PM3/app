@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import {
-  MapPin,
   Package as PackageIcon,
-  Clock,
   Weight,
-  DollarSign,
-  Building2,
+  Boxes,
+  ExternalLink,
 } from "lucide-react";
+import { LocationDisplay } from "@/components/common/LocationDisplay";
+import Link from "next/link";
 
 interface AnnouncementCardProps {
   announcement: PackageAnnouncement;
@@ -47,23 +47,23 @@ export function AnnouncementCard({
   };
 
   return (
-    <Card className="border-border bg-card font-mono transition-all hover:border-primary/50">
+    <Card className="border-border bg-card font-mono transition-all hover:border-primary/50 h-full flex flex-col">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <PackageIcon className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-bold uppercase tracking-wider">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <PackageIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold uppercase tracking-wider truncate">
               {announcement.packageExternalId}
             </CardTitle>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {getUrgencyBadge()}
             {offerSent ? (
-              <Badge variant="outline" className="bg-blue-50 font-mono text-xs">
+              <Badge variant="outline" className="bg-blue-50 font-mono text-xs whitespace-nowrap">
                 OFFER SENT
               </Badge>
             ) : (
-              <Badge variant="default" className="bg-green-600 font-mono text-xs">
+              <Badge variant="default" className="bg-green-600 font-mono text-xs whitespace-nowrap">
                 AVAILABLE
               </Badge>
             )}
@@ -71,94 +71,98 @@ export function AnnouncementCard({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Price */}
-        {announcement.price && (
-          <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <DollarSign className="h-4 w-4" />
-                <span className="uppercase">Asking Price</span>
-              </div>
-              <div className="text-lg font-bold">{announcement.price} SEK</div>
-            </div>
-          </div>
-        )}
-
+      <CardContent className="space-y-4 flex-1 flex flex-col">
         {pkg && (
           <>
-            {/* Locations */}
-            <div className="space-y-2">
-              <div className="flex items-start gap-2 text-xs">
-                <MapPin className="mt-0.5 h-3 w-3 text-green-500" />
-                <div className="flex-1">
-                  <div className="text-muted-foreground">PICKUP</div>
-                  <div className="font-semibold">
-                    {pkg.pickupLocation?.address || "N/A"}
-                  </div>
+            {/* Price */}
+            {announcement.price && (
+              <div className="rounded-md bg-muted/30 p-3">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Suggested Price
                 </div>
-              </div>
-              <div className="flex items-start gap-2 text-xs">
-                <MapPin className="mt-0.5 h-3 w-3 text-red-500" />
-                <div className="flex-1">
-                  <div className="text-muted-foreground">DROPOFF</div>
-                  <div className="font-semibold">
-                    {pkg.dropLocation?.address || "N/A"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Package Info */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Weight className="h-3 w-3 text-muted-foreground" />
-                <div>
-                  <div className="text-muted-foreground">WEIGHT</div>
-                  <div className="font-semibold">{pkg.weightKg || "N/A"} kg</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <div>
-                  <div className="text-muted-foreground">POSTED</div>
-                  <div className="font-semibold">
-                    {announcement.createdAt
-                      ? format(new Date(announcement.createdAt), "MMM dd, HH:mm")
-                      : "N/A"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Size */}
-            {pkg.size && (
-              <div className="text-xs">
-                <div className="text-muted-foreground">SIZE (W × H × D)</div>
-                <div className="font-semibold">
-                  {pkg.size.width} × {pkg.size.height} × {pkg.size.depth} cm
+                <div className="mt-1 text-2xl font-bold">
+                  {announcement.price} kr
                 </div>
               </div>
             )}
+
+            {/* Locations */}
+            <div className="space-y-3">
+              <LocationDisplay type="pickup" location={pkg.pickupLocation} />
+              <LocationDisplay type="dropoff" location={pkg.dropLocation} />
+            </div>
+
+            <Separator />
+
+            {/* Package Info Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Weight className="h-3 w-3 flex-shrink-0" />
+                  <span className="uppercase tracking-wider">Weight</span>
+                </div>
+                <div className="text-lg font-bold">
+                  {pkg.weightKg || "N/A"} kg
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Boxes className="h-3 w-3 flex-shrink-0" />
+                  <span className="uppercase tracking-wider">Size</span>
+                </div>
+                <div className="text-sm font-semibold">
+                  {pkg.size
+                    ? `${pkg.size.width} × ${pkg.size.height} × ${pkg.size.depth} cm`
+                    : "N/A"}
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Metadata */}
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground uppercase tracking-wider flex-shrink-0">
+                  Posted
+                </span>
+                <span className="font-semibold text-right">
+                  {announcement.createdAt
+                    ? format(new Date(announcement.createdAt), "MMM dd, yyyy HH:mm")
+                    : "N/A"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground uppercase tracking-wider flex-shrink-0">
+                  Announced By
+                </span>
+                <span className="font-mono font-semibold text-right break-all">
+                  {announcement.announcerMSP}
+                </span>
+              </div>
+            </div>
           </>
         )}
 
-        {/* Announcer Info */}
-        <Separator />
-        <div className="flex items-center gap-2 text-xs">
-          <Building2 className="h-3 w-3 text-muted-foreground" />
-          <div>
-            <div className="text-muted-foreground">ANNOUNCED BY</div>
-            <div className="font-semibold">{announcement.announcerMSP}</div>
-          </div>
-        </div>
+        {/* Action Buttons - pushed to bottom */}
+        <div className="mt-auto space-y-3">
+          <Separator />
 
-        {/* Action Button */}
-        {!offerSent && onSendOffer && (
-          <>
-            <Separator />
+          {/* View Details Button */}
+          <Link href={`/offers/${announcement._id}`} className="block">
+            <Button
+              variant="outline"
+              className="w-full font-mono text-xs uppercase"
+              size="sm"
+            >
+              <ExternalLink className="mr-2 h-3 w-3" />
+              View Details
+            </Button>
+          </Link>
+
+          {/* Send Offer Button */}
+          {!offerSent && onSendOffer && (
             <Button
               onClick={() => onSendOffer(announcement)}
               className="w-full font-mono text-xs uppercase"
@@ -166,17 +170,14 @@ export function AnnouncementCard({
             >
               Send Transfer Offer
             </Button>
-          </>
-        )}
+          )}
 
-        {offerSent && (
-          <>
-            <Separator />
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-center text-xs text-blue-900">
+          {offerSent && (
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-center text-xs text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
               Your offer has been sent to the sender
             </div>
-          </>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );

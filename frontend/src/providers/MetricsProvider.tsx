@@ -141,7 +141,7 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
         const hoursRemaining = differenceInHours(estimatedDelivery, new Date());
 
         return {
-          packageId: pkg.packageID,
+          packageId: pkg.id,
           estimatedDelivery,
           hoursRemaining: Math.max(0, hoursRemaining),
         };

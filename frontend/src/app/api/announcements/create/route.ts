@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getFireFly } from "../../packages/service";
 import dbConnect from "@/lib/dbService";
 import PackageModel from "@/models/package";
+import { NextRequest, NextResponse } from "next/server";
+import { getFireFly } from "../../packages/service";
 
 type Body = {
   packageId: string;
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Get package from MongoDB
     await dbConnect();
-    const pkg = await PackageModel.findOne({ packageID: packageId });
+    const pkg = await PackageModel.findOne({ id: packageId });
 
     if (!pkg) {
       return NextResponse.json(
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
             version: "1.0.0",
           },
           value: {
-            id: pkg.externalId,
+            id: pkg.id,
             pickupLocation: pkg.packageDetails.pickupLocation,
             dropLocation: pkg.packageDetails.dropLocation,
             size: pkg.packageDetails.size,

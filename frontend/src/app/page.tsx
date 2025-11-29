@@ -1,14 +1,15 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { usePackages, useMetrics, useRoleDetection } from "@/providers";
-import { StatsCards } from "@/components/dashboard/StatsCards";
+import { PageHeader } from "@/components/common/PageHeader";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { PackageCharts } from "@/components/dashboard/PackageCharts";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { RoleToggle } from "@/components/dashboard/RoleToggle";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
+import { RoleToggle } from "@/components/dashboard/RoleToggle";
+import { StatsCards } from "@/components/dashboard/StatsCards";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMetrics, usePackages, useRoleDetection } from "@/providers";
 import { motion } from "framer-motion";
 
 export default function Home() {
@@ -18,12 +19,14 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8">
-        <div className="border border-destructive/50 bg-destructive/10 p-6">
-          <h2 className="mb-2 font-mono text-sm font-bold uppercase">
-            Connection Error
-          </h2>
-          <p className="font-mono text-xs text-destructive/90">{error}</p>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-6 md:py-8">
+          <div className="border border-destructive/50 bg-destructive/10 p-6">
+            <h2 className="mb-2 font-mono text-sm font-bold uppercase">
+              Connection Error
+            </h2>
+            <p className="font-mono text-xs text-destructive/90">{error}</p>
+          </div>
         </div>
       </div>
     );
@@ -31,28 +34,30 @@ export default function Home() {
 
   if (isLoading || !isRoleDetected) {
     return (
-      <div className="container mx-auto space-y-8 py-8">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-4 w-64" />
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto space-y-6 px-4 py-6 md:py-8">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-10 w-32" />
           </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <Separator className="bg-border" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Skeleton className="h-[500px]" />
-          <Skeleton className="h-[500px]" />
+          <Separator className="bg-border" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-48" />
+            ))}
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Skeleton className="h-[500px]" />
+            <Skeleton className="h-[500px]" />
+          </div>
         </div>
       </div>
     );
@@ -60,26 +65,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto space-y-8 py-8">
+      <div className="container mx-auto space-y-6 px-4 py-6 md:py-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"
-        >
-          <div className="space-y-1">
-            <h1 className="font-mono text-3xl font-bold uppercase tracking-tight">
-              Dashboard
-            </h1>
-            <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-              Package Transportation Hub
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <RealtimeIndicator isConnected={isConnected} />
-            <RoleToggle currentRole={role} onRoleChange={setRole} />
-          </div>
-        </motion.div>
+        <PageHeader
+          title="Dashboard"
+          subtitle="Package Transportation Hub"
+          showBreadcrumbs={false}
+          rightContent={
+            <>
+              <RealtimeIndicator isConnected={isConnected} />
+              <RoleToggle currentRole={role} onRoleChange={setRole} />
+            </>
+          }
+        />
 
         <Separator className="bg-border" />
 
