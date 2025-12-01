@@ -11,11 +11,19 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMetrics, usePackages, useRoleDetection } from "@/providers";
 import { motion } from "framer-motion";
+import { getCurrentMspId } from "./packages/[id]/actions";
+import { useEffect, useState } from "react";
 
 export default function Home() {
   const { packages, isLoading, isConnected, error } = usePackages();
   const { role, isRoleDetected, setRole } = useRoleDetection();
   const metrics = useMetrics();
+  const [currentMspId, setCurrentMspId] = useState<string | null>(null);
+
+  // Get current MSP ID on mount
+  useEffect(() => {
+    getCurrentMspId().then(setCurrentMspId);
+  }, []);
 
   if (error) {
     return (
@@ -68,7 +76,7 @@ export default function Home() {
       <div className="container mx-auto space-y-6 px-4 py-6 md:py-8">
         {/* Header */}
         <PageHeader
-          title="Dashboard"
+          title={`Dashboard for ${currentMspId || "..."}`}
           subtitle="Package Transportation Hub"
           showBreadcrumbs={false}
           rightContent={
