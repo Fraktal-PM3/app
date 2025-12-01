@@ -9,21 +9,14 @@ import { PackageOffersTab } from "@/components/package-details/PackageOffersTab"
 import { PackageStatusCard } from "@/components/package-details/PackageStatusCard";
 import { PackageTrackingCard } from "@/components/package-details/PackageTrackingCard";
 import { PackageTransfersTab } from "@/components/package-details/PackageTransfersTab";
-import dynamic from "next/dynamic";
-
-// Dynamically import PackageMap with SSR disabled to avoid Leaflet window errors
-const PackageMap = dynamic(
-    () => import("@/components/package-details/PackageMap").then((mod) => ({ default: mod.PackageMap })),
-    { ssr: false }
-);
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-    useAnnouncements,
     useAnnouncementOffers,
+    useAnnouncements,
     usePackages,
     useRecentActivity,
     useSSEConnection,
@@ -31,10 +24,17 @@ import {
 } from "@/providers";
 import { motion } from "framer-motion";
 import { AlertCircle, ArrowLeft, Briefcase, Clock, Package as PackageIcon, Truck } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { checkPackageOwnership } from "./actions";
+
+// Dynamically import PackageMap with SSR disabled to avoid Leaflet window errors
+const PackageMap = dynamic(
+    () => import("@/components/package-details/PackageMap").then((mod) => ({ default: mod.PackageMap })),
+    { ssr: false }
+);
 
 export default function PackageDetailsPage() {
     const params = useParams();

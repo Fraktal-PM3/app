@@ -46,7 +46,7 @@ export default function OffersPage() {
 
     offers.forEach((offer) => {
       // Check if this offer is from the current user
-      if (offer.fromMSP === currentMspId && offer.announcementMessageId) {
+      if (offer.announcementMessageId) {
         // Find the announcement this offer is for
         const announcement = announcements.find(
           (a) => a.messageId === offer.announcementMessageId

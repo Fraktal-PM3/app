@@ -62,3 +62,11 @@ export async function proposeTransfer(offer: TransferOffer) {
     new Date(Date.now() + 24 * 7 * 60 * 60 * 1000).toISOString(),
   );
 }
+
+export async function executeTransfer(transferId: string, externalId: string) {
+  const packageService = await getPackageService();
+  const storeObject = await packageService.readPackageDetailsAndPII(externalId);
+
+  const res = await packageService.executeTransfer(externalId, transferId, storeObject as any);
+  console.log("ExecuteTransfer - result:", res);
+}

@@ -47,14 +47,8 @@ class EventListenerService {
       await dbConnect();
       console.log("[EventListener] MongoDB connected");
 
-      // Initialize Firefly
-      const defaultHost =
-        (config.isTransporter ?? process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE")
-          ? "http://localhost:8000"
-          : "http://localhost:8001";
-
       this.fireflyInstance = new FireFly({
-        host: config.fireflyHost || process.env.FIREFLY_HOST || defaultHost,
+        host: process.env.FIREFLY_NODE_URL || "",
         namespace:
           config.fireflyNamespace || process.env.FIREFLY_NAMESPACE || "default",
       });
@@ -170,6 +164,7 @@ class EventListenerService {
     if (!this.nodeMSP) {
       return true;
     }
+
 
     // For blockchain events, check the output fields
     if ("output" in event && event.output) {
@@ -306,6 +301,7 @@ class EventListenerService {
         event: BlockchainEventDelivery & { output: ProposeTransferEvent },
       ) => {
         console.log("[EventListener] ProposeTransfer event received");
+        console.log("[EventListener] Event details: ", event);
 
         if (!this.isRelevantEvent(event)) return;
 
@@ -329,7 +325,11 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] AcceptTransfer event received: ", event);
 
-        if (!this.isRelevantEvent(event)) return;
+        await dbConnect();
+
+        const transfer = await TransferModel.findOne({ transferId: event.output.termsId });
+
+        if (!transfer) return;
 
         try {
           await this.handleAcceptTransfer(event);
@@ -351,7 +351,9 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] TransferExecuted event received: ", event);
 
-        if (!this.isRelevantEvent(event)) return;
+        const transfer = await TransferModel.findOne({ transferId: event.output.termsId });
+
+        if (!transfer) return;
 
         try {
           await this.handleTransferExecuted(event);
@@ -485,26 +487,19 @@ class EventListenerService {
     try {
       const output = event.output;
       // Find package by id and link it
-      const pkg = await PackageModel.findOne({
-        id: output.externalId,
-      });
-
-      if (!pkg) {
-        throw new Error("ProposeTransfer event for unknown package");
-      }
+      console.log("[EventListener] Handling ProposeTransfer for package:", output.externalId, event);
+      console.log("handleProposeTransfer - output:", output);
 
       const transferData: Record<string, any> = {
         transferId: output.termsId,
         externalId: output.externalId,
-        fromMSP: output.terms.fromMSP,
-        toMSP: output.terms.toMSP,
+        fromMSP: output.parsedTerms.fromMSP,
+        toMSP: output.parsedTerms.toMSP,
         status: TransferStatus.PROPOSED,
         mspId: this.extractMSP(event) || "",
         blockchainTxId: event.txid,
         blockchainData: output,
       };
-
-      transferData.packageId = pkg._id;
 
       // Link transfer to active announcement for this package
       const activeAnnouncement = await PackageAnnouncementModel.findOne({
@@ -715,8 +710,6 @@ class EventListenerService {
         { upsert: true, new: true },
       );
 
-
-
       console.log(
         `[EventListener] Package announcement stored: ${packageExternalId} from ${announcerMSP}`,
       );
@@ -736,8 +729,6 @@ class EventListenerService {
     event: FireFlyDatatypeMessage,
   ): Promise<void> {
     try {
-      // Extract MSP from signingKey (format: "MSP_ID:certificate...")
-      const fromMSP = event.signingKey?.split(":")[0] || "";
       const senderNode = event.author;
 
       // The value should contain transfer offer details
@@ -766,7 +757,7 @@ class EventListenerService {
         messageHash: event.hash,
         externalPackageId: offerValue.externalPackageId,
         packageId: pkg ? pkg._id : undefined,
-        fromMSP: offerValue.fromMSP || fromMSP,
+        fromMSP: offerValue.fromMSP,
         toMSP: offerValue.toMSP,
         price: offerValue.price,
         createdISO: offerValue.createdISO,
@@ -788,7 +779,7 @@ class EventListenerService {
       );
 
       console.log(
-        `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${fromMSP} with price ${offerValue.price}`,
+        `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${offerValue.fromMSP} with price ${offerValue.price}`,
       );
     } catch (error) {
       console.error(

@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "ts-node --project tsconfig.json server.ts",
-    "transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE MONGODB_URI=mongodb://localhost:27018/fraktal ts-node --project tsconfig.json server.ts",
-    "sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE MONGODB_URI=mongodb://localhost:27017/fraktal ts-node --project tsconfig.json server.ts",
+    "transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE FIREFLY_NODE_URL=http://localhost:8000 MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3001 ts-node --project tsconfig.json server.ts",
+    "sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE FIREFLY_NODE_URL=http://localhost:8001 MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3000 ts-node --project tsconfig.json server.ts",
     "build": "next build",
     "start": "NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3000 NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3001 NODE_ENV=production ts-node --project tsconfig.json server.ts",
+    "start:transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE FIREFLY_NODE_URL=http://localhost:8000 MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3001 NODE_ENV=production ts-node --project tsconfig.json server.ts",
+    "start:sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE FIREFLY_NODE_URL=http://localhost:8001 MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3000 NODE_ENV=production ts-node --project tsconfig.json server.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0",
     "test": "vitest"
   },
