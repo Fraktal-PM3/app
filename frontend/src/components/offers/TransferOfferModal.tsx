@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import {
-  PackageAnnouncement,
-  TransferOfferInput,
-  TransferOfferSchema,
-} from "@/types/package";
+import { getCurrentMspId } from "@/app/offers/actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -14,19 +12,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import {
+  PackageAnnouncement,
+  TransferOfferSchema
+} from "@/types/package";
 import { CalendarIcon } from "lucide-react";
-import { getCurrentMspId } from "@/app/offers/actions";
+import { useState } from "react";
 
 interface TransferOfferModalProps {
   announcement: PackageAnnouncement;

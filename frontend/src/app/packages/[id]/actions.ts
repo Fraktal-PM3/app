@@ -51,6 +51,7 @@ export async function proposeTransfer(offer: TransferOffer) {
   const terms = {
     price: offer.price,
     id: randomUUID(),
+    salt: crypto.getRandomValues(new Uint8Array(16)).toString(),
   };
 
   const packageService = await getPackageService();

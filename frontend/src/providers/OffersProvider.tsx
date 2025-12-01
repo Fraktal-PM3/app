@@ -23,6 +23,7 @@ export function OffersProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch transfer offers from API
   const refetchOffers = useCallback(async () => {
+    console.log("[OffersProvider] Starting refetchOffers...");
     try {
       const response = await fetch("/api/transferOffers", { cache: "no-store" });
       if (!response.ok) {
@@ -34,7 +35,6 @@ export function OffersProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to load offers";
       setError(errorMsg);
-      console.error("[OffersProvider] Error fetching offers:", err);
     }
   }, []);
 

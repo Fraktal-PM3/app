@@ -157,8 +157,8 @@ export type TransferOffer = {
   fromMSP: string; // Transporter MSP offering delivery
   toMSP: string; // Sender MSP receiving offer
   price: number; // Offered price
-  offerCreatedAt: string; // When offer was created
-  deliveryDate: string; // Proposed delivery date/time
+  createdISO: string; // When offer was created
+  expiryISO: string; // Proposed delivery date/time
   senderNode: string; // Firefly node that sent the offer
   signingKey?: string;
   announcementMessageId?: string; // References PackageAnnouncement.messageId

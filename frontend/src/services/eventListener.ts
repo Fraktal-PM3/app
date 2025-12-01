@@ -1,25 +1,24 @@
 import FireFly from "@hyperledger/firefly-sdk";
-import { PackageService, isPackageDetailsMessage } from "fraktal-lib";
 import type {
+  AcceptTransferEvent,
   BlockchainEventDelivery,
   CreatePackageEvent,
-  StatusUpdatedEvent,
   DeletePackageEvent,
-  ProposeTransferEvent,
-  AcceptTransferEvent,
-  TransferExecutedEvent,
   FireFlyDatatypeMessage,
+  ProposeTransferEvent,
+  StatusUpdatedEvent,
+  TransferExecutedEvent,
 } from "fraktal-lib";
+import { PackageService, isPackageDetailsMessage } from "fraktal-lib";
 import dbConnect from "../lib/dbService";
-import PackageModel, { PackageDocument } from "../models/package";
-import TransferModel, { TransferStatus } from "../models/transfer";
-import TransferOfferModel from "../models/transferOffer";
-import SystemStateModel from "../models/systemState";
+import eventBus from "../lib/eventBus";
+import PackageModel from "../models/package";
 import PackageAnnouncementModel, {
   PackageAnnouncementDocument,
 } from "../models/packageAnnouncement";
-import eventBus from "../lib/eventBus";
-import { PackageAnnouncement } from "@/types/package";
+import SystemStateModel from "../models/systemState";
+import TransferModel, { TransferStatus } from "../models/transfer";
+import TransferOfferModel from "../models/transferOffer";
 
 interface EventListenerConfig {
   fireflyHost?: string;
@@ -705,6 +704,7 @@ class EventListenerService {
         isActive: true,
         price: event.value.price || undefined,
         messageData: event.value,
+        packageDetails: event.value,
         expiresAt: event.value.expiresAt ? event.value.expiresAt : undefined,
       } as Partial<PackageAnnouncementDocument>;
 
@@ -714,6 +714,8 @@ class EventListenerService {
         announcementData,
         { upsert: true, new: true },
       );
+
+
 
       console.log(
         `[EventListener] Package announcement stored: ${packageExternalId} from ${announcerMSP}`,
@@ -767,19 +769,20 @@ class EventListenerService {
         fromMSP: offerValue.fromMSP || fromMSP,
         toMSP: offerValue.toMSP,
         price: offerValue.price,
-        offerCreatedAt: new Date(offerValue.createdISO),
-        deliveryDate: new Date(offerValue.expiryISO),
+        createdISO: offerValue.createdISO,
+        expiryISO: offerValue.expiryISO,
         senderNode: senderNode,
         signingKey: event.signingKey,
         announcementMessageId: activeAnnouncement
           ? activeAnnouncement.messageId
           : undefined,
         messageData: offerValue,
+        packageDetails: offerValue
       };
 
       // Upsert transfer offer (create or update if exists)
       await TransferOfferModel.findOneAndUpdate(
-        { messageId: event.id },
+        { externalPackageId: offerValue.externalPackageId },
         transferOfferData,
         { upsert: true, new: true },
       );

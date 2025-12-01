@@ -1,20 +1,20 @@
 "use client";
 
-import { PackageAnnouncement, TransferOffer } from "@/types/package";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LocationDisplay } from "@/components/common/LocationDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { PackageAnnouncement, TransferOffer } from "@/types/package";
 import { format } from "date-fns";
 import {
-  Package as PackageIcon,
-  Weight,
   Boxes,
-  ExternalLink,
   Calendar,
   DollarSign,
+  ExternalLink,
+  Package as PackageIcon,
+  Weight,
 } from "lucide-react";
-import { LocationDisplay } from "@/components/common/LocationDisplay";
 import Link from "next/link";
 
 interface AnnouncementCardProps {
@@ -38,8 +38,8 @@ export function AnnouncementCard({
       urgency === "high"
         ? "destructive"
         : urgency === "medium"
-        ? "default"
-        : "secondary";
+          ? "default"
+          : "secondary";
 
     return (
       <Badge variant={variant} className="font-mono text-xs">
@@ -204,19 +204,19 @@ export function AnnouncementCard({
                         {offer.price} kr
                       </span>
                     </div>
-                    {offer.deliveryDate && (
+                    {offer.expiryISO && (
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-blue-700 dark:text-blue-400 flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           Delivery:
                         </span>
                         <span className="font-semibold text-blue-900 dark:text-blue-100">
-                          {format(new Date(offer.deliveryDate), "MMM dd, HH:mm")}
+                          {format(new Date(offer.expiryISO), "MMM dd, HH:mm")}
                         </span>
                       </div>
                     )}
                     <div className="text-xs text-blue-600 dark:text-blue-400">
-                      Sent: {format(new Date(offer.offerCreatedAt || offer.createdAt || new Date()), "MMM dd, HH:mm")}
+                      Sent: {format(new Date(offer.createdISO || offer.createdAt || new Date()), "MMM dd, HH:mm")}
                     </div>
                   </div>
                 ))}

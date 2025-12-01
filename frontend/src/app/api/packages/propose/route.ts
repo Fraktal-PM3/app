@@ -15,9 +15,10 @@ export async function POST(request: NextRequest) {
     try {
         const body = (await request.json()) as Body;
         const { externalId, toMSP, termsId, expiryISO, price } = body ?? {};
-        const terms: { price: number; id: string } = {
+        const terms: { price: number; id: string, salt: string } = {
             price: body.price,
-            id: body.termsId!
+            id: body.termsId!,
+            salt: crypto.getRandomValues(new Uint8Array(16)).toString(),
         };
 
         if (!externalId || !toMSP) {

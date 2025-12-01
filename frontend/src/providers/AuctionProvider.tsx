@@ -1,14 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { useSSEConnection } from "./SSEConnectionProvider";
-import type { PackageAnnouncement } from "@/types/package";
 import type {
-  PackageAnnouncementEvent,
-  MessageEvent,
-  TransferExecutedEvent,
   DeletePackageEvent,
+  MessageEvent,
+  PackageAnnouncementEvent,
+  TransferExecutedEvent,
 } from "@/types/events";
+import type { PackageAnnouncement } from "@/types/package";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useSSEConnection } from "./SSEConnectionProvider";
 
 export interface TransferOffer {
   id: string;
@@ -18,6 +18,7 @@ export interface TransferOffer {
   toMSP: string;
   price: number;
   createdAt: string;
+  expiryISO: string;
 }
 
 interface AuctionContextValue {
@@ -47,6 +48,7 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Failed to fetch announcements: ${response.statusText}`);
       }
       const data = await response.json();
+      console.log("[AuctionProvider] Fetched announcements:", data);
       setAnnouncements(data || []);
       setError(null);
     } catch (err) {
@@ -111,6 +113,7 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
             toMSP: data.value.toMSP,
             price: data.value.price,
             createdAt: data.created,
+            expiryISO: data.value.expiryISO,
           };
 
           setOffers((prev) => {
@@ -185,6 +188,7 @@ export function useAnnouncements(activeOnly: boolean = true) {
     ? context.announcements.filter((a) => a.isActive)
     : context.announcements;
 
+  console.log("[useAnnouncements] Returning announcements:", filteredAnnouncements);
   return {
     announcements: filteredAnnouncements,
     isLoading: context.isLoading,

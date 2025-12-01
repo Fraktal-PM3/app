@@ -8,6 +8,7 @@ import {
 } from "@typegoose/typegoose";
 import mongoose from "mongoose";
 import { Package } from "./package";
+import type { PackageDetails } from "@/lib/packageSchemas";
 
 /**
  * PackageAnnouncement model
@@ -55,6 +56,9 @@ export class PackageAnnouncement {
 
   @prop()
   public messageData?: Record<string, any>; // Full message data from FireFly
+
+  @prop()
+  public packageDetails?: PackageDetails & { price: number }; // Package details payload from the announcement
 
   @prop()
   public expiresAt?: Date; // Optional expiration date for the announcement

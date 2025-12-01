@@ -1,12 +1,12 @@
 "use client";
 
+import { proposeTransfer } from "@/app/packages/[id]/actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransferOffer } from "@/types/package";
 import { format } from "date-fns";
-import { DollarSign, Briefcase, Calendar } from "lucide-react";
+import { Briefcase, Calendar, DollarSign } from "lucide-react";
 import { Button } from "../ui/button";
-import { proposeTransfer } from "@/app/packages/[id]/actions";
 
 interface PackageOffersTabProps {
   offers: TransferOffer[];
@@ -63,21 +63,21 @@ export function PackageOffersTab({
                     <div className="font-mono text-xs text-muted-foreground break-all">
                       {offer.messageId}
                     </div>
-                    {offer.offerCreatedAt && (
+                    {offer.createdISO && (
                       <div className="text-xs text-muted-foreground">
                         Received{" "}
                         {format(
-                          new Date(offer.offerCreatedAt),
+                          new Date(offer.createdISO),
                           "MMM dd, yyyy HH:mm",
                         )}
                       </div>
                     )}
                   </div>
-                  {offer.deliveryDate && (
+                  {offer.expiryISO && (
                     <Badge variant="outline" className="font-mono text-xs">
                       <Calendar className="mr-1 h-3 w-3" />
                       Delivery:{" "}
-                      {format(new Date(offer.deliveryDate), "MMM dd, HH:mm")}
+                      {format(new Date(offer.expiryISO), "MMM dd, HH:mm")}
                     </Badge>
                   )}
                 </div>
