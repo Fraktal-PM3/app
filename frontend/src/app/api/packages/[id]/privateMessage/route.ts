@@ -1,24 +1,23 @@
+import dbConnect from "@/lib/dbService";
+import PackageAnnouncementModel from "@/models/packageAnnouncement";
+import { TransferOffer, TransferOfferSchema } from "@/types/package";
 import { NextRequest, NextResponse } from "next/server";
-import { getPackageService, getFireFly } from "../../service";
+import { getFireFly, getPackageService } from "../../service";
+
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const { price, author } = await request.json();
+    const body: TransferOffer = await request.json();
 
-    if (!price || typeof price !== "number" || price <= 0) {
+    try {
+      TransferOfferSchema.parse(body);
+    } catch (validationError) {
       return NextResponse.json(
-        { success: false, error: "Valid price is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!author) {
-      return NextResponse.json(
-        { success: false, error: "Author is required" },
+        { success: false, error: "Invalid request body" },
         { status: 400 }
       );
     }
@@ -35,28 +34,48 @@ export async function POST(
       );
     }
 
-    // Send a private message with the specified price
+    // Look up the package announcement to get the announcer's identity
+    await dbConnect();
+    const announcement = await PackageAnnouncementModel.findOne({
+      packageExternalId: id,
+      isActive: true,
+    }).sort({ createdAt: -1 });
+
+    if (!announcement || !announcement.announcerNode) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Package announcement not found or announcer identity unavailable",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Send a private message with the specified price to the announcer
     const firefly = await getFireFly();
-    await firefly.sendPrivateMessage({
-      header: {},
+    const msg = await firefly.sendPrivateMessage({
+      header: {
+        tag: "TRANSFER_OFFER",
+      },
       group: {
-        members: [{ identity: author }],
+        members: [{ identity: announcement.announcerNode }],
       },
       data: [
         {
-          value: {
-            PID: id,
-            price: price,
+          datatype: {
+            name: "TransferOffer",
+            version: "1.0.0",
           },
+          value: body
         },
       ],
     });
 
+
     return NextResponse.json({
       success: true,
       message: "Transfer proposed successfully",
-      packageId: id,
-      price,
+      txid: msg.txid,
     });
   } catch (error) {
     console.error("Error proposing transfer:", error);

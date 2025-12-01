@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  AuctionProvider,
+  MessageProvider,
+  MetricsProvider,
+  OffersProvider,
+  PackageProvider,
+  SSEConnectionProvider,
+} from "@/providers";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Toaster } from "sonner";
 import "../styles/globals.css";
-import { PackageProvider } from "./dashboard/components/PackageContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,63 +28,58 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Use state to avoid hydration mismatch
-  const [isTransporter, setIsTransporter] = useState(false);
-
-  useEffect(() => {
-    // Check role only on client side after mount
-    setIsTransporter(process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE");
-  }, []);
-
   return (
-    <html lang="en" className="scrollbar-hide">
+    <html lang="en" className="dark scrollbar-hide">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased scrollbar-hide overflow-x-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased scrollbar-hide overflow-x-hidden bg-background text-foreground`}
       >
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-          <div className="container mx-auto flex h-14 items-center justify-between px-4">
+        <Toaster position="top-right" richColors />
+        <header className="sticky top-0 z-50 w-full border-b border-border bg-background">
+          <div className="container mx-auto flex h-14 items-center justify-between px-6">
             {/* Logo */}
             <Link
               href="/"
-              className="flex items-center space-x-2 text-xl font-bold text-foreground hover:text-primary transition-colors"
+              className="font-mono text-2xl font-bold uppercase tracking-wider transition-colors hover:text-muted-foreground"
             >
               Fraktal
             </Link>
 
             {/* Navigation Links */}
-            <nav className="flex items-center space-x-6">
-              {isTransporter && (
-                <Link
-                  href="/dashboard"
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Dashboard
-                </Link>
-              )}
+            <nav className="flex items-center gap-6">
               <Link
                 href="/messages"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
               >
                 Messages
               </Link>
               <Link
                 href="/createPackage"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
               >
-                Create Package
+                Create
               </Link>
               <Link
                 href="/activePackage"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
               >
-                Active Packages
+                Active
               </Link>
             </nav>
           </div>
         </header>
-        <PackageProvider>
-          <main className="flex-1">{children}</main>
-        </PackageProvider>
+        <SSEConnectionProvider>
+          <PackageProvider>
+            <AuctionProvider>
+              <OffersProvider>
+                <MetricsProvider>
+                  <MessageProvider>
+                    <main className="flex-1">{children}</main>
+                  </MessageProvider>
+                </MetricsProvider>
+              </OffersProvider>
+            </AuctionProvider>
+          </PackageProvider>
+        </SSEConnectionProvider>
       </body>
     </html>
   );

@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  mongodb_sender:
+    image: mongo:7
+    container_name: mongodb_sender
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_sender_data:/data/db
+    restart: unless-stopped
+  mongodb_transporter:
+    image: mongo:7
+    container_name: mongodb_transporter
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_transporter_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_sender_data:
+  mongodb_transporter_data:

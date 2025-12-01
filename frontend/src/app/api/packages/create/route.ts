@@ -1,66 +1,71 @@
+import { CreatePackageRequestSchema } from "@/lib/packageSchemas";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-import { getPackageService } from "../service";
-import type { PackageDetails, PackagePII } from "fraktal-lib";
-
-export const runtime = "nodejs";
-
-type Body = {
-  packageId?: string;
-  packageDetails: PackageDetails;
-  pii: PackagePII;
-  salt: string;
-};
+import { getMspIdentity, getPackageService } from "../service";
+import dbConnect from "@/lib/dbService";
+import Package from "@/models/package";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as Body;
-    const { packageId, packageDetails, pii, salt} = body;
+    await dbConnect();
+    const body = await request.json()
 
-    if (!packageDetails || !pii) {
+    const validationResult = CreatePackageRequestSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-      { success: false, error: "packageDetails and pii are required" },
-      { status: 400 }
+        {
+          error: "Validation failed",
+          details: validationResult.error,
+        },
+        { status: 400 },
       );
     }
 
-    if (!packageId) {
-      return NextResponse.json(
-      { success: false, error: "packageId is required" },
-      { status: 400 }
-      );
-    }
+    const { name, packageDetails, pii, salt, recipientMSP } = validationResult.data;
 
+    // Generate UUID automatically
+    const packageId = randomUUID();
+    const mspIdentity = await getMspIdentity();
 
-    const service = await getPackageService();
-    const externalId = body.packageId
-  
-
-    if (!salt) {
-      return NextResponse.json(
-      { success: false, error: "salt is required" },
-      { status: 400 }
-      );
-    }
-
-    const result = await service.createPackage(
-      externalId!,
+    const newPackage = await Package.create({
+      id: packageId,
+      name,
       packageDetails,
       pii,
       salt,
+      mspId: mspIdentity.mspId,
+      recipientMSP,
+    });
+
+    if (!newPackage.packageDetails || !newPackage.pii || !newPackage.salt) {
+      return NextResponse.json(
+        { success: false, error: "Package is missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    // Submit to blockchain
+    const service = await getPackageService();
+    const result = await service.createPackage(
+      newPackage.id,
+      newPackage.recipientMSP,
+      newPackage.packageDetails,
+      newPackage.pii,
+      newPackage.salt,
+      false,
     );
 
     return NextResponse.json({
       success: true,
-      externalId,
-      packageId: packageId ?? null,
+      id: newPackage.id,
+      name: newPackage.name,
       result,
     });
   } catch (error: any) {
     console.error("Error in /api/packages/create:", error);
     return NextResponse.json(
       { success: false, error: error?.message ?? "Unknown error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

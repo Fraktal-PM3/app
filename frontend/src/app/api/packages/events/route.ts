@@ -1,4 +1,4 @@
-import { getPackageService, getFireFly } from "../service";
+import eventBus, { type TypedEventEnvelope } from "@/lib/eventBus";
 
 // Use dynamic rendering for SSE
 export const dynamic = "force-dynamic";
@@ -7,23 +7,18 @@ export async function GET(request: Request) {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
-    async start(controller) {
-      const service = await getPackageService();
+    start(controller) {
       let isClosed = false;
 
-      const firefly = await getFireFly();
-
-      // Helper to send SSE message
-      const sendEvent = (eventName: string, data: unknown) => {
+      // Helper to send SSE message with proper typing
+      const sendEvent = (eventName: string, data: unknown): void => {
         if (isClosed) {
           // Silently return - this is normal when client disconnects
           return;
         }
-        
+
         try {
-          const message = `event: ${eventName}\ndata: ${JSON.stringify(
-            data
-          )}\n\n`;
+          const message = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
           controller.enqueue(encoder.encode(message));
         } catch {
           // Mark as closed but don't log - this happens during normal disconnections
@@ -31,48 +26,26 @@ export async function GET(request: Request) {
         }
       };
 
-      // Register handlers for all blockchain events
-      await service.onEvent("CreatePackage", (event) => {
-        console.log("CreatePackageEvent");
-        sendEvent("CreatePackage", event);
-      });
-
-      await service.onEvent("StatusUpdated", (event) => {
-        sendEvent("StatusUpdated", event);
-      });
-
-      await service.onEvent("ProposeTransfer", (event) => {
-        sendEvent("ProposeTransfer", event);
-      });
-
-      await service.onEvent("AcceptTransfer", (event) => {
-        sendEvent("AcceptTransfer", event);
-      });
-
-      await service.onEvent("ExecuteTransfer", (event) => {
-        sendEvent("ExecuteTransfer", event);
-      });
-
-      await service.onEvent("DeletePackage", (event) => {
-        sendEvent("DeletePackage", event);
-      });
-
-      await service.onEvent("message", (event) => {
-        console.log("messageEvent");
-        sendEvent("message", event);
-      });
+      // Subscribe to blockchain events from the background service with proper typing
+      const unsubscribe = eventBus.onBlockchainEvent(
+        (event: TypedEventEnvelope): void => {
+          sendEvent(event.eventName, event.data);
+        },
+      );
 
       // Send initial connection message
       sendEvent("connected", { message: "Connected to package events" });
 
       // Handle client disconnect
       request.signal.addEventListener("abort", () => {
-        console.log("Client disconnected from SSE stream");
+        console.log("[SSE] Client disconnected from event stream");
         isClosed = true;
+        unsubscribe(); // Clean up event listener
+
         try {
           controller.close();
         } catch {
-          console.log("Controller already closed");
+          // Controller already closed
         }
       });
     },

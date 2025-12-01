@@ -1,4 +1,12 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import {
+  prop,
+  getModelForClass,
+  modelOptions,
+  Severity,
+  DocumentType,
+} from "@typegoose/typegoose";
+import mongoose from "mongoose";
+import { randomUUID } from "crypto";
 
 // Define enums
 export enum Urgency {
@@ -8,97 +16,133 @@ export enum Urgency {
   NONE = "none",
 }
 
-export enum status {
+export enum Status {
   PENDING = "pending",
-  TRUE = "true",
-  FALSE = "false"
+  READY_FOR_PICKUP = "ready_for_pickup",
+  PICKED_UP = "picked_up",
+  IN_TRANSIT = "in_transit",
+  DELIVERED = "delivered",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+  PROPOSED = "proposed",
 }
 
-const LocationSchema = new Schema({
-  address: { type: String, required: true },
-  lat: { type: Number, required: false },
-  lng: { type: Number, required: false }
-}, { _id: false });
+// Nested classes for subdocuments
+@modelOptions({ schemaOptions: { _id: false } })
+class Location {
+  @prop({ required: true })
+  public address!: string;
 
-const SizeSchema = new Schema({
-  width: { type: Number, required: true, min: 0 },
-  height: { type: Number, required: true, min: 0 },
-  depth: { type: Number, required: true, min: 0 }
-}, { _id: false });
+  @prop()
+  public lat?: number;
 
-const PackageDetailsSchema = new Schema({
-  pickupLocation: { type: LocationSchema, required: true },
-  dropLocation: { type: LocationSchema, required: true },
-  size: { type: SizeSchema, required: true },
-  weightKg: { type: Number, required: true, min: 0 },
-  urgency: { 
-    type: String, 
-    required: true,
-    enum: Object.values(Urgency)
-  }
-}, { _id: false });
-
-export interface IPackage extends Document {
-  packageID: string;
-  externalId: string;
-  termsId?: string;
-  active: string;
-  fromAddress?: string;
-  packageDetails?: {
-    pickupLocation: {
-      address: string;
-      lat?: number;
-      lng?: number;
-    };
-    dropLocation: {
-      address: string;
-      lat?: number;
-      lng?: number;
-    };
-    size: {
-      width: number;
-      height: number;
-      depth: number;
-    };
-    weightKg: number;
-    urgency: Urgency;
-  };
-  price?: number;
-  // not safe but working for testing purposes
-  salt?: string;
-  pii?: {
-    senderName?: string;
-    senderContact?: string;
-    recipientName?: string;
-    recipientContact?: string;
-  };
-  createdAt?: Date;
-  updatedAt?: Date;
+  @prop()
+  public lng?: number;
 }
 
-// package schema
-const PackageSchema: Schema<IPackage> = new Schema(
-  {
-    packageID: { type: String, required: true },
-    externalId: { type: String, required: true, default: () => crypto.randomUUID() },
-    termsId: { type: String, required: true, default: "null" },
-    active: { type: String, default: status.PENDING},  
-    packageDetails: { type: PackageDetailsSchema, required: false },
-    price: { type: Number, required: false, min: 0, default: 0 },
-      // not safe but working for testing purposes
-    salt: { type: String, required: false },
-    pii: {
-      senderName: { type: String, required: false },
-      senderContact: { type: String, required: false },
-      recipientName: { type: String, required: false },
-      recipientContact: { type: String, required: false },
-    },
+@modelOptions({ schemaOptions: { _id: false } })
+class Size {
+  @prop({ required: true, min: 0 })
+  public width!: number;
+
+  @prop({ required: true, min: 0 })
+  public height!: number;
+
+  @prop({ required: true, min: 0 })
+  public depth!: number;
+}
+
+@modelOptions({ schemaOptions: { _id: false } })
+class PackageDetails {
+  @prop({ required: true, _id: false })
+  public pickupLocation!: Location;
+
+  @prop({ required: true, _id: false })
+  public dropLocation!: Location;
+
+  @prop({ required: true, _id: false })
+  public size!: Size;
+
+  @prop({ required: true, min: 0 })
+  public weightKg!: number;
+
+  @prop({ required: true, enum: Urgency })
+  public urgency!: Urgency;
+}
+
+@modelOptions({ schemaOptions: { _id: false } })
+class PII {
+  @prop()
+  public senderName?: string;
+
+  @prop()
+  public senderContact?: string;
+
+  @prop()
+  public recipientName?: string;
+
+  @prop()
+  public recipientContact?: string;
+}
+
+// Main Package class
+@modelOptions({
+  schemaOptions: {
+    timestamps: true,
+    collection: "packages",
   },
-  { timestamps: true } // adds createdAt + updatedAt
-);
+  options: {
+    allowMixed: Severity.ALLOW,
+  },
+})
+export class Package {
+  public _id!: mongoose.Types.ObjectId;
 
-// Avoid model overwrite in dev (important for Next.js hot reload)
-const Package: Model<IPackage> =
-  mongoose.models.Package || mongoose.model<IPackage>("Package", PackageSchema);
+  @prop({ required: true, unique: true, default: () => randomUUID() })
+  public id!: string; // UUID - same as blockchain externalId
 
-export default Package;
+  @prop({ required: true })
+  public name!: string; // Human-readable package name/identifier
+
+  @prop({ required: true })
+  public recipientMSP!: string; // MSP ID of the recipient organization
+
+  @prop({ default: "null" })
+  public termsId?: string;
+
+  @prop({ default: Status.PENDING, enum: Status })
+  public status!: string;
+
+  @prop({ _id: false })
+  public packageDetails?: PackageDetails;
+
+  // not safe but working for testing purposes
+  @prop()
+  public salt?: string;
+
+  @prop({ _id: false })
+  public pii?: PII;
+
+  // Blockchain metadata
+  @prop()
+  public mspId?: string; // MSP ID of the organization that created/owns this package
+
+  // Timestamps (added automatically by timestamps: true)
+  public createdAt?: Date;
+  public updatedAt?: Date;
+}
+
+// Export the model with hot reload handling for Next.js
+let PackageModel: ReturnType<typeof getModelForClass<typeof Package>>;
+try {
+  PackageModel =
+    (mongoose.models && (mongoose.models.Package as any)) ||
+    getModelForClass(Package);
+} catch (err) {
+  PackageModel = getModelForClass(Package);
+}
+
+// Export types for use in other files
+export type PackageDocument = DocumentType<Package>;
+
+export default PackageModel;

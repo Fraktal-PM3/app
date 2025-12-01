@@ -3,6 +3,7 @@ import { PackageService } from "fraktal-lib";
 
 let packageService: PackageService | null = null;
 let fireflyInstance: FireFly | null = null;
+let cachedMspIdentity: { mspId: string; nodeOrg: string } | null = null;
 
 export async function getPackageService(): Promise<PackageService> {
   if (!packageService) {
@@ -29,10 +30,65 @@ export async function getPackageService(): Promise<PackageService> {
 export async function getFireFly(): Promise<FireFly> {
   // Ensure the package service is initialized first
   await getPackageService();
-  
+
   if (!fireflyInstance) {
     throw new Error("FireFly instance not initialized");
   }
-  
+
   return fireflyInstance;
+}
+
+/**
+ * Get the MSP identity of the current Firefly node
+ * Uses the same approach as the event listener service
+ */
+export async function getMspIdentity(): Promise<{ mspId: string; nodeOrg: string }> {
+  // Return cached value if available
+  if (cachedMspIdentity) {
+    return cachedMspIdentity;
+  }
+
+  // Ensure Firefly is initialized
+  const firefly = await getFireFly();
+
+  try {
+    // Get status to extract verifier MSP
+    const status = await firefly.getStatus();
+
+    if (
+      !status ||
+      !status.org.verifiers ||
+      status.org.verifiers.length === 0 ||
+      !status.org.name
+    ) {
+      throw new Error("No verifiers found for this Firefly node");
+    }
+
+    // Get the first verifier (our node)
+    const ourVerifier = status.org.verifiers[0];
+    const ourIdentity = status.org.name;
+
+    // Extract MSP from the verifier's value (signing key)
+    // Format: "MSP_ID:certificate..."
+    if (!ourVerifier.value) {
+      throw new Error("Could not extract MSP from verifier");
+    }
+
+    const mspId = ourVerifier.value.split(":")[0];
+
+    // Cache the result
+    cachedMspIdentity = {
+      mspId,
+      nodeOrg: ourIdentity,
+    };
+
+    console.log(`[getMspIdentity] Detected node MSP: ${mspId}, Org: ${ourIdentity}`);
+
+    return cachedMspIdentity;
+  } catch (error) {
+    console.error("[getMspIdentity] Failed to fetch node identity:", error);
+    throw new Error(
+      `Failed to get MSP identity: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
 }
