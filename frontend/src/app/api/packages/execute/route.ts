@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as Body;
     const { externalId, termsId, salt, pii, packageDetails } = body ?? {};
     const storeObject = {
-        salt: body.salt as string,
-        pii: body.pii as PackagePII,
-        packageDetails: body.packageDetails as PackageDetails
+      salt: body.salt as string,
+      pii: body.pii as PackagePII,
+      packageDetails: body.packageDetails as PackageDetails,
     };
 
     if (!externalId || !termsId) {
