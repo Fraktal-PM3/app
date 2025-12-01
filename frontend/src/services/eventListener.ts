@@ -486,9 +486,19 @@ class EventListenerService {
   ): Promise<void> {
     try {
       const output = event.output;
-      // Find package by id and link it
+      // Find package by id and link it (optional - package may not be in local DB)
       console.log("[EventListener] Handling ProposeTransfer for package:", output.externalId, event);
       console.log("handleProposeTransfer - output:", output);
+
+      const pkg = await PackageModel.findOne({
+        id: output.externalId,
+      });
+
+      if (!pkg) {
+        console.log(
+          `[EventListener] ProposeTransfer for package ${output.externalId} - package not in local DB (likely from another node's announcement)`,
+        );
+      }
 
       const transferData: Record<string, any> = {
         transferId: output.termsId,
@@ -501,6 +511,11 @@ class EventListenerService {
         blockchainData: output,
       };
 
+      // Link to package if it exists locally
+      if (pkg) {
+        transferData.packageId = pkg._id;
+      }
+
       // Link transfer to active announcement for this package
       const activeAnnouncement = await PackageAnnouncementModel.findOne({
         packageExternalId: output.externalId,
@@ -512,7 +527,7 @@ class EventListenerService {
         console.log(
           `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`,
         );
-      }
+      };
 
       await TransferModel.findOneAndUpdate(
         { transferId: transferData.transferId },
