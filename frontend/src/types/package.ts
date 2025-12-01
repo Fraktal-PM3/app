@@ -113,6 +113,7 @@ export type PackageAnnouncement = {
   expiresAt?: string;
   packageDetails?: PackageDetails;
   messageData?: any;
+  transferStatus?: 'accepted' | 'pending'; // Client-side status for transfer proposals
   createdAt?: string;
   updatedAt?: string;
 };

@@ -4,6 +4,7 @@ import type {
   DeletePackageEvent,
   MessageEvent,
   PackageAnnouncementEvent,
+  ProposeTransferEvent,
   TransferExecutedEvent,
 } from "@/types/events";
 import type { PackageAnnouncement } from "@/types/package";
@@ -148,6 +149,26 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
             prev.map((announcement) =>
               announcement.packageExternalId === packageId
                 ? { ...announcement, isActive: false }
+                : announcement
+            )
+          );
+        }
+      }),
+
+      // ProposeTransfer - mark announcement as accepted (status comes from DB via refetch)
+      subscribe<ProposeTransferEvent>("ProposeTransfer", (data) => {
+        const packageId = data.output?.externalId;
+        const toMSP = data.output?.terms?.toMSP;
+        
+        if (packageId && toMSP) {
+          console.log("[AuctionProvider] ProposeTransfer event:", { packageId, toMSP });
+          
+          // Update announcement in state with transferStatus from event
+          // The status is already persisted in DB by eventListener
+          setAnnouncements((prev) =>
+            prev.map((announcement) =>
+              announcement.packageExternalId === packageId
+                ? { ...announcement, transferStatus: 'accepted' }
                 : announcement
             )
           );

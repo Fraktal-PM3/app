@@ -48,8 +48,14 @@ export function AnnouncementCard({
     );
   };
 
+  const isAccepted = announcement.transferStatus === 'accepted';
+
   return (
-    <Card className="border-border bg-card font-mono transition-all hover:border-primary/50 h-full flex flex-col">
+    <Card className={`font-mono transition-all hover:border-primary/50 h-full flex flex-col ${
+      isAccepted 
+        ? 'border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30' 
+        : 'border-border bg-card'
+    }`}>
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -60,7 +66,11 @@ export function AnnouncementCard({
           </div>
           <div className="flex flex-wrap gap-2">
             {getUrgencyBadge()}
-            {userOffers.length > 0 ? (
+            {isAccepted ? (
+              <Badge variant="default" className="bg-green-600 font-mono text-xs whitespace-nowrap">
+                ACCEPTED
+              </Badge>
+            ) : userOffers.length > 0 ? (
               <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 font-mono text-xs whitespace-nowrap">
                 {userOffers.length} OFFER{userOffers.length > 1 ? 'S' : ''} SENT
               </Badge>
