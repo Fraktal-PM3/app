@@ -63,6 +63,9 @@ export class PackageAnnouncement {
   @prop()
   public expiresAt?: Date; // Optional expiration date for the announcement
 
+  @prop({ enum: ['accepted', 'pending'] })
+  public transferStatus?: 'accepted' | 'pending'; // Status of transfer proposal (client-side tracking)
+
   // Timestamps (added automatically by timestamps: true)
   public createdAt?: Date;
   public updatedAt?: Date;

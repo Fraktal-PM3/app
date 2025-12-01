@@ -486,6 +486,7 @@ class EventListenerService {
   ): Promise<void> {
     try {
       const output = event.output;
+      console.log(output);
       // Find package by id and link it (optional - package may not be in local DB)
       console.log("[EventListener] Handling ProposeTransfer for package:", output.externalId, event);
       console.log("handleProposeTransfer - output:", output);
@@ -527,6 +528,55 @@ class EventListenerService {
         console.log(
           `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`,
         );
+        
+        // Update announcement transferStatus and auto-accept if transfer is directed to our node
+        if (this.nodeMSP && output.terms.toMSP === this.nodeMSP) {
+          await PackageAnnouncementModel.findByIdAndUpdate(
+            activeAnnouncement._id,
+            { transferStatus: 'accepted' },
+            { new: true }
+          );
+          console.log(
+            `[EventListener] Updated announcement ${activeAnnouncement._id} transferStatus to 'accepted'`,
+          );
+
+          // Automatically accept the transfer proposal
+          try {
+            if (!this.packageService) {
+              throw new Error("PackageService not initialized");
+            }
+
+            console.log(
+              `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
+            );
+
+            // Retrieve the private transfer terms (includes salt and price)
+            const privateTransferTerms = await this.packageService.readPrivateTransferTerms(
+              output.termsId
+            );
+
+            console.log(
+              `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
+              privateTransferTerms
+            );
+
+            await this.packageService.acceptTransfer(
+              output.externalId,
+              output.termsId,
+              privateTransferTerms as any
+            );
+
+            console.log(
+              `[EventListener] Successfully auto-accepted transfer ${output.termsId}`,
+            );
+          } catch (acceptError) {
+            console.error(
+              `[EventListener] Failed to auto-accept transfer ${output.termsId}:`,
+              acceptError,
+            );
+            // Don't throw - we still want to persist the transfer record
+          }
+        }
       };
 
       await TransferModel.findOneAndUpdate(
@@ -552,6 +602,8 @@ class EventListenerService {
   ): Promise<void> {
     try {
       const output = event.output;
+
+      console.log("handleAcceptTransfer output:", output);
 
       const updated = await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },

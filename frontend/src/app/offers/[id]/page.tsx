@@ -188,7 +188,14 @@ export default function OfferDetailsPage() {
           rightContent={
             <div className="flex flex-wrap gap-2">
               {getUrgencyBadge()}
-              {userOffers.length > 0 ? (
+              {announcement?.transferStatus === 'accepted' ? (
+                <Badge
+                  variant="default"
+                  className="bg-green-600 font-mono text-xs"
+                >
+                  ACCEPTED
+                </Badge>
+              ) : userOffers.length > 0 ? (
                 <Badge
                   variant="outline"
                   className="bg-blue-50 font-mono text-xs dark:bg-blue-950"
