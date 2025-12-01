@@ -90,6 +90,7 @@ export type Transfer = {
   status: TransferStatus;
   mspId: string;
   price?: number; // Price for the transfer (from private transfer terms)
+  announcementMessageId?: string; // References PackageAnnouncement.messageId
   blockchainTxId?: string;
   blockchainData?: Record<string, any>;
   createdAt?: string;
@@ -129,6 +130,9 @@ export type SystemState = {
   updatedAt?: string;
 };
 
+/**
+ * TransferOffer schema for creating new offers (used in API)
+ */
 export const TransferOfferSchema = z.object({
   externalPackageId: z.string(),
   fromMSP: z.string(),
@@ -138,5 +142,28 @@ export const TransferOfferSchema = z.object({
   expiryISO: z.coerce.date().transform((date) => date.toISOString()),
 });
 
-export type TransferOffer = z.infer<typeof TransferOfferSchema>;
+export type TransferOfferInput = z.infer<typeof TransferOfferSchema>;
+
+/**
+ * TransferOffer type matching the TransferOffer MongoDB model
+ * (for private message offers, not blockchain transfers)
+ */
+export type TransferOffer = {
+  _id: string;
+  messageId: string; // Firefly message ID
+  messageHash?: string;
+  packageId?: string; // Reference to Package
+  externalPackageId: string; // Blockchain package ID
+  fromMSP: string; // Transporter MSP offering delivery
+  toMSP: string; // Sender MSP receiving offer
+  price: number; // Offered price
+  offerCreatedAt: string; // When offer was created
+  deliveryDate: string; // Proposed delivery date/time
+  senderNode: string; // Firefly node that sent the offer
+  signingKey?: string;
+  announcementMessageId?: string; // References PackageAnnouncement.messageId
+  messageData?: Record<string, any>;
+  createdAt?: string; // When we received/stored this offer
+  updatedAt?: string;
+};
 

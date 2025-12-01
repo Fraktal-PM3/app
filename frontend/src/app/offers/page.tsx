@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useAnnouncements } from "@/providers";
-import { PackageAnnouncement } from "@/types/package";
+import { useAnnouncements, useTransferOffers } from "@/providers";
+import { PackageAnnouncement, TransferOffer } from "@/types/package";
 import { AnnouncementCard } from "@/components/announcements/AnnouncementCard";
 import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
 import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, Search } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { getCurrentMspId } from "./actions";
 
 export default function OffersPage() {
   const {
@@ -21,14 +22,53 @@ export default function OffersPage() {
     isConnected,
     error,
     refetch,
-  } = useAnnouncements(true); // Only active announcements
+  } = useAnnouncements(false); // Show ALL announcements, not just active ones
+
+  const { offers } = useTransferOffers();
 
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<PackageAnnouncement | null>(null);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterUrgency, setFilterUrgency] = useState<string>("all");
-  const [sentOffers, setSentOffers] = useState<Set<string>>(new Set());
+  const [currentMspId, setCurrentMspId] = useState<string | null>(null);
+
+  // Get current MSP ID on mount
+  useEffect(() => {
+    getCurrentMspId().then(setCurrentMspId);
+  }, []);
+
+  // Create a map of announcement ID to user's offers (array) for that announcement
+  const userOffersByAnnouncement = useMemo(() => {
+    if (!currentMspId) return new Map<string, TransferOffer[]>();
+
+    const offerMap = new Map<string, TransferOffer[]>();
+
+    offers.forEach((offer) => {
+      // Check if this offer is from the current user
+      if (offer.fromMSP === currentMspId && offer.announcementMessageId) {
+        // Find the announcement this offer is for
+        const announcement = announcements.find(
+          (a) => a.messageId === offer.announcementMessageId
+        );
+        if (announcement) {
+          const existingOffers = offerMap.get(announcement._id) || [];
+          offerMap.set(announcement._id, [...existingOffers, offer]);
+        }
+      }
+    });
+
+    // Sort offers by creation date (most recent first) for each announcement
+    offerMap.forEach((offers, announcementId) => {
+      offers.sort((a, b) => {
+        const dateA = new Date(a.offerCreatedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.offerCreatedAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+    });
+
+    return offerMap;
+  }, [offers, currentMspId, announcements]);
 
   const handleSendOffer = (announcement: PackageAnnouncement) => {
     setSelectedAnnouncement(announcement);
@@ -36,9 +76,6 @@ export default function OffersPage() {
   };
 
   const handleOfferSuccess = () => {
-    if (selectedAnnouncement) {
-      setSentOffers((prev) => new Set(prev).add(selectedAnnouncement._id));
-    }
     refetch();
   };
 
@@ -187,7 +224,7 @@ export default function OffersPage() {
                 <AnnouncementCard
                   announcement={announcement}
                   onSendOffer={handleSendOffer}
-                  offerSent={sentOffers.has(announcement._id)}
+                  userOffers={userOffersByAnnouncement.get(announcement._id)}
                 />
               </motion.div>
             ))}

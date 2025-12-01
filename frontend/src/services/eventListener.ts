@@ -13,6 +13,7 @@ import type {
 import dbConnect from "../lib/dbService";
 import PackageModel, { PackageDocument } from "../models/package";
 import TransferModel, { TransferStatus } from "../models/transfer";
+import TransferOfferModel from "../models/transferOffer";
 import SystemStateModel from "../models/systemState";
 import PackageAnnouncementModel, {
   PackageAnnouncementDocument,
@@ -391,16 +392,22 @@ class EventListenerService {
         console.log("[EventListener] message event received: ", event);
 
         try {
-          // Check if this is a PACKAGE_ANNOUNCE message with package details
+          // Check message tag to determine message type
           const messageTag = (event as any).tag || event.header?.tag;
+
           if (
             messageTag === "PACKAGE_ANNOUNCE" &&
             isPackageDetailsMessage(event)
           ) {
+            // Handle package announcements
             console.log("[EventListener] PACKAGE_ANNOUNCE message detected");
             await this.handlePackageAnnouncement(event);
-            // Emit specific event for package announcements
             eventBus.emitBlockchainEvent("PackageAnnouncement", event);
+          } else if (messageTag === "TRANSFER_OFFER") {
+            // Handle transfer offers (private messages)
+            console.log("[EventListener] TRANSFER_OFFER message detected");
+            await this.handleTransferOffer(event);
+            eventBus.emitBlockchainEvent("TransferOffer", event);
           } else {
             // Emit generic message event for other message types
             eventBus.emitBlockchainEvent("message", event);
@@ -499,6 +506,19 @@ class EventListenerService {
       };
 
       transferData.packageId = pkg._id;
+
+      // Link transfer to active announcement for this package
+      const activeAnnouncement = await PackageAnnouncementModel.findOne({
+        packageExternalId: output.externalId,
+        isActive: true,
+      }).sort({ createdAt: -1 });
+
+      if (activeAnnouncement) {
+        transferData.announcementMessageId = activeAnnouncement.messageId;
+        console.log(
+          `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`,
+        );
+      }
 
       await TransferModel.findOneAndUpdate(
         { transferId: transferData.transferId },
@@ -701,6 +721,75 @@ class EventListenerService {
     } catch (error) {
       console.error(
         "[EventListener] Error handling package announcement:",
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle TRANSFER_OFFER message - store transfer offer in DB
+   */
+  private async handleTransferOffer(
+    event: FireFlyDatatypeMessage,
+  ): Promise<void> {
+    try {
+      // Extract MSP from signingKey (format: "MSP_ID:certificate...")
+      const fromMSP = event.signingKey?.split(":")[0] || "";
+      const senderNode = event.author;
+
+      // The value should contain transfer offer details
+      const offerValue = event.value;
+
+      if (!offerValue || !offerValue.externalPackageId) {
+        console.warn(
+          "[EventListener] TRANSFER_OFFER message missing package id, skipping",
+        );
+        return;
+      }
+
+      // Try to find the package in our database
+      const pkg = await PackageModel.findOne({
+        id: offerValue.externalPackageId,
+      });
+
+      // Try to find the active announcement for this package
+      const activeAnnouncement = await PackageAnnouncementModel.findOne({
+        packageExternalId: offerValue.externalPackageId,
+        isActive: true,
+      }).sort({ createdAt: -1 });
+
+      const transferOfferData = {
+        messageId: event.id,
+        messageHash: event.hash,
+        externalPackageId: offerValue.externalPackageId,
+        packageId: pkg ? pkg._id : undefined,
+        fromMSP: offerValue.fromMSP || fromMSP,
+        toMSP: offerValue.toMSP,
+        price: offerValue.price,
+        offerCreatedAt: new Date(offerValue.createdISO),
+        deliveryDate: new Date(offerValue.expiryISO),
+        senderNode: senderNode,
+        signingKey: event.signingKey,
+        announcementMessageId: activeAnnouncement
+          ? activeAnnouncement.messageId
+          : undefined,
+        messageData: offerValue,
+      };
+
+      // Upsert transfer offer (create or update if exists)
+      await TransferOfferModel.findOneAndUpdate(
+        { messageId: event.id },
+        transferOfferData,
+        { upsert: true, new: true },
+      );
+
+      console.log(
+        `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${fromMSP} with price ${offerValue.price}`,
+      );
+    } catch (error) {
+      console.error(
+        "[EventListener] Error handling transfer offer:",
         error,
       );
       throw error;

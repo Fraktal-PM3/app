@@ -1,6 +1,6 @@
 "use client";
 
-import { PackageAnnouncement } from "@/types/package";
+import { PackageAnnouncement, TransferOffer } from "@/types/package";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import {
   Weight,
   Boxes,
   ExternalLink,
+  Calendar,
+  DollarSign,
 } from "lucide-react";
 import { LocationDisplay } from "@/components/common/LocationDisplay";
 import Link from "next/link";
@@ -18,13 +20,13 @@ import Link from "next/link";
 interface AnnouncementCardProps {
   announcement: PackageAnnouncement;
   onSendOffer?: (announcement: PackageAnnouncement) => void;
-  offerSent?: boolean;
+  userOffers?: TransferOffer[];
 }
 
 export function AnnouncementCard({
   announcement,
   onSendOffer,
-  offerSent = false,
+  userOffers = [],
 }: AnnouncementCardProps) {
   const pkg = announcement.packageDetails;
 
@@ -58,9 +60,9 @@ export function AnnouncementCard({
           </div>
           <div className="flex flex-wrap gap-2">
             {getUrgencyBadge()}
-            {offerSent ? (
-              <Badge variant="outline" className="bg-blue-50 font-mono text-xs whitespace-nowrap">
-                OFFER SENT
+            {userOffers.length > 0 ? (
+              <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 font-mono text-xs whitespace-nowrap">
+                {userOffers.length} OFFER{userOffers.length > 1 ? 'S' : ''} SENT
               </Badge>
             ) : (
               <Badge variant="default" className="bg-green-600 font-mono text-xs whitespace-nowrap">
@@ -161,20 +163,69 @@ export function AnnouncementCard({
             </Button>
           </Link>
 
-          {/* Send Offer Button */}
-          {!offerSent && onSendOffer && (
+          {/* Send Offer Button - Always show */}
+          {onSendOffer && (
             <Button
               onClick={() => onSendOffer(announcement)}
               className="w-full font-mono text-xs uppercase"
               size="sm"
             >
-              Send Transfer Offer
+              {userOffers.length > 0 ? 'Send Another Offer' : 'Send Transfer Offer'}
             </Button>
           )}
 
-          {offerSent && (
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-center text-xs text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
-              Your offer has been sent to the sender
+          {/* User's Offers Log */}
+          {userOffers.length > 0 && (
+            <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
+              <div className="text-center text-xs font-bold uppercase text-blue-900 dark:text-blue-200">
+                Your Offer{userOffers.length > 1 ? 's' : ''} ({userOffers.length})
+              </div>
+              <Separator className="bg-blue-200 dark:bg-blue-800" />
+              <div className="max-h-[200px] space-y-3 overflow-y-auto">
+                {userOffers.map((offer, index) => (
+                  <div
+                    key={offer._id}
+                    className="space-y-2 rounded-md bg-blue-100 dark:bg-blue-900/50 p-2"
+                  >
+                    {userOffers.length > 1 && (
+                      <div className="text-xs font-bold text-blue-700 dark:text-blue-400">
+                        Offer #{userOffers.length - index}
+                        {index === 0 && (
+                          <span className="ml-2 text-blue-600 dark:text-blue-300">(Latest)</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        Price:
+                      </span>
+                      <span className="font-bold text-blue-900 dark:text-blue-100">
+                        {offer.price} kr
+                      </span>
+                    </div>
+                    {offer.deliveryDate && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Delivery:
+                        </span>
+                        <span className="font-semibold text-blue-900 dark:text-blue-100">
+                          {format(new Date(offer.deliveryDate), "MMM dd, HH:mm")}
+                        </span>
+                      </div>
+                    )}
+                    <div className="text-xs text-blue-600 dark:text-blue-400">
+                      Sent: {format(new Date(offer.offerCreatedAt || offer.createdAt || new Date()), "MMM dd, HH:mm")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {announcement.price && (
+                <div className="pt-1 text-center text-xs text-blue-700 dark:text-blue-400">
+                  (Asking: {announcement.price} kr)
+                </div>
+              )}
             </div>
           )}
         </div>
