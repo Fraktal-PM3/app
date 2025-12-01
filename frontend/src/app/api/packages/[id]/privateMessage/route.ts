@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getPackageService, getFireFly } from "../../service";
 import dbConnect from "@/lib/dbService";
 import PackageAnnouncementModel from "@/models/packageAnnouncement";
+import { TransferOffer, TransferOfferSchema } from "@/types/package";
+import { NextRequest, NextResponse } from "next/server";
+import { getFireFly, getPackageService } from "../../service";
+
 
 export async function POST(
   request: NextRequest,
@@ -9,11 +11,13 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { price, message } = await request.json();
+    const body: TransferOffer = await request.json();
 
-    if (!price || typeof price !== "number" || price <= 0) {
+    try {
+      TransferOfferSchema.parse(body);
+    } catch (validationError) {
       return NextResponse.json(
-        { success: false, error: "Valid price is required" },
+        { success: false, error: "Invalid request body" },
         { status: 400 }
       );
     }
@@ -62,28 +66,16 @@ export async function POST(
             name: "TransferOffer",
             version: "1.0.0",
           },
-          value: {
-            externalPackageId: id,
-            price: price,
-            message: message || undefined,
-          },
+          value: body
         },
       ],
     });
 
-    const author = await firefly.getIdentities();
-
-    //author.forEach(() => {});
-
-    //console.log("author:", author);
-
-    //console.log(`Transfer proposed for package ${id} at price ${price}`);
 
     return NextResponse.json({
       success: true,
       message: "Transfer proposed successfully",
-      packageId: id,
-      price,
+      txid: msg.txid,
     });
   } catch (error) {
     console.error("Error proposing transfer:", error);

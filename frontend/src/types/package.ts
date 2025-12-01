@@ -1,5 +1,7 @@
 // Package types that match the MongoDB models
 
+import z from "zod";
+
 export enum Status {
   PENDING = "pending",
   READY_FOR_PICKUP = "ready_for_pickup",
@@ -107,7 +109,7 @@ export type PackageAnnouncement = {
   isActive: boolean;
   price?: number; // Price for bidding (from announcement details)
   expiresAt?: string;
-  packageDetails?: any;
+  packageDetails?: PackageDetails;
   messageData?: any;
   createdAt?: string;
   updatedAt?: string;
@@ -125,3 +127,14 @@ export type SystemState = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+export const TransferOfferSchema = z.object({
+  externalPackageId: z.string(),
+  fromMSP: z.string(),
+  toMSP: z.string(),
+  price: z.number(),
+  createdISO: z.coerce.date().transform((date) => date.toISOString()),
+  expiryISO: z.coerce.date().transform((date) => date.toISOString()),
+});
+
+export type TransferOffer = z.infer<typeof TransferOfferSchema>;

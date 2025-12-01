@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PackageAnnouncement } from "@/types/package";
+import { PackageAnnouncement, TransferOfferSchema } from "@/types/package";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 
 interface TransferOfferModalProps {
   announcement: PackageAnnouncement;
@@ -30,7 +37,9 @@ export function TransferOfferModal({
   onSuccess,
 }: TransferOfferModalProps) {
   const [offerPrice, setOfferPrice] = useState<string>("");
-  const [message, setMessage] = useState<string>("");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
+  const [deliveryTime, setDeliveryTime] = useState<string>("12:00");
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,9 +50,29 @@ export function TransferOfferModal({
       return;
     }
 
+    if (!deliveryDate) {
+      setError("Please select a delivery date and time");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
+
+      // Combine date and time into ISO string
+      const [hours, minutes] = deliveryTime.split(":");
+      const deliveryDateTime = new Date(deliveryDate);
+      deliveryDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      const deliveryDateTimeISO = deliveryDateTime.toISOString();
+
+      const transferOffer = TransferOfferSchema.parse({
+        externalPackageId: announcement.packageExternalId,
+        price: priceValue,
+        fromMSP: "",
+        toMSP: announcement.announcerMSP,
+        createdISO: new Date().toISOString(),
+        expiryISO: deliveryDateTimeISO,
+      });
 
       // Send private message with transfer offer
       const response = await fetch(
@@ -53,10 +82,7 @@ export function TransferOfferModal({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            price: priceValue,
-            message: message || undefined,
-          }),
+          body: JSON.stringify(transferOffer),
         }
       );
 
@@ -68,7 +94,8 @@ export function TransferOfferModal({
       // Success - close modal and notify parent
       onOpenChange(false);
       setOfferPrice("");
-      setMessage("");
+      setDeliveryDate(undefined);
+      setDeliveryTime("12:00");
       onSuccess?.();
     } catch (err) {
       console.error("Error sending transfer offer:", err);
@@ -82,7 +109,8 @@ export function TransferOfferModal({
 
   const handleCancel = () => {
     setOfferPrice("");
-    setMessage("");
+    setDeliveryDate(undefined);
+    setDeliveryTime("12:00");
     setError(null);
     onOpenChange(false);
   };
@@ -177,20 +205,62 @@ export function TransferOfferModal({
             )}
           </div>
 
-          {/* Optional Message */}
-          <div className="space-y-2">
-            <Label htmlFor="message" className="text-xs uppercase tracking-wider">
-              Message (Optional)
+          {/* Delivery Date & Time Picker */}
+          <div className="space-y-3">
+            <Label className="text-xs uppercase tracking-wider">
+              Proposed Delivery Date & Time
             </Label>
-            <Input
-              id="message"
-              type="text"
-              placeholder="Add a note to your offer..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              disabled={isSubmitting}
-              className="font-mono"
-            />
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="date-picker" className="text-xs text-muted-foreground">
+                  Date
+                </Label>
+                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      id="date-picker"
+                      disabled={isSubmitting}
+                      className="w-full justify-between font-mono text-xs"
+                    >
+                      {deliveryDate ? (
+                        deliveryDate.toLocaleDateString()
+                      ) : (
+                        <span className="text-muted-foreground">Select date</span>
+                      )}
+                      <CalendarIcon className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={deliveryDate}
+                      onSelect={(date) => {
+                        setDeliveryDate(date);
+                        setDatePickerOpen(false);
+                      }}
+                      disabled={(date) => date < new Date()}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="time-picker" className="text-xs text-muted-foreground">
+                  Time
+                </Label>
+                <Input
+                  type="time"
+                  id="time-picker"
+                  value={deliveryTime}
+                  onChange={(e) => setDeliveryTime(e.target.value)}
+                  disabled={isSubmitting}
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              When can you deliver this package?
+            </p>
           </div>
 
           {/* Error Message */}
