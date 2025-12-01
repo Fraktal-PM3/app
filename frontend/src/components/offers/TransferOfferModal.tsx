@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { PackageAnnouncement, TransferOfferInput, TransferOfferSchema } from "@/types/package";
+import {
+  PackageAnnouncement,
+  TransferOfferInput,
+  TransferOfferSchema,
+} from "@/types/package";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
+import { getCurrentMspId } from "@/app/offers/actions";
 
 interface TransferOfferModalProps {
   announcement: PackageAnnouncement;
@@ -62,14 +67,19 @@ export function TransferOfferModal({
       // Combine date and time into ISO string
       const [hours, minutes] = deliveryTime.split(":");
       const deliveryDateTime = new Date(deliveryDate);
-      deliveryDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      deliveryDateTime.setHours(
+        parseInt(hours, 10),
+        parseInt(minutes, 10),
+        0,
+        0,
+      );
       const deliveryDateTimeISO = deliveryDateTime.toISOString();
 
       const transferOffer = TransferOfferSchema.parse({
         externalPackageId: announcement.packageExternalId,
         price: priceValue,
-        fromMSP: "",
-        toMSP: announcement.announcerMSP,
+        fromMSP: announcement.announcerMSP, // Assuming sender and announcer are the same for this example
+        toMSP: await getCurrentMspId(), // Function to get current user's MSP ID
         createdISO: new Date().toISOString(),
         expiryISO: deliveryDateTimeISO,
       });
@@ -83,7 +93,7 @@ export function TransferOfferModal({
             "Content-Type": "application/json",
           },
           body: JSON.stringify(transferOffer),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -100,7 +110,7 @@ export function TransferOfferModal({
     } catch (err) {
       console.error("Error sending transfer offer:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to send transfer offer"
+        err instanceof Error ? err.message : "Failed to send transfer offer",
       );
     } finally {
       setIsSubmitting(false);
@@ -175,7 +185,9 @@ export function TransferOfferModal({
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Announced by:</span>
-                <span className="font-semibold">{announcement.announcerMSP}</span>
+                <span className="font-semibold">
+                  {announcement.announcerMSP}
+                </span>
               </div>
             </div>
           </div>
@@ -184,7 +196,10 @@ export function TransferOfferModal({
 
           {/* Offer Price Input */}
           <div className="space-y-2">
-            <Label htmlFor="offerPrice" className="text-xs uppercase tracking-wider">
+            <Label
+              htmlFor="offerPrice"
+              className="text-xs uppercase tracking-wider"
+            >
               Your Offer Price (SEK)
             </Label>
             <Input
@@ -212,7 +227,10 @@ export function TransferOfferModal({
             </Label>
             <div className="flex gap-4">
               <div className="flex-1 space-y-2">
-                <Label htmlFor="date-picker" className="text-xs text-muted-foreground">
+                <Label
+                  htmlFor="date-picker"
+                  className="text-xs text-muted-foreground"
+                >
                   Date
                 </Label>
                 <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
@@ -226,7 +244,9 @@ export function TransferOfferModal({
                       {deliveryDate ? (
                         deliveryDate.toLocaleDateString()
                       ) : (
-                        <span className="text-muted-foreground">Select date</span>
+                        <span className="text-muted-foreground">
+                          Select date
+                        </span>
                       )}
                       <CalendarIcon className="h-4 w-4 opacity-50" />
                     </Button>
@@ -245,7 +265,10 @@ export function TransferOfferModal({
                 </Popover>
               </div>
               <div className="flex-1 space-y-2">
-                <Label htmlFor="time-picker" className="text-xs text-muted-foreground">
+                <Label
+                  htmlFor="time-picker"
+                  className="text-xs text-muted-foreground"
+                >
                   Time
                 </Label>
                 <Input

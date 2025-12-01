@@ -5,13 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransferOffer } from "@/types/package";
 import { format } from "date-fns";
 import { DollarSign, Briefcase, Calendar } from "lucide-react";
+import { Button } from "../ui/button";
+import { proposeTransfer } from "@/app/packages/[id]/actions";
 
 interface PackageOffersTabProps {
   offers: TransferOffer[];
   announcementPrice?: number;
 }
 
-export function PackageOffersTab({ offers, announcementPrice }: PackageOffersTabProps) {
+export function PackageOffersTab({
+  offers,
+  announcementPrice,
+}: PackageOffersTabProps) {
+  const handleAccept = (offer: TransferOffer) => {
+    proposeTransfer(offer);
+  };
 
   return (
     <Card className="border-border bg-card font-mono">
@@ -57,9 +65,10 @@ export function PackageOffersTab({ offers, announcementPrice }: PackageOffersTab
                     </div>
                     {offer.offerCreatedAt && (
                       <div className="text-xs text-muted-foreground">
-                        Received {format(
+                        Received{" "}
+                        {format(
                           new Date(offer.offerCreatedAt),
-                          "MMM dd, yyyy HH:mm"
+                          "MMM dd, yyyy HH:mm",
                         )}
                       </div>
                     )}
@@ -67,7 +76,8 @@ export function PackageOffersTab({ offers, announcementPrice }: PackageOffersTab
                   {offer.deliveryDate && (
                     <Badge variant="outline" className="font-mono text-xs">
                       <Calendar className="mr-1 h-3 w-3" />
-                      Delivery: {format(new Date(offer.deliveryDate), "MMM dd, HH:mm")}
+                      Delivery:{" "}
+                      {format(new Date(offer.deliveryDate), "MMM dd, HH:mm")}
                     </Badge>
                   )}
                 </div>
@@ -98,19 +108,29 @@ export function PackageOffersTab({ offers, announcementPrice }: PackageOffersTab
                     </div>
                     <div className="flex items-center justify-center gap-2">
                       <div className="text-lg font-bold">{offer.price} kr</div>
-                      {announcementPrice && offer.price !== announcementPrice && (
-                        <Badge
-                          variant={offer.price < announcementPrice ? "outline" : "default"}
-                          className="text-xs"
-                        >
-                          {offer.price < announcementPrice
-                            ? `-${announcementPrice - offer.price} kr`
-                            : `+${offer.price - announcementPrice} kr`}
-                        </Badge>
-                      )}
+                      {announcementPrice &&
+                        offer.price !== announcementPrice && (
+                          <Badge
+                            variant={
+                              offer.price < announcementPrice
+                                ? "outline"
+                                : "default"
+                            }
+                            className="text-xs"
+                          >
+                            {offer.price < announcementPrice
+                              ? `-${announcementPrice - offer.price} kr`
+                              : `+${offer.price - announcementPrice} kr`}
+                          </Badge>
+                        )}
                     </div>
                   </div>
                 )}
+                <div>
+                  <Button onClick={() => handleAccept(offer)}>
+                    Accept Offer
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

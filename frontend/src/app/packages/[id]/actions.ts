@@ -1,6 +1,8 @@
 "use server";
 
-import { getMspIdentity } from "@/app/api/packages/service";
+import { getMspIdentity, getPackageService } from "@/app/api/packages/service";
+import { TransferOffer } from "@/types/package";
+import { randomUUID } from "crypto";
 
 /**
  * Server action to get the current node's MSP identity
@@ -22,7 +24,7 @@ export async function getCurrentMspId(): Promise<string | null> {
  * @returns true if current user owns the package
  */
 export async function checkPackageOwnership(
-  packageMspId: string | undefined
+  packageMspId: string | undefined,
 ): Promise<boolean> {
   console.log("Checking package ownership for MSP ID:", packageMspId);
   if (!packageMspId) {
@@ -31,10 +33,31 @@ export async function checkPackageOwnership(
 
   try {
     const identity = await getMspIdentity();
-    console.log(`Checking ownership: node MSP=${identity.mspId}, package MSP=${packageMspId}`);
+    console.log(
+      `Checking ownership: node MSP=${identity.mspId}, package MSP=${packageMspId}`,
+    );
     return identity.mspId === packageMspId;
   } catch (error) {
     console.error("Failed to check package ownership:", error);
     return false;
   }
+}
+
+/**
+ * Propose Transfer Action
+ */
+export async function proposeTransfer(offer: TransferOffer) {
+  console.log("Proposing transfer for offer:", offer);
+  const terms = {
+    price: offer.price,
+    id: randomUUID(),
+  };
+
+  const packageService = await getPackageService();
+  await packageService.proposeTransfer(
+    offer.externalPackageId,
+    offer.toMSP,
+    terms,
+    new Date(Date.now() + 24 * 7 * 60 * 60 * 1000).toISOString(),
+  );
 }
