@@ -1,65 +1,11 @@
-import dbConnect from "@/lib/dbService";
-import { CreatePackageRequestSchema } from "@/lib/packageSchemas";
-import Package from "@/models/package";
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { getMspIdentity } from "./service";
+import dbConnect from "@/lib/dbService";
+import Package from "@/models/package";
 
 export async function GET() {
   await dbConnect();
   const packages = await Package.find().sort({ createdAt: -1 }).lean();
   return NextResponse.json(packages);
-}
-
-export async function POST(req: Request) {
-  try {
-    await dbConnect();
-    const body = await req.json();
-
-    // Validate request body against schema
-    const validationResult = CreatePackageRequestSchema.safeParse(body);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: validationResult.error,
-        },
-        { status: 400 },
-      );
-    }
-
-    const { name, packageDetails, pii, salt, recipientMSP } = validationResult.data;
-
-    // Generate UUID automatically
-    const packageId = randomUUID();
-    const mspIdentity = await getMspIdentity();
-
-    // Create package in database
-    const newPackage = await Package.create({
-      id: packageId,
-      name,
-      packageDetails,
-      pii,
-      salt,
-      mspId: mspIdentity.mspId,
-      recipientMSP,
-    });
-
-    return NextResponse.json(
-      {
-        id: newPackage.id,
-        name: newPackage.name,
-        message: "Package created successfully. Submit to blockchain to finalize.",
-      },
-      { status: 201 },
-    );
-  } catch (error: any) {
-    console.error("Error creating package:", error);
-    return NextResponse.json(
-      { error: error?.message ?? "Failed to create package" },
-      { status: 500 },
-    );
-  }
 }
 
 // Update active status

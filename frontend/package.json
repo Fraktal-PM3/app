@@ -8,7 +8,7 @@
     "sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE MONGODB_URI=mongodb://localhost:27017/fraktal ts-node --project tsconfig.json server.ts",
     "build": "next build",
     "start": "NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE MONGODB_URI=mongodb://localhost:27018/fraktal NODE_ENV=production ts-node --project tsconfig.json server.ts",
+    "start:transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3000 NODE_ENV=production ts-node --project tsconfig.json server.ts",
     "start:sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3001 NODE_ENV=production ts-node --project tsconfig.json server.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0",
     "test": "vitest"
@@ -29,7 +29,6 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "fraktal-lib": "github:Fraktal-PM3/fraktal-lib#264f9dc8966b61c0fde5ee253960ad54127b041e",
-    "fraktal-lib#264f9dc8966b61c0fde5ee253960ad54127b041e": "link:github.com/Fraktal-PM3/fraktal-lib#264f9dc8966b61c0fde5ee253960ad54127b041e",
     "framer-motion": "^12.23.24",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.544.0",
