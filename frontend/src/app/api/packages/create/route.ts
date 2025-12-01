@@ -1,9 +1,9 @@
+import { CreatePackageRequestSchema } from "@/lib/packageSchemas";
+import { NextRequest, NextResponse } from "next/server";
+import { getMspIdentity, getPackageService } from "../service";
 import dbConnect from "@/lib/dbService";
 import Package from "@/models/package";
-import { NextRequest, NextResponse } from "next/server";
-import { getPackageService } from "../service";
-
-export const runtime = "nodejs";
+import { randomUUID } from "crypto";
 
 type Body = {
   id: string; // Package ID from DB
@@ -12,7 +12,7 @@ type Body = {
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const body = (await request.json()) as Body;
+    const body = await request.json()
     const { id } = body;
 
     if (!id) {
@@ -22,17 +22,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch package from database
-    const pkg = await Package.findOne({ id });
-
-    if (!pkg) {
+    const validationResult = CreatePackageRequestSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { success: false, error: "Package not found" },
-        { status: 404 }
+        {
+          error: "Validation failed",
+          details: validationResult.error,
+        },
+        { status: 400 },
       );
     }
 
-    if (!pkg.packageDetails || !pkg.pii || !pkg.salt) {
+    const { name, packageDetails, pii, salt } = validationResult.data;
+
+    // Generate UUID automatically
+    const packageId = randomUUID();
+    const mspIdentity = await getMspIdentity();
+
+    const newPackage = await Package.create({
+      id: packageId,
+      name,
+      packageDetails,
+      pii,
+      salt,
+      mspId: mspIdentity.mspId,
+    });
+
+    if (!newPackage.packageDetails || !newPackage.pii || !newPackage.salt) {
       return NextResponse.json(
         { success: false, error: "Package is missing required fields" },
         { status: 400 }
@@ -42,16 +58,17 @@ export async function POST(request: NextRequest) {
     // Submit to blockchain
     const service = await getPackageService();
     const result = await service.createPackage(
-      pkg.id,
-      pkg.packageDetails,
-      pkg.pii,
-      pkg.salt,
+      newPackage.id,
+      newPackage.packageDetails,
+      newPackage.pii,
+      newPackage.salt,
       false
     );
 
     return NextResponse.json({
       success: true,
-      id: pkg.id,
+      id: newPackage.id,
+      name: newPackage.name,
       result,
     });
   } catch (error: any) {
