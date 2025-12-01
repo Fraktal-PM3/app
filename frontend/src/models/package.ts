@@ -104,6 +104,9 @@ export class Package {
   @prop({ required: true })
   public name!: string; // Human-readable package name/identifier
 
+  @prop({ required: true })
+  public recipientMSP!: string; // MSP ID of the recipient organization
+
   @prop({ default: "null" })
   public termsId?: string;
 

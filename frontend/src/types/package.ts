@@ -54,6 +54,7 @@ export type Package = {
   _id: string;
   id: string; // UUID - same as blockchain externalId
   name: string; // Human-readable package name/identifier
+  recipientMSP: string; // MSP of the recipient
   termsId?: string;
   status: string;
   packageDetails?: PackageDetails;
@@ -138,3 +139,4 @@ export const TransferOfferSchema = z.object({
 });
 
 export type TransferOffer = z.infer<typeof TransferOfferSchema>;
+

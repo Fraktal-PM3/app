@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, packageDetails, pii, salt } = validationResult.data;
+    const { name, packageDetails, pii, salt, recipientMSP } = validationResult.data;
 
     // Generate UUID automatically
     const packageId = randomUUID();
@@ -42,6 +42,7 @@ export async function POST(req: Request) {
       pii,
       salt,
       mspId: mspIdentity.mspId,
+      recipientMSP,
     });
 
     return NextResponse.json(

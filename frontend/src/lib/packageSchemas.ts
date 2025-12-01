@@ -59,6 +59,7 @@ export const CreatePackageRequestSchema = z
     packageDetails: PackageDetailsSchema,
     pii: PIISchema,
     salt: z.string().min(1, "Salt is required"),
+    recipientMSP: z.string().min(1, "Recipient organization is required"),
   })
   .strict();
 

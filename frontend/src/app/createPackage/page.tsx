@@ -18,15 +18,22 @@ import {
   User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast, Toaster } from "sonner";
 
 type UrgencyChoice = "high" | "medium" | "low" | "none";
+
+type Identity = {
+  name: string;
+  mspID: string;
+};
 
 export default function CreatePackagePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("details");
   const [submitting, setSubmitting] = useState(false);
+  const [identities, setIdentities] = useState<Identity[]>([]);
+  const [loadingIdentities, setLoadingIdentities] = useState(true);
 
   const [form, setForm] = useState({
     name: "",
@@ -45,12 +52,38 @@ export default function CreatePackagePage() {
     senderPhone: "",
     recipientName: "",
     recipientPhone: "",
+    recipientOrgMSP: "",
   });
+
+  // Fetch identities on mount
+  useEffect(() => {
+    const fetchIdentities = async () => {
+      try {
+        const response = await fetch("/api/identities");
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Fetched identities:", data);
+          setIdentities(
+            data.filter((id: Identity | undefined) => id !== undefined),
+          );
+        } else {
+          toast.error("Failed to load recipient organizations");
+        }
+      } catch (error) {
+        console.error("Error fetching identities:", error);
+        toast.error("Failed to load recipient organizations");
+      } finally {
+        setLoadingIdentities(false);
+      }
+    };
+
+    fetchIdentities();
+  }, []);
 
   const update =
     (key: keyof typeof form) =>
-      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-        setForm((f) => ({ ...f, [key]: e.target.value }));
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const reset = () => {
     setForm({
@@ -70,6 +103,7 @@ export default function CreatePackagePage() {
       senderPhone: "",
       recipientName: "",
       recipientPhone: "",
+      recipientOrgMSP: "",
     });
     setActiveTab("details");
   };
@@ -92,6 +126,7 @@ export default function CreatePackagePage() {
       senderPhone: "+46701234567",
       recipientName: "Jane Smith",
       recipientPhone: "+46709876543",
+      recipientOrgMSP: identities.length > 0 ? identities[0].mspID : "",
     });
     toast.success("Test data filled");
   };
@@ -107,10 +142,14 @@ export default function CreatePackagePage() {
     const height = Number(form.sizeHeight);
     const depth = Number(form.sizeDepth);
 
-    if (Number.isNaN(weight) || weight <= 0) return "Weight must be greater than 0";
-    if (Number.isNaN(width) || width <= 0) return "Width must be greater than 0";
-    if (Number.isNaN(height) || height <= 0) return "Height must be greater than 0";
-    if (Number.isNaN(depth) || depth <= 0) return "Depth must be greater than 0";
+    if (Number.isNaN(weight) || weight <= 0)
+      return "Weight must be greater than 0";
+    if (Number.isNaN(width) || width <= 0)
+      return "Width must be greater than 0";
+    if (Number.isNaN(height) || height <= 0)
+      return "Height must be greater than 0";
+    if (Number.isNaN(depth) || depth <= 0)
+      return "Depth must be greater than 0";
 
     return null;
   };
@@ -129,6 +168,7 @@ export default function CreatePackagePage() {
   const validateContact = () => {
     if (!form.senderName.trim()) return "Sender name is required";
     if (!form.recipientName.trim()) return "Recipient name is required";
+    if (!form.recipientOrgMSP) return "Recipient organization is required";
 
     return null;
   };
@@ -229,6 +269,7 @@ export default function CreatePackagePage() {
           packageDetails,
           pii,
           salt,
+          recipientMSP: form.recipientOrgMSP,
         }),
       });
 
@@ -255,12 +296,15 @@ export default function CreatePackagePage() {
       }
 
       // Step 3: Announce package (optional - user can trigger later)
-      toast.success("Package created successfully! You can announce it later.", { id: loadingToast });
-
-
+      toast.success(
+        "Package created successfully! You can announce it later.",
+        { id: loadingToast },
+      );
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message || "Failed to create package", { id: loadingToast });
+      toast.error(e?.message || "Failed to create package", {
+        id: loadingToast,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -329,12 +373,17 @@ export default function CreatePackagePage() {
                   <div className="space-y-4">
                     <div className="rounded-md border border-blue-200 bg-blue-50 p-3 mb-4">
                       <p className="font-mono text-xs text-blue-900">
-                        <span className="font-bold">Note:</span> A unique identifier (UUID) will be automatically generated for your package and used for blockchain operations.
+                        <span className="font-bold">Note:</span> A unique
+                        identifier (UUID) will be automatically generated for
+                        your package and used for blockchain operations.
                       </p>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="name" className="font-mono text-xs uppercase">
+                        <Label
+                          htmlFor="name"
+                          className="font-mono text-xs uppercase"
+                        >
                           Package Name *
                         </Label>
                         <Input
@@ -444,7 +493,10 @@ export default function CreatePackagePage() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={handleNext} className="font-mono uppercase">
+                    <Button
+                      onClick={handleNext}
+                      className="font-mono uppercase"
+                    >
                       Next
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -564,7 +616,10 @@ export default function CreatePackagePage() {
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Back
                     </Button>
-                    <Button onClick={handleNext} className="font-mono uppercase">
+                    <Button
+                      onClick={handleNext}
+                      className="font-mono uppercase"
+                    >
                       Next
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -614,28 +669,60 @@ export default function CreatePackagePage() {
                           Recipient Information
                         </h3>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-3">
                         <div className="space-y-2">
-                          <Label className="font-mono text-xs uppercase">
-                            Name *
+                          <Label
+                            htmlFor="recipientOrg"
+                            className="font-mono text-xs uppercase"
+                          >
+                            Recipient Organization *
                           </Label>
-                          <Input
-                            placeholder="e.g., Jane Smith"
-                            value={form.recipientName}
-                            onChange={update("recipientName")}
-                            className="font-mono"
-                          />
+                          {loadingIdentities ? (
+                            <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-muted-foreground">
+                              Loading organizations...
+                            </div>
+                          ) : (
+                            <select
+                              id="recipientOrg"
+                              value={form.recipientOrgMSP}
+                              onChange={update("recipientOrgMSP")}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <option value="">Select organization...</option>
+                              {identities.map((identity) => (
+                                <option
+                                  key={identity.mspID}
+                                  value={identity.mspID}
+                                >
+                                  {identity.name} ({identity.mspID})
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
-                        <div className="space-y-2">
-                          <Label className="font-mono text-xs uppercase">
-                            Phone
-                          </Label>
-                          <Input
-                            placeholder="e.g., +46709876543"
-                            value={form.recipientPhone}
-                            onChange={update("recipientPhone")}
-                            className="font-mono"
-                          />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label className="font-mono text-xs uppercase">
+                              Name *
+                            </Label>
+                            <Input
+                              placeholder="e.g., Jane Smith"
+                              value={form.recipientName}
+                              onChange={update("recipientName")}
+                              className="font-mono"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="font-mono text-xs uppercase">
+                              Phone
+                            </Label>
+                            <Input
+                              placeholder="e.g., +46709876543"
+                              value={form.recipientPhone}
+                              onChange={update("recipientPhone")}
+                              className="font-mono"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>

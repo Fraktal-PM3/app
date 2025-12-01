@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { success: false, error: "id is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,14 +28,14 @@ export async function POST(request: NextRequest) {
     if (!pkg) {
       return NextResponse.json(
         { success: false, error: "Package not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!pkg.packageDetails || !pkg.pii || !pkg.salt) {
       return NextResponse.json(
         { success: false, error: "Package is missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,10 +43,11 @@ export async function POST(request: NextRequest) {
     const service = await getPackageService();
     const result = await service.createPackage(
       pkg.id,
+      pkg.recipientMSP,
       pkg.packageDetails,
       pkg.pii,
       pkg.salt,
-      false
+      false,
     );
 
     return NextResponse.json({
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     console.error("Error in /api/packages/create:", error);
     return NextResponse.json(
       { success: false, error: error?.message ?? "Unknown error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
