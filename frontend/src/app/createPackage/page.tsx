@@ -259,9 +259,9 @@ export default function CreatePackagePage() {
 
       const salt = crypto.randomBytes(16).toString("hex");
 
-      // Step 1: Create in MongoDB
-      toast.loading("Saving to database...", { id: loadingToast });
-      const mongoRes = await fetch("/api/packages", {
+      // Create on blockchain
+      toast.loading("Creating on blockchain...", { id: loadingToast });
+      const fireflyRes = await fetch("/api/packages/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -273,33 +273,14 @@ export default function CreatePackagePage() {
         }),
       });
 
-      const mongoData = await mongoRes.json();
-      if (!mongoRes.ok || mongoData.error) {
-        throw new Error(mongoData.error || "Failed to save to database");
-      }
-
-      const packageId = mongoData.id;
-
-      // Step 2: Create on blockchain
-      toast.loading("Creating on blockchain...", { id: loadingToast });
-      const fireflyRes = await fetch("/api/packages/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: packageId,
-        }),
-      });
-
       const fireflyData = await fireflyRes.json();
       if (!fireflyRes.ok || fireflyData.success === false) {
         throw new Error(fireflyData.error || "Failed to create on blockchain");
       }
 
-      // Step 3: Announce package (optional - user can trigger later)
-      toast.success(
-        "Package created successfully! You can announce it later.",
-        { id: loadingToast },
-      );
+      // Announce package (optional - user can trigger later)
+      toast.success("Package created successfully! You can announce it later.", { id: loadingToast });
+
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "Failed to create package", {
