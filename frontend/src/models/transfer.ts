@@ -60,6 +60,10 @@ export class Transfer {
   @prop()
   public price?: number;
 
+  // Announcement reference (links transfer to the announcement that triggered it)
+  @prop()
+  public announcementMessageId?: string; // References PackageAnnouncement.messageId
+
   // Blockchain metadata
   @prop({ required: true })
   public mspId!: string; // MSP ID of the organization that initiated this transfer action

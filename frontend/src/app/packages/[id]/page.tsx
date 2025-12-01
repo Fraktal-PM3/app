@@ -5,6 +5,7 @@ import { PackageAnnouncementsTab } from "@/components/package-details/PackageAnn
 import { PackageContactCard } from "@/components/package-details/PackageContactCard";
 import { PackageDetailsCard } from "@/components/package-details/PackageDetailsCard";
 import { PackageDetailsHeader } from "@/components/package-details/PackageDetailsHeader";
+import { PackageOffersTab } from "@/components/package-details/PackageOffersTab";
 import { PackageStatusCard } from "@/components/package-details/PackageStatusCard";
 import { PackageTrackingCard } from "@/components/package-details/PackageTrackingCard";
 import { PackageTransfersTab } from "@/components/package-details/PackageTransfersTab";
@@ -22,13 +23,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     useAnnouncements,
+    useAnnouncementOffers,
     usePackages,
     useRecentActivity,
     useSSEConnection,
     useTransfers,
 } from "@/providers";
 import { motion } from "framer-motion";
-import { AlertCircle, ArrowLeft, Clock, Package as PackageIcon, Truck } from "lucide-react";
+import { AlertCircle, ArrowLeft, Briefcase, Clock, Package as PackageIcon, Truck } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -77,6 +79,17 @@ export default function PackageDetailsPage() {
     const hasActiveAnnouncement = useMemo(
         () => packageAnnouncements.some((a) => a.isActive),
         [packageAnnouncements]
+    );
+
+    // Get the active announcement for this package (to fetch offers)
+    const activeAnnouncement = useMemo(
+        () => packageAnnouncements.find((a) => a.isActive),
+        [packageAnnouncements]
+    );
+
+    // Get offers for the active announcement
+    const { offers: announcementOffers } = useAnnouncementOffers(
+        activeAnnouncement?.messageId || ""
     );
 
     // Find related activities
@@ -241,11 +254,16 @@ export default function PackageDetailsPage() {
                     transition={{ delay: 0.4 }}
                 >
                     <Tabs defaultValue="transfers" className="w-full">
-                        <TabsList className="font-mono w-full sm:w-auto grid grid-cols-3 sm:inline-grid">
+                        <TabsList className="font-mono w-full sm:w-auto grid grid-cols-4 sm:inline-grid">
                             <TabsTrigger value="transfers" className="text-xs uppercase">
                                 <Truck className="mr-0 sm:mr-2 h-3 w-3" />
                                 <span className="hidden sm:inline">Transfers</span>
                                 <span className="ml-1">({packageTransfers.length})</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="offers" className="text-xs uppercase">
+                                <Briefcase className="mr-0 sm:mr-2 h-3 w-3" />
+                                <span className="hidden sm:inline">Offers</span>
+                                <span className="ml-1">({announcementOffers.length})</span>
                             </TabsTrigger>
                             <TabsTrigger value="announcements" className="text-xs uppercase">
                                 <PackageIcon className="mr-0 sm:mr-2 h-3 w-3" />
@@ -261,6 +279,13 @@ export default function PackageDetailsPage() {
 
                         <TabsContent value="transfers" className="mt-6">
                             <PackageTransfersTab transfers={packageTransfers} />
+                        </TabsContent>
+
+                        <TabsContent value="offers" className="mt-6">
+                            <PackageOffersTab
+                                offers={announcementOffers}
+                                announcementPrice={activeAnnouncement?.price}
+                            />
                         </TabsContent>
 
                         <TabsContent value="announcements" className="mt-6">

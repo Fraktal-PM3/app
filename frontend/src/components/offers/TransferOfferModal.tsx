@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PackageAnnouncement, TransferOfferSchema } from "@/types/package";
+import { PackageAnnouncement, TransferOfferInput, TransferOfferSchema } from "@/types/package";
 import {
   Dialog,
   DialogContent,

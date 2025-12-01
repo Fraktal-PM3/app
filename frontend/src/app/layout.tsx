@@ -4,6 +4,7 @@ import {
   AuctionProvider,
   MessageProvider,
   MetricsProvider,
+  OffersProvider,
   PackageProvider,
   SSEConnectionProvider,
 } from "@/providers";
@@ -69,11 +70,13 @@ export default function RootLayout({
         <SSEConnectionProvider>
           <PackageProvider>
             <AuctionProvider>
-              <MetricsProvider>
-                <MessageProvider>
-                  <main className="flex-1">{children}</main>
-                </MessageProvider>
-              </MetricsProvider>
+              <OffersProvider>
+                <MetricsProvider>
+                  <MessageProvider>
+                    <main className="flex-1">{children}</main>
+                  </MessageProvider>
+                </MetricsProvider>
+              </OffersProvider>
             </AuctionProvider>
           </PackageProvider>
         </SSEConnectionProvider>

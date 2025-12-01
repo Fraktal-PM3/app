@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAnnouncements } from "@/providers";
+import { useAnnouncements, useTransferOffers } from "@/providers";
 import { motion } from "framer-motion";
 import {
   Briefcase,
@@ -18,13 +18,15 @@ import {
   Clock,
   AlertCircle,
   ArrowLeft,
+  Calendar,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
+import { getCurrentMspId } from "../actions";
 
 // Dynamically import PackageMap with SSR disabled
 const PackageMap = dynamic(
@@ -40,9 +42,15 @@ export default function OfferDetailsPage() {
   const announcementId = params.id as string;
 
   const { announcements, isLoading, isConnected, error } =
-    useAnnouncements(true);
+    useAnnouncements(false); // Show ALL announcements, not just active ones
+  const { offers } = useTransferOffers();
   const [showOfferModal, setShowOfferModal] = useState(false);
-  const [offerSent, setOfferSent] = useState(false);
+  const [currentMspId, setCurrentMspId] = useState<string | null>(null);
+
+  // Get current MSP ID on mount
+  useEffect(() => {
+    getCurrentMspId().then(setCurrentMspId);
+  }, []);
 
   // Find the announcement by ID
   const announcement = useMemo(
@@ -50,12 +58,30 @@ export default function OfferDetailsPage() {
     [announcements, announcementId]
   );
 
+  // Find all user's offers for this announcement
+  const userOffers = useMemo(() => {
+    if (!currentMspId || !announcement) return [];
+
+    const filteredOffers = offers.filter(
+      (offer) =>
+        offer.fromMSP === currentMspId &&
+        offer.announcementMessageId === announcement.messageId
+    );
+
+    // Sort by creation date (most recent first)
+    return filteredOffers.sort((a, b) => {
+      const dateA = new Date(a.offerCreatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.offerCreatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [offers, currentMspId, announcement]);
+
   const handleSendOffer = () => {
     setShowOfferModal(true);
   };
 
   const handleOfferSuccess = () => {
-    setOfferSent(true);
+    // Offers will be automatically updated via SSE events
   };
 
   const getUrgencyBadge = () => {
@@ -161,12 +187,12 @@ export default function OfferDetailsPage() {
           rightContent={
             <div className="flex flex-wrap gap-2">
               {getUrgencyBadge()}
-              {offerSent ? (
+              {userOffers.length > 0 ? (
                 <Badge
                   variant="outline"
                   className="bg-blue-50 font-mono text-xs dark:bg-blue-950"
                 >
-                  OFFER SENT
+                  {userOffers.length} OFFER{userOffers.length > 1 ? 'S' : ''} SENT
                 </Badge>
               ) : (
                 <Badge
@@ -319,53 +345,104 @@ export default function OfferDetailsPage() {
             </motion.div>
 
             {/* Action Button */}
-            {!offerSent && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Card className="border-border bg-card font-mono">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h3 className="font-mono text-sm font-bold uppercase">
-                          Interested in this delivery?
-                        </h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Submit a transfer offer to the sender with your
-                          proposed terms
-                        </p>
-                      </div>
-                      <Button
-                        onClick={handleSendOffer}
-                        size="lg"
-                        className="font-mono text-xs uppercase"
-                      >
-                        Send Transfer Offer
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            {offerSent && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
-                  <CardContent className="p-6">
-                    <div className="text-center">
-                      <h3 className="font-mono text-sm font-bold uppercase text-green-900 dark:text-green-100">
-                        Offer Sent Successfully
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card className="border-border bg-card font-mono">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h3 className="font-mono text-sm font-bold uppercase">
+                        {userOffers.length > 0 ? 'Want to submit another offer?' : 'Interested in this delivery?'}
                       </h3>
-                      <p className="mt-1 text-xs text-green-700 dark:text-green-300">
-                        Your transfer offer has been sent to the sender. They
-                        will review and respond soon.
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Submit a transfer offer to the sender with your proposed terms
                       </p>
+                    </div>
+                    <Button
+                      onClick={handleSendOffer}
+                      size="lg"
+                      className="font-mono text-xs uppercase"
+                    >
+                      {userOffers.length > 0 ? 'Send Another Offer' : 'Send Transfer Offer'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Offers Log */}
+            {userOffers.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+              >
+                <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 font-mono">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-blue-900 dark:text-blue-200">
+                      Your Submitted Offer{userOffers.length > 1 ? 's' : ''} ({userOffers.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="max-h-[400px] space-y-4 overflow-y-auto">
+                      {userOffers.map((offer, index) => (
+                        <div
+                          key={offer._id}
+                          className="space-y-3 rounded-md border border-blue-200 bg-white p-4 dark:border-blue-700 dark:bg-blue-900/30"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-blue-700 dark:text-blue-400">
+                              Offer #{userOffers.length - index}
+                            </div>
+                            {index === 0 && (
+                              <Badge variant="outline" className="bg-blue-100 dark:bg-blue-800 text-xs">
+                                Latest
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-md bg-blue-100 dark:bg-blue-900/50 p-3">
+                              <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                                <DollarSign className="h-3 w-3" />
+                                <span className="uppercase tracking-wider">Price</span>
+                              </div>
+                              <div className="mt-1 text-xl font-bold text-blue-900 dark:text-blue-100">
+                                {offer.price} kr
+                              </div>
+                            </div>
+
+                            {offer.deliveryDate && (
+                              <div className="rounded-md bg-blue-100 dark:bg-blue-900/50 p-3">
+                                <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                                  <Calendar className="h-3 w-3" />
+                                  <span className="uppercase tracking-wider">Delivery</span>
+                                </div>
+                                <div className="mt-1 text-sm font-bold text-blue-900 dark:text-blue-100">
+                                  {format(new Date(offer.deliveryDate), "MMM dd, yyyy HH:mm")}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="text-xs text-blue-600 dark:text-blue-400">
+                            Sent: {format(new Date(offer.offerCreatedAt || offer.createdAt || new Date()), "MMM dd, yyyy HH:mm")}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Separator className="bg-blue-200 dark:bg-blue-800" />
+
+                    <div className="space-y-2 text-center text-xs text-blue-700 dark:text-blue-400">
+                      <p>Your offer{userOffers.length > 1 ? 's have' : ' has'} been sent to the sender.</p>
+                      <p>They will review and respond soon.</p>
+                      {announcement.price && (
+                        <p className="font-semibold">(Asking price: {announcement.price} kr)</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
