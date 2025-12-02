@@ -13,6 +13,8 @@ export const StatusEnum = z.enum([
   "proposed",
 ]);
 
+export type Status = z.infer<typeof StatusEnum>;
+
 // Location schema
 export const LocationSchema = z
   .object({

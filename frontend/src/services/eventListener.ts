@@ -17,7 +17,7 @@ import PackageAnnouncementModel, {
   PackageAnnouncementDocument,
 } from "../models/packageAnnouncement";
 import SystemStateModel from "../models/systemState";
-import TransferModel, { TransferStatus } from "../models/transfer";
+import TransferModel from "../models/transfer";
 import TransferOfferModel from "../models/transferOffer";
 
 interface EventListenerConfig {
@@ -165,7 +165,6 @@ class EventListenerService {
       return true;
     }
 
-
     // For blockchain events, check the output fields
     if ("output" in event && event.output) {
       const output = event.output;
@@ -276,10 +275,11 @@ class EventListenerService {
           throw new Error("PackageService not initialized");
         }
 
-        const { ownerOrgMSP, recipientOrgMSP } = event.output
+        const { ownerOrgMSP, recipientOrgMSP } = event.output;
 
-        if (ownerOrgMSP !== this.nodeMSP && recipientOrgMSP !== this.nodeMSP) return;
-        
+        if (ownerOrgMSP !== this.nodeMSP && recipientOrgMSP !== this.nodeMSP)
+          return;
+
         console.log("[EventListener] CreatePackage event received: ", event);
 
         try {
@@ -322,11 +322,17 @@ class EventListenerService {
           throw new Error("PackageService not initialized");
         }
 
-        const { recipientOrgMSP } = await this.packageService.readBlockchainPackage(
-          event.output.externalId,
-        );
+        const { recipientOrgMSP } =
+          await this.packageService.readBlockchainPackage(
+            event.output.externalId,
+          );
 
-        if (event.output.parsedTerms.toMSP !== this.nodeMSP && event.output.parsedTerms.fromMSP !== this.nodeMSP && recipientOrgMSP !== this.nodeMSP) return
+        if (
+          event.output.parsedTerms.toMSP !== this.nodeMSP &&
+          event.output.parsedTerms.fromMSP !== this.nodeMSP &&
+          recipientOrgMSP !== this.nodeMSP
+        )
+          return;
 
         try {
           await this.handleProposeTransfer(event);
@@ -350,7 +356,9 @@ class EventListenerService {
 
         await dbConnect();
 
-        const transfer = await TransferModel.findOne({ transferId: event.output.termsId });
+        const transfer = await TransferModel.findOne({
+          transferId: event.output.termsId,
+        });
 
         if (!transfer) return;
 
@@ -374,7 +382,9 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] TransferExecuted event received: ", event);
 
-        const transfer = await TransferModel.findOne({ transferId: event.output.termsId });
+        const transfer = await TransferModel.findOne({
+          transferId: event.output.termsId,
+        });
 
         console.log("TransferExecuted - found transfer:", transfer);
 
@@ -503,88 +513,89 @@ class EventListenerService {
     }
   }
 
-/**
- * Automatically accept a transfer proposal if it's directed to our node
- */
-private async autoAcceptTransferIfRelevant(
-  output: ProposeTransferEvent,
-  activeAnnouncement: PackageAnnouncementDocument | null,
-): Promise<void> {
-  // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
-  const terms = (output as any).parsedTerms || output.terms;
-  
-  if (!terms) {
-    console.log("[EventListener] No terms found in ProposeTransferEvent, skipping auto-accept");
-    return;
-  }
+  /**
+   * Automatically accept a transfer proposal if it's directed to our node
+   */
+  private async autoAcceptTransferIfRelevant(
+    output: ProposeTransferEvent,
+    activeAnnouncement: PackageAnnouncementDocument | null,
+  ): Promise<void> {
+    // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
+    const terms = (output as any).parsedTerms || output.terms;
 
-  if (!this.nodeMSP || terms.toMSP !== this.nodeMSP) {
-    console.log(
-      `[EventListener] Transfer not directed to our node (toMSP: ${terms.toMSP}, ourMSP: ${this.nodeMSP}), skipping auto-accept`,
-    );
-    return;
-  }
-
-  console.log(
-    `[EventListener] Transfer ${output.termsId} is directed to our node, proceeding with auto-accept`,
-  );
-
-  // Update announcement status if exists
-  if (activeAnnouncement) {
-    await PackageAnnouncementModel.findByIdAndUpdate(
-      activeAnnouncement._id,
-      { transferStatus: 'accepted' },
-      { new: true }
-    );
-    console.log(
-      `[EventListener] Updated announcement ${activeAnnouncement._id} transferStatus to 'accepted'`,
-    );
-  }
-
-  // Automatically accept the transfer proposal
-  try {
-    if (!this.packageService) {
-      throw new Error("PackageService not initialized");
-    }
-
-    console.log(
-      `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
-    );
-
-    // Retrieve the private transfer terms (includes salt and price)
-    const privateTransferTerms = await this.packageService.readPrivateTransferTerms(
-      output.termsId
-    );
-
-    console.log(
-      `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
-      JSON.stringify(privateTransferTerms, null, 2)
-    );
-
-    // Accept the transfer (not propose - it's already proposed!)
-    await this.packageService.acceptTransfer(
-      output.externalId,
-      output.termsId,
-      privateTransferTerms as any
-    );
-
-    console.log(
-      `[EventListener] Successfully auto-accepted transfer ${output.termsId}`,
-    );
-  } catch (acceptError: any) {
-    // Check if error is about already proposed status
-    if (acceptError?.message?.includes('already in PROPOSED status')) {
+    if (!terms) {
       console.log(
-        `[EventListener] Transfer ${output.termsId} already proposed, this is expected during auto-accept`,
+        "[EventListener] No terms found in ProposeTransferEvent, skipping auto-accept",
       );
-    } else {
-      console.error(
-        `[EventListener] Failed to auto-accept transfer ${output.termsId}:`,
-        acceptError,
+      return;
+    }
+
+    if (!this.nodeMSP || terms.toMSP !== this.nodeMSP) {
+      console.log(
+        `[EventListener] Transfer not directed to our node (toMSP: ${terms.toMSP}, ourMSP: ${this.nodeMSP}), skipping auto-accept`,
+      );
+      return;
+    }
+
+    console.log(
+      `[EventListener] Transfer ${output.termsId} is directed to our node, proceeding with auto-accept`,
+    );
+
+    // Update announcement status if exists
+    if (activeAnnouncement) {
+      await PackageAnnouncementModel.findByIdAndUpdate(
+        activeAnnouncement._id,
+        { transferStatus: "accepted" },
+        { new: true },
+      );
+      console.log(
+        `[EventListener] Updated announcement ${activeAnnouncement._id} transferStatus to 'accepted'`,
       );
     }
+
+    // Automatically accept the transfer proposal
+    try {
+      if (!this.packageService) {
+        throw new Error("PackageService not initialized");
+      }
+
+      console.log(
+        `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
+      );
+
+      // Retrieve the private transfer terms (includes salt and price)
+      const privateTransferTerms =
+        await this.packageService.readPrivateTransferTerms(output.termsId);
+
+      console.log(
+        `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
+        JSON.stringify(privateTransferTerms, null, 2),
+      );
+
+      // Accept the transfer (not propose - it's already proposed!)
+      await this.packageService.acceptTransfer(
+        output.externalId,
+        output.termsId,
+        privateTransferTerms as any,
+      );
+
+      console.log(
+        `[EventListener] Successfully auto-accepted transfer ${output.termsId}`,
+      );
+    } catch (acceptError: any) {
+      // Check if error is about already proposed status
+      if (acceptError?.message?.includes("already in PROPOSED status")) {
+        console.log(
+          `[EventListener] Transfer ${output.termsId} already proposed, this is expected during auto-accept`,
+        );
+      } else {
+        console.error(
+          `[EventListener] Failed to auto-accept transfer ${output.termsId}:`,
+          acceptError,
+        );
+      }
+    }
   }
-}
 
   /**
    * Handle ProposeTransfer event - create transfer record
@@ -594,7 +605,11 @@ private async autoAcceptTransferIfRelevant(
   ): Promise<void> {
     try {
       const output = event.output;
-      console.log("[EventListener] Handling ProposeTransfer for package:", output.externalId, event);
+      console.log(
+        "[EventListener] Handling ProposeTransfer for package:",
+        output.externalId,
+        event,
+      );
       console.log("handleProposeTransfer - output:", output);
 
       const transferData: Record<string, any> = {
@@ -602,17 +617,22 @@ private async autoAcceptTransferIfRelevant(
         externalId: output.externalId,
         fromMSP: output.parsedTerms.fromMSP,
         toMSP: output.parsedTerms.toMSP,
-        status: TransferStatus.PROPOSED,
+        status: output.status,
         mspId: this.extractMSP(event) || "",
         blockchainTxId: event.txid,
         blockchainData: output,
       };
 
-    // Link transfer to active announcement for this package
-    const activeAnnouncement = await PackageAnnouncementModel.findOne({
-      packageExternalId: output.externalId,
-      isActive: true,
-    }).sort({ createdAt: -1 });
+      // Link transfer to active announcement for this package
+      const activeAnnouncement = await PackageAnnouncementModel.findOne({
+        packageExternalId: output.externalId,
+        isActive: true,
+      }).sort({ createdAt: -1 });
+
+      await PackageModel.findOneAndUpdate(
+        { id: output.externalId },
+        { status: output.status },
+      );
 
       if (activeAnnouncement) {
         transferData.announcementMessageId = activeAnnouncement.messageId;
@@ -625,7 +645,7 @@ private async autoAcceptTransferIfRelevant(
           await PackageAnnouncementModel.findByIdAndUpdate(
             activeAnnouncement._id,
             { transferStatus: "accepted" },
-            { new: true }
+            { new: true },
           );
           console.log(
             `[EventListener] Updated announcement ${activeAnnouncement._id} transferStatus to 'accepted'`
@@ -644,18 +664,18 @@ private async autoAcceptTransferIfRelevant(
             // Retrieve the private transfer terms (includes salt and price)
             const privateTransferTerms =
               await this.packageService.readPrivateTransferTerms(
-                output.termsId
+                output.termsId,
               );
 
             console.log(
               `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
-              privateTransferTerms
+              privateTransferTerms,
             );
 
             await this.packageService.acceptTransfer(
               output.externalId,
               output.termsId,
-              privateTransferTerms as any
+              privateTransferTerms as any,
             );
 
             console.log(
@@ -670,25 +690,26 @@ private async autoAcceptTransferIfRelevant(
           }
         }
       }
+      }
 
-    // Persist transfer record
-    await TransferModel.findOneAndUpdate(
-      { transferId: transferData.transferId },
-      transferData,
-      { upsert: true, new: true },
-    );
+      // Persist transfer record
+      await TransferModel.findOneAndUpdate(
+        { transferId: transferData.transferId },
+        transferData,
+        { upsert: true, new: true },
+      );
 
-    console.log(
-      `[EventListener] Transfer proposed and persisted: ${transferData.transferId}`,
-    );
+      console.log(
+        `[EventListener] Transfer proposed and persisted: ${transferData.transferId}`,
+      );
 
-    // Auto-accept transfer if it's directed to our node
-    await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
-  } catch (error) {
-    console.error("[EventListener] Error persisting ProposeTransfer:", error);
-    throw error;
+      // Auto-accept transfer if it's directed to our node
+      await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
+    } catch (error) {
+      console.error("[EventListener] Error persisting ProposeTransfer:", error);
+      throw error;
+    }
   }
-}
 
   /**
    * Handle AcceptTransfer event - update transfer status (transfer must exist)
@@ -704,11 +725,16 @@ private async autoAcceptTransferIfRelevant(
       const updated = await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },
         {
-          status: TransferStatus.ACCEPTED,
+          status: output.status,
           mspId: this.extractMSP(event),
           blockchainTxId: event.txid,
         },
-        { new: true }
+        { new: true },
+      );
+
+      await PackageModel.findOneAndUpdate(
+        { id: output.externalId },
+        { status: output.status },
       );
 
       if (!updated) {
@@ -743,13 +769,11 @@ private async autoAcceptTransferIfRelevant(
 
       console.log("handleTransferExecuted event:", event);
       if (output.newOwner === this.nodeMSP) {
-        const blockchainPackage = await this.packageService.readBlockchainPackage(
-          output.externalId,
-        );
+        const blockchainPackage =
+          await this.packageService.readBlockchainPackage(output.externalId);
         console.log("Fetched blockchain package:", blockchainPackage);
-        const packageDetailsAndPII = await this.packageService.readPackageDetailsAndPII(
-          output.externalId,
-        );
+        const packageDetailsAndPII =
+          await this.packageService.readPackageDetailsAndPII(output.externalId);
         console.log("Fetched package details and PII:", packageDetailsAndPII);
         await PackageModel.findOneAndUpdate(
           { id: output.externalId },
@@ -760,25 +784,24 @@ private async autoAcceptTransferIfRelevant(
             name: output.externalId,
             id: output.externalId,
           },
-          { new: true, upsert: true }
+          { new: true, upsert: true },
         );
       } else {
-        const blockchainPackage = await this.packageService.readBlockchainPackage(
-          output.externalId,
-        );
+        const blockchainPackage =
+          await this.packageService.readBlockchainPackage(output.externalId);
         await PackageModel.findOneAndUpdate(
           { id: output.externalId },
           {
             ...blockchainPackage,
           },
-          { new: true }
+          { new: true },
         );
       }
 
       const executed = await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },
         {
-          status: TransferStatus.EXECUTED,
+          status: event.output.status,
           mspId: this.extractMSP(event),
           blockchainTxId: event.txid,
         },
@@ -970,6 +993,7 @@ private async autoAcceptTransferIfRelevant(
           : undefined,
         messageData: offerValue,
         packageDetails: offerValue,
+        packageDetails: offerValue,
       };
 
       // Upsert transfer offer (create or update if exists)
@@ -983,6 +1007,7 @@ private async autoAcceptTransferIfRelevant(
         `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${offerValue.fromMSP} with price ${offerValue.price}`,
       );
     } catch (error) {
+      console.error("[EventListener] Error handling transfer offer:", error);
       console.error("[EventListener] Error handling transfer offer:", error);
       throw error;
     }
@@ -1037,8 +1062,6 @@ private async autoAcceptTransferIfRelevant(
     console.log("[EventListener] Shutdown complete");
   }
 }
-
- 
 
 // Singleton instance
 const eventListenerService = new EventListenerService();

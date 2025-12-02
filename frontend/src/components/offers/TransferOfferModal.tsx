@@ -20,10 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import {
-  PackageAnnouncement,
-  TransferOfferSchema
-} from "@/types/package";
+import { PackageAnnouncement, TransferOfferSchema } from "@/types/package";
 import { CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -41,8 +38,8 @@ export function TransferOfferModal({
   onSuccess,
 }: TransferOfferModalProps) {
   const [offerPrice, setOfferPrice] = useState<string>("");
-  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
-  const [deliveryTime, setDeliveryTime] = useState<string>("12:00");
+  const [expiryDate, setExpiryDate] = useState<Date | undefined>(undefined);
+  const [expiryTime, setExpiryTime] = useState<string>("12:00");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +63,7 @@ export function TransferOfferModal({
       return;
     }
 
-    if (!deliveryDate) {
+    if (!expiryDate) {
       setError("Please select a delivery date and time");
       return;
     }
@@ -76,8 +73,8 @@ export function TransferOfferModal({
       setError(null);
 
       // Combine date and time into ISO string
-      const [hours, minutes] = deliveryTime.split(":");
-      const deliveryDateTime = new Date(deliveryDate);
+      const [hours, minutes] = expiryTime.split(":");
+      const deliveryDateTime = new Date(expiryDate);
       deliveryDateTime.setHours(
         parseInt(hours, 10),
         parseInt(minutes, 10),
@@ -117,8 +114,8 @@ export function TransferOfferModal({
       // Success - close modal and notify parent
       onOpenChange(false);
       setOfferPrice("");
-      setDeliveryDate(undefined);
-      setDeliveryTime("12:00");
+      setExpiryDate(undefined);
+      setExpiryTime("12:00");
       onSuccess?.();
     } catch (err) {
       console.error("Error sending transfer offer:", err);
@@ -132,8 +129,8 @@ export function TransferOfferModal({
 
   const handleCancel = () => {
     setOfferPrice("");
-    setDeliveryDate(undefined);
-    setDeliveryTime("12:00");
+    setExpiryDate(undefined);
+    setExpiryTime("12:00");
     setError(null);
     onOpenChange(false);
   };
@@ -233,10 +230,10 @@ export function TransferOfferModal({
             )}
           </div>
 
-          {/* Delivery Date & Time Picker */}
+          {/* Expiry Date & Time Picker */}
           <div className="space-y-3">
             <Label className="text-xs uppercase tracking-wider">
-              Proposed Delivery Date & Time
+              Expiry Date & Time
             </Label>
             <div className="flex gap-4">
               <div className="flex-1 space-y-2">
@@ -254,8 +251,8 @@ export function TransferOfferModal({
                       disabled={isSubmitting}
                       className="w-full justify-between font-mono text-xs"
                     >
-                      {deliveryDate ? (
-                        deliveryDate.toLocaleDateString()
+                      {expiryDate ? (
+                        expiryDate.toLocaleDateString()
                       ) : (
                         <span className="text-muted-foreground">
                           Select date
@@ -267,9 +264,9 @@ export function TransferOfferModal({
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={deliveryDate}
+                      selected={expiryDate}
                       onSelect={(date) => {
-                        setDeliveryDate(date);
+                        setExpiryDate(date);
                         setDatePickerOpen(false);
                       }}
                       disabled={(date) => date < new Date()}
@@ -287,15 +284,15 @@ export function TransferOfferModal({
                 <Input
                   type="time"
                   id="time-picker"
-                  value={deliveryTime}
-                  onChange={(e) => setDeliveryTime(e.target.value)}
+                  value={expiryTime}
+                  onChange={(e) => setExpiryTime(e.target.value)}
                   disabled={isSubmitting}
                   className="font-mono"
                 />
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              When can you deliver this package?
+              When does this offer expire?
             </p>
           </div>
 

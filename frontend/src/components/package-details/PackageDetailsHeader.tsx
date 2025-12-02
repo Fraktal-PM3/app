@@ -180,7 +180,13 @@ export function PackageDetailsHeader({
             <div className="flex flex-col gap-1">
               <Button
                 onClick={handleOpenAnnounceDialog}
-                disabled={announceSuccess || hasActiveAnnouncement}
+                disabled={
+                  announceSuccess ||
+                  hasActiveAnnouncement ||
+                  packageData.status === "succeeded" ||
+                  packageData.status === "failed" ||
+                  packageData.active === "false"
+                }
                 size="sm"
                 variant={hasActiveAnnouncement ? "outline" : "default"}
                 className="font-mono text-xs uppercase"

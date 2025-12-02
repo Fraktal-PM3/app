@@ -9,7 +9,14 @@ import type {
   TransferExecutedEvent,
 } from "@/types/events";
 import type { Package, Transfer } from "@/types/package";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useSSEConnection } from "./SSEConnectionProvider";
 
 // Helper to normalize date fields to ISO strings
@@ -37,7 +44,9 @@ interface PackageContextValue {
   refetchTransfers: () => Promise<void>;
 }
 
-const PackageContext = createContext<PackageContextValue | undefined>(undefined);
+const PackageContext = createContext<PackageContextValue | undefined>(
+  undefined,
+);
 
 export function PackageProvider({ children }: { children: React.ReactNode }) {
   const [packages, setPackages] = useState<Package[]>([]);
@@ -59,7 +68,8 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       setPackages(normalized);
       setError(null);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Failed to load packages";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to load packages";
       setError(errorMsg);
       console.error("[PackageProvider] Error fetching packages:", err);
     }
@@ -76,7 +86,8 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       setTransfers(data || []);
       setError(null);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Failed to load transfers";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to load transfers";
       setError(errorMsg);
       console.error("[PackageProvider] Error fetching transfers:", err);
     }
@@ -112,8 +123,8 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         if (packageId) {
           setPackages((prev) =>
             prev.map((pkg) =>
-              pkg.id === packageId ? { ...pkg, active: status } : pkg
-            )
+              pkg.id === packageId ? { ...pkg, active: status } : pkg,
+            ),
           );
         }
       }),
@@ -136,10 +147,12 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         const transferData = data as any;
         if (transferData.transferId) {
           setTransfers((prev) => {
-            const exists = prev.some((t) => t.transferId === transferData.transferId);
+            const exists = prev.some(
+              (t) => t.transferId === transferData.transferId,
+            );
             if (exists) {
               return prev.map((t) =>
-                t.transferId === transferData.transferId ? transferData : t
+                t.transferId === transferData.transferId ? transferData : t,
               );
             }
             return [transferData, ...prev];
@@ -157,8 +170,8 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         if (transferData.transferId) {
           setTransfers((prev) =>
             prev.map((t) =>
-              t.transferId === transferData.transferId ? transferData : t
-            )
+              t.transferId === transferData.transferId ? transferData : t,
+            ),
           );
         }
       }),
@@ -173,8 +186,8 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         if (transferData.transferId) {
           setTransfers((prev) =>
             prev.map((t) =>
-              t.transferId === transferData.transferId ? transferData : t
-            )
+              t.transferId === transferData.transferId ? transferData : t,
+            ),
           );
         }
       }),
@@ -194,10 +207,12 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       refetchPackages,
       refetchTransfers,
     }),
-    [packages, transfers, isLoading, error, refetchPackages, refetchTransfers]
+    [packages, transfers, isLoading, error, refetchPackages, refetchTransfers],
   );
 
-  return <PackageContext.Provider value={value}>{children}</PackageContext.Provider>;
+  return (
+    <PackageContext.Provider value={value}>{children}</PackageContext.Provider>
+  );
 }
 
 // Hook to access packages
@@ -233,5 +248,28 @@ export function useTransfers() {
     isConnected,
     error: context.error,
     refetch: context.refetchTransfers,
+  };
+}
+
+// Hook to access a single package by ID
+export function usePackage(packageId: string) {
+  const context = useContext(PackageContext);
+  if (!context) {
+    throw new Error("usePackage must be used within PackageProvider");
+  }
+
+  const { isConnected } = useSSEConnection();
+
+  const packageData = useMemo(
+    () => context.packages.find((pkg) => pkg.id === packageId),
+    [context.packages, packageId],
+  );
+
+  return {
+    packageData: packageData,
+    isLoading: context.isLoading,
+    isConnected,
+    error: context.error,
+    refetch: context.refetchPackages,
   };
 }
