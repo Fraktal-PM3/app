@@ -673,7 +673,7 @@ class EventListenerService {
       );
 
       const terms = {
-        price: transferTerms.price || 0,
+        price: 0,
         id: crypto.randomUUID(),
         salt: transferTerms.salt,
       };
