@@ -12,8 +12,13 @@ export async function getPackageService(): Promise<PackageService> {
       ? "http://localhost:8000" 
       : "http://localhost:8001";
     
+    const fireflyHost = process.env.FIREFLY_HOST;
+    if (!fireflyHost) {
+      throw new Error("FIREFLY_HOST environment variable is required");
+    }
+
     fireflyInstance = new FireFly({
-      host: process.env.FIREFLY_HOST || defaultHost,
+      host: fireflyHost,
       namespace: process.env.FIREFLY_NAMESPACE || "default",
     });
 

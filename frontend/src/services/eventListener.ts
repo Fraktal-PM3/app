@@ -53,11 +53,16 @@ class EventListenerService {
           ? "http://localhost:8000"
           : "http://localhost:8001";
 
+      const fireflyHost = process.env.FIREFLY_HOST;
+      if (!fireflyHost) {
+        throw new Error("FIREFLY_HOST environment variable is required");
+      }
+
       this.fireflyInstance = new FireFly({
-        host: config.fireflyHost || process.env.FIREFLY_HOST || defaultHost,
-        namespace:
-          config.fireflyNamespace || process.env.FIREFLY_NAMESPACE || "default",
+        host: fireflyHost,
+        namespace: process.env.FIREFLY_NAMESPACE || "default",
       });
+      
 
       // Initialize PackageService
       this.packageService = new PackageService(this.fireflyInstance);
@@ -322,11 +327,13 @@ class EventListenerService {
         if (!this.isRelevantEvent(event)) return;
 
         try {
-          if (process.env.NEXT_PUBLIC_RECEIVER === "TRUE") {
+          console.log(event.output.price);
+          if (process.env.NEXT_PUBLIC_RECEIVER === "TRUE" && event.output.price === 0) {
             await this.handleProposeTransferRecive(event);
-          } else {
+          } else { 
             await this.handleProposeTransfer(event);
           }
+          
           eventBus.emitBlockchainEvent("ProposeTransfer", event);
         } catch (error) {
           console.error(
@@ -507,13 +514,7 @@ class EventListenerService {
       return;
     }
 
-    if (!this.nodeMSP || terms.toMSP !== this.nodeMSP) {
-      console.log(
-        `[EventListener] Transfer not directed to our node (toMSP: ${terms.toMSP}, ourMSP: ${this.nodeMSP}), skipping auto-accept`,
-      );
-      return;
-    }
-
+    console.log(terms);
     console.log(
       `[EventListener] Transfer ${output.termsId} is directed to our node, proceeding with auto-accept`,
     );
@@ -643,7 +644,7 @@ class EventListenerService {
       console.log(
         `[EventListener] Transfer proposed and persisted: ${transferData.transferId}`,
       );
-
+      
       // Auto-accept transfer if it's directed to our node
       await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
     } catch (error) {
@@ -661,7 +662,7 @@ class EventListenerService {
     try {
       const output = event.output;
       console.log("[EventListener] Processing ProposeTransfer event for receiver:", JSON.stringify(output, null, 2));
-
+      
       if (!this.packageService) {
         throw new Error("PackageService not initialized");
       }
@@ -670,6 +671,7 @@ class EventListenerService {
       const privateTransferTerms = await this.packageService.readPrivateTransferTerms(
         output.termsId
       );
+
 
       console.log(
         `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
@@ -684,9 +686,7 @@ class EventListenerService {
         return;
       }
 
-      console.log(
-        `[EventListener] Receiver node processing free transfer (price = 0) for package ${output.externalId}`,
-      );
+      
 
       // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
       const terms = (output as any).parsedTerms || output.terms;
@@ -695,6 +695,12 @@ class EventListenerService {
         console.error("[EventListener] ProposeTransfer event missing terms/parsedTerms:", output);
         throw new Error("ProposeTransfer event missing terms data");
       }
+
+      
+
+      console.log(
+        `[EventListener] Receiver node processing free transfer (price = 0) for package ${output.externalId}`,
+      );
 
       // Find package by id and link it (optional - package may not be in local DB)
       const pkg = await PackageModel.findOne({
@@ -746,6 +752,13 @@ class EventListenerService {
       console.log(
         `[EventListener] Free transfer proposed and persisted: ${transferData.transferId}`,
       );
+
+      if (!this.nodeMSP || terms.recipientMSP !== this.nodeMSP) {
+        console.log(
+          `[EventListener] Transfer not directed to our node (toMSP: ${terms.recipientMSP}, ourMSP: ${this.nodeMSP}), skipping auto-accept`,
+        );
+        return;
+    }
 
       // Auto-accept the free transfer
       await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
