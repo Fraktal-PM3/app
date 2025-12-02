@@ -717,14 +717,23 @@ class EventListenerService {
     event: BlockchainEventDelivery & { output: AcceptTransferEvent },
   ): Promise<void> {
     try {
+      if (!this.packageService) {
+        throw new Error("PackageService not initialized");
+      }
+
       const output = event.output;
+      const blockchainPackage = await this.packageService.readBlockchainPackage(output.externalId);
+
+      if (!blockchainPackage) {
+        throw new Error(`Blockchain package not found: ${output.externalId}`);
+      }
 
       console.log("handleAcceptTransfer output:", output);
 
       const updated = await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },
         {
-          status: output.status,
+          status: blockchainPackage.status,
           mspId: this.extractMSP(event),
           blockchainTxId: event.txid,
         },
@@ -733,7 +742,7 @@ class EventListenerService {
 
       await PackageModel.findOneAndUpdate(
         { id: output.externalId },
-        { status: output.status },
+        { status: blockchainPackage.status },
       );
 
       if (!updated) {
@@ -792,6 +801,7 @@ class EventListenerService {
           { id: output.externalId },
           {
             ...blockchainPackage,
+            mspId: output.newOwner, // Update owner to the new owner
           },
           { new: true },
         );

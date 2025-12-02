@@ -53,7 +53,9 @@ export type Package = {
   packageDetails?: PackageDetails;
   salt?: string;
   pii?: PII;
-  mspId?: string;
+  mspId?: string; // Current owner MSP
+  ownerOrgMSP: string; // Original creator MSP (never changes)
+  senderOrgMSP: string; // Sender MSP (same as ownerOrgMSP initially)
   price?: number;
   active?: string; // "true", "false", "pending"
   createdAt?: string;

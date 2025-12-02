@@ -109,6 +109,12 @@ export class Package {
   @prop({ required: true })
   public recipientMSP!: string; // MSP ID of the recipient organization
 
+  @prop({ required: true })
+  public ownerOrgMSP!: string; // Owner MSP ID of the package
+
+  @prop({ required: true })
+  public senderOrgMSP!: string; // Sender MSP ID of the package
+
   @prop({ default: "null" })
   public termsId?: string;
 
