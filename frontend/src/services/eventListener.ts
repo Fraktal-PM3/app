@@ -302,8 +302,15 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] ProposeTransfer event received");
         console.log("[EventListener] Event details: ", event);
+        if (!this.packageService) {
+          throw new Error("PackageService not initialized");
+        }
 
-        if (!this.isRelevantEvent(event)) return;
+        const { recipientOrgMSP } = await this.packageService.readBlockchainPackage(
+          event.output.externalId,
+        );
+
+        if (event.output.parsedTerms.toMSP !== this.nodeMSP && event.output.parsedTerms.fromMSP !== this.nodeMSP && recipientOrgMSP !== this.nodeMSP) return
 
         try {
           await this.handleProposeTransfer(event);
@@ -352,6 +359,8 @@ class EventListenerService {
         console.log("[EventListener] TransferExecuted event received: ", event);
 
         const transfer = await TransferModel.findOne({ transferId: event.output.termsId });
+
+        console.log("TransferExecuted - found transfer:", transfer);
 
         if (!transfer) return;
 
@@ -486,7 +495,6 @@ class EventListenerService {
   ): Promise<void> {
     try {
       const output = event.output;
-      console.log(output);
       console.log("[EventListener] Handling ProposeTransfer for package:", output.externalId, event);
       console.log("handleProposeTransfer - output:", output);
 
@@ -512,9 +520,9 @@ class EventListenerService {
         console.log(
           `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`,
         );
-        
+
         // Update announcement transferStatus and auto-accept if transfer is directed to our node
-        if (this.nodeMSP && output.terms.toMSP === this.nodeMSP) {
+        if (this.nodeMSP && output.parsedTerms.toMSP === this.nodeMSP) {
           await PackageAnnouncementModel.findByIdAndUpdate(
             activeAnnouncement._id,
             { transferStatus: 'accepted' },
@@ -624,6 +632,44 @@ class EventListenerService {
   ): Promise<void> {
     try {
       const output = event.output;
+
+      if (!this.packageService) {
+        throw new Error("PackageService not initialized");
+      }
+
+      console.log("handleTransferExecuted event:", event);
+      if (output.newOwner === this.nodeMSP) {
+        const blockchainPackage = await this.packageService.readBlockchainPackage(
+          output.externalId,
+        );
+        console.log("Fetched blockchain package:", blockchainPackage);
+        const packageDetailsAndPII = await this.packageService.readPackageDetailsAndPII(
+          output.externalId,
+        );
+        console.log("Fetched package details and PII:", packageDetailsAndPII);
+        await PackageModel.findOneAndUpdate(
+          { id: output.externalId },
+          {
+            ...blockchainPackage,
+            ...packageDetailsAndPII,
+            mspId: this.nodeMSP,
+            name: output.externalId,
+            id: output.externalId,
+          },
+          { new: true, upsert: true }
+        );
+      } else {
+        const blockchainPackage = await this.packageService.readBlockchainPackage(
+          output.externalId,
+        );
+        await PackageModel.findOneAndUpdate(
+          { id: output.externalId },
+          {
+            ...blockchainPackage,
+          },
+          { new: true }
+        );
+      }
 
       const executed = await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },
