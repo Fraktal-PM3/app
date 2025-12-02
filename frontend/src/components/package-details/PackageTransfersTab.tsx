@@ -1,13 +1,11 @@
 "use client";
 
-import { executeTransfer } from "@/app/packages/[id]/actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Transfer } from "@/types/package";
 import { Status } from "fraktal-lib";
 import { format } from "date-fns";
 import { Truck } from "lucide-react";
-import { Button } from "../ui/button";
 
 interface PackageTransfersTabProps {
   transfers: Transfer[];
@@ -37,13 +35,6 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
         {status.toUpperCase()}
       </Badge>
     );
-  };
-
-  const handleExecuteTransfer = async (
-    transferId: string,
-    externalId: string,
-  ) => {
-    await executeTransfer(transferId, externalId);
   };
 
   return (
@@ -111,20 +102,6 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                     </div>
                     <div className="text-lg font-bold">{transfer.price} kr</div>
                   </div>
-                )}
-
-                {transfer.status === Status.READY_FOR_PICKUP && (
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      handleExecuteTransfer(
-                        transfer.transferId,
-                        transfer.externalId,
-                      )
-                    }
-                  >
-                    Execute Transfer
-                  </Button>
                 )}
               </div>
             ))}

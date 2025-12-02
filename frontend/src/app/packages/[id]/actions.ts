@@ -44,6 +44,27 @@ export async function checkPackageOwnership(
 }
 
 /**
+ * Server action to check if current user is the sender (original creator) of a package
+ * @param senderOrgMSP - The MSP ID of the package sender/creator
+ * @returns true if current user is the sender
+ */
+export async function checkIsSender(
+  senderOrgMSP: string | undefined,
+): Promise<boolean> {
+  if (!senderOrgMSP) {
+    return false;
+  }
+
+  try {
+    const identity = await getMspIdentity();
+    return identity.mspId === senderOrgMSP;
+  } catch (error) {
+    console.error("Failed to check sender:", error);
+    return false;
+  }
+}
+
+/**
  * Propose Transfer Action
  */
 export async function proposeTransfer(offer: TransferOffer) {

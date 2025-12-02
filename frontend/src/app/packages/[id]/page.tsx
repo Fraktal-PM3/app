@@ -30,6 +30,7 @@ import {
   Briefcase,
   CheckCircle2,
   Clock,
+  Loader2,
   Package as PackageIcon,
   Truck,
 } from "lucide-react";
@@ -37,7 +38,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { checkPackageOwnership, executeTransfer } from "./actions";
+import { checkPackageOwnership, checkIsSender, executeTransfer } from "./actions";
 
 // Dynamically import PackageMap with SSR disabled to avoid Leaflet window errors
 const PackageMap = dynamic(
@@ -59,12 +60,14 @@ export default function PackageDetailsPage() {
   const { activities } = useRecentActivity();
   const { isConnected } = useSSEConnection();
   const [isOwner, setIsOwner] = useState(false);
+  const [isSender, setIsSender] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   const acceptedTransfer = useMemo(() => {
     return transfers.find(
       (transfer) =>
         transfer.status === Status.READY_FOR_PICKUP &&
-        transfer.packageId === packageData?.id,
+        transfer.externalId === packageData?.id,
     );
   }, [transfers, packageData]);
 
@@ -125,7 +128,8 @@ export default function PackageDetailsPage() {
   // Check ownership server-side
   useEffect(() => {
     if (packageData) {
-      checkPackageOwnership(packageData.mspId).then(setIsOwner);
+      checkPackageOwnership(packageData.ownerOrgMSP).then(setIsOwner);
+      checkIsSender(packageData.senderOrgMSP).then(setIsSender);
     }
   }, [packageData]);
 
@@ -209,6 +213,7 @@ export default function PackageDetailsPage() {
         <PackageDetailsHeader
           packageData={packageData}
           isConnected={isConnected}
+          isSender={isSender}
           isOwner={isOwner}
           hasActiveAnnouncement={hasActiveAnnouncement}
         />
@@ -253,14 +258,29 @@ export default function PackageDetailsPage() {
                   </div>
                   <Button
                     onClick={async () => {
-                      await executeTransfer(
-                        acceptedTransfer.transferId,
-                        acceptedTransfer.externalId,
-                      );
+                      setIsExecuting(true);
+                      try {
+                        await executeTransfer(
+                          acceptedTransfer.transferId,
+                          acceptedTransfer.externalId,
+                        );
+                      } catch (error) {
+                        console.error("Error executing transfer:", error);
+                      } finally {
+                        setIsExecuting(false);
+                      }
                     }}
+                    disabled={isExecuting}
                     className="font-mono text-xs uppercase"
                   >
-                    Execute Transfer
+                    {isExecuting ? (
+                      <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Executing...
+                      </>
+                    ) : (
+                      "Execute Transfer"
+                    )}
                   </Button>
                 </div>
               </CardContent>

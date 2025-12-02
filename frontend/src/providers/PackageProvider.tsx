@@ -139,57 +139,21 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       }),
 
       // ProposeTransfer - refetch packages to get updated termsId
-      subscribe<ProposeTransferEvent>("ProposeTransfer", (data) => {
+      subscribe<ProposeTransferEvent>("ProposeTransfer", async (data) => {
         console.log("[PackageProvider] ProposeTransfer event:", data);
-        refetchPackages();
-
-        // Also update transfers
-        const transferData = data as any;
-        if (transferData.transferId) {
-          setTransfers((prev) => {
-            const exists = prev.some(
-              (t) => t.transferId === transferData.transferId,
-            );
-            if (exists) {
-              return prev.map((t) =>
-                t.transferId === transferData.transferId ? transferData : t,
-              );
-            }
-            return [transferData, ...prev];
-          });
-        }
+        await Promise.all([refetchPackages(), refetchTransfers()]);
       }),
 
-      // AcceptTransfer - refetch packages
-      subscribe<AcceptTransferEvent>("AcceptTransfer", (data) => {
+      // AcceptTransfer - refetch packages and transfers
+      subscribe<AcceptTransferEvent>("AcceptTransfer", async (data) => {
         console.log("[PackageProvider] AcceptTransfer event:", data);
-        refetchPackages();
-
-        // Update transfers
-        const transferData = data as any;
-        if (transferData.transferId) {
-          setTransfers((prev) =>
-            prev.map((t) =>
-              t.transferId === transferData.transferId ? transferData : t,
-            ),
-          );
-        }
+        await Promise.all([refetchPackages(), refetchTransfers()]);
       }),
 
-      // TransferExecuted - refetch packages (FIXED: was ExecuteTransfer)
-      subscribe<TransferExecutedEvent>("TransferExecuted", (data) => {
+      // TransferExecuted - refetch packages and transfers
+      subscribe<TransferExecutedEvent>("TransferExecuted", async (data) => {
         console.log("[PackageProvider] TransferExecuted event:", data);
-        refetchPackages();
-
-        // Update transfers
-        const transferData = data as any;
-        if (transferData.transferId) {
-          setTransfers((prev) =>
-            prev.map((t) =>
-              t.transferId === transferData.transferId ? transferData : t,
-            ),
-          );
-        }
+        await Promise.all([refetchPackages(), refetchTransfers()]);
       }),
     ];
 
