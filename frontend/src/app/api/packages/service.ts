@@ -7,6 +7,7 @@ let cachedMspIdentity: { mspId: string; nodeOrg: string } | null = null;
 
 export async function getPackageService(): Promise<PackageService> {
   if (!packageService) {
+<<<<<<< HEAD
     // Use port 8000 for transporters, 8001 for others
     const defaultHost =
       process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE"
@@ -19,6 +20,10 @@ export async function getPackageService(): Promise<PackageService> {
 
     fireflyInstance = new FireFly({
       host: fireflyHost,
+=======
+    fireflyInstance = new FireFly({
+      host: process.env.FIREFLY_NODE_URL || "",
+>>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
       namespace: process.env.FIREFLY_NAMESPACE || "default",
     });
 

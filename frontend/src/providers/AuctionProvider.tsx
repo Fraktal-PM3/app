@@ -89,6 +89,7 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
           announcerMSP: data.signingKey?.split(":")[0] || "",
           announcerNode: data.author,
           isActive: true,
+          price: packageDetails?.price, // Extract price from package details
           packageDetails: packageDetails,
           createdAt: data.created,
         };

@@ -83,6 +83,8 @@ export function TransferOfferModal({
         expiryISO: deliveryDateTimeISO,
       });
 
+      console.log("Submitting transfer offer:", transferOffer);
+
       // Send private message with transfer offer
       const response = await fetch(
         `/api/packages/${announcement.packageExternalId}/privateMessage`,

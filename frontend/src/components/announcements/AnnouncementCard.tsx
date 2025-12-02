@@ -52,15 +52,15 @@ export function AnnouncementCard({
 
   return (
     <Card className={`font-mono transition-all hover:border-primary/50 h-full flex flex-col ${
-      isAccepted 
-        ? 'border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30' 
+      isAccepted
+        ? 'border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30'
         : 'border-border bg-card'
     }`}>
       <CardHeader className="pb-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <PackageIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-            <CardTitle className="text-sm font-bold uppercase tracking-wider truncate">
+            <CardTitle className="text-sm font-bold uppercase truncate">
               {announcement.packageExternalId}
             </CardTitle>
           </div>
@@ -179,6 +179,7 @@ export function AnnouncementCard({
               onClick={() => onSendOffer(announcement)}
               className="w-full font-mono text-xs uppercase"
               size="sm"
+              disabled={userOffers.length >= 1}
             >
               {userOffers.length > 0 ? 'Send Another Offer' : 'Send Transfer Offer'}
             </Button>

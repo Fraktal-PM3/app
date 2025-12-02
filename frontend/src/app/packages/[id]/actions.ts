@@ -63,6 +63,7 @@ export async function proposeTransfer(offer: TransferOffer) {
   );
 }
 
+<<<<<<< HEAD
 /**
  * Server action to confirm package receipt (TransferPM3)
  * This is called when the receiver finally receives the package
@@ -113,4 +114,12 @@ export async function confirmPackageReceipt(
         error instanceof Error ? error.message : "Failed to confirm receipt",
     };
   }
+=======
+export async function executeTransfer(transferId: string, externalId: string) {
+  const packageService = await getPackageService();
+  const storeObject = await packageService.readPackageDetailsAndPII(externalId);
+
+  const res = await packageService.executeTransfer(externalId, transferId, storeObject as any);
+  console.log("ExecuteTransfer - result:", res);
+>>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
 }
