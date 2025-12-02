@@ -690,7 +690,6 @@ class EventListenerService {
           }
         }
       }
-      }
 
       // Persist transfer record
       await TransferModel.findOneAndUpdate(
@@ -1003,7 +1002,6 @@ class EventListenerService {
           : undefined,
         messageData: offerValue,
         packageDetails: offerValue,
-        packageDetails: offerValue,
       };
 
       // Upsert transfer offer (create or update if exists)
@@ -1017,7 +1015,6 @@ class EventListenerService {
         `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${offerValue.fromMSP} with price ${offerValue.price}`,
       );
     } catch (error) {
-      console.error("[EventListener] Error handling transfer offer:", error);
       console.error("[EventListener] Error handling transfer offer:", error);
       throw error;
     }
