@@ -25,7 +25,7 @@ import {
   TransferOfferSchema
 } from "@/types/package";
 import { CalendarIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface TransferOfferModalProps {
   announcement: PackageAnnouncement;
@@ -41,11 +41,23 @@ export function TransferOfferModal({
   onSuccess,
 }: TransferOfferModalProps) {
   const [offerPrice, setOfferPrice] = useState<string>("");
-  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
   const [deliveryTime, setDeliveryTime] = useState<string>("12:00");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    const twelveHoursAhead = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+
+    setDeliveryDate(twelveHoursAhead);
+
+    // Format time as HH:MM
+    const hours = twelveHoursAhead.getHours().toString().padStart(2, '0');
+    const minutes = twelveHoursAhead.getMinutes().toString().padStart(2, '0');
+    setDeliveryTime(`${hours}:${minutes}`);
+  }, []);
 
   const handleSubmit = async () => {
     const priceValue = parseFloat(offerPrice);
