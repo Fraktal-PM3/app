@@ -272,8 +272,14 @@ class EventListenerService {
       async (
         event: BlockchainEventDelivery & { output: CreatePackageEvent },
       ) => {
-        if (!this.isRelevantEvent(event)) return;
+        if (!this.packageService) {
+          throw new Error("PackageService not initialized");
+        }
 
+        const { ownerOrgMSP, recipientOrgMSP } = event.output
+
+        if (ownerOrgMSP !== this.nodeMSP && recipientOrgMSP !== this.nodeMSP) return;
+        
         console.log("[EventListener] CreatePackage event received: ", event);
 
         try {
