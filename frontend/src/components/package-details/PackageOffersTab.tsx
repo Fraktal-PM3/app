@@ -156,12 +156,12 @@ export function PackageOffersTab({
                         {announcementPrice &&
                           offer.price !== announcementPrice && (
                             <Badge
-                              variant={
+                              variant="outline"
+                              className={`text-xs ${
                                 offer.price < announcementPrice
-                                  ? "outline"
-                                  : "default"
-                              }
-                              className="text-xs"
+                                  ? "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
+                                  : "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400"
+                              }`}
                             >
                               {offer.price < announcementPrice
                                 ? `-${announcementPrice - offer.price} kr`
