@@ -9,32 +9,33 @@ import { PackageOffersTab } from "@/components/package-details/PackageOffersTab"
 import { PackageStatusCard } from "@/components/package-details/PackageStatusCard";
 import { PackageTrackingCard } from "@/components/package-details/PackageTrackingCard";
 import { PackageTransfersTab } from "@/components/package-details/PackageTransfersTab";
-import dynamic from "next/dynamic";
-
-// Dynamically import PackageMap with SSR disabled to avoid Leaflet window errors
-const PackageMap = dynamic(
-    () => import("@/components/package-details/PackageMap").then((mod) => ({ default: mod.PackageMap })),
-    { ssr: false }
-);
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-    useAnnouncements,
     useAnnouncementOffers,
+    useAnnouncements,
     usePackages,
     useRecentActivity,
     useSSEConnection,
     useTransfers,
 } from "@/providers";
+import { TransferStatus } from "@/types/package";
 import { motion } from "framer-motion";
-import { AlertCircle, ArrowLeft, Briefcase, Clock, Package as PackageIcon, Truck } from "lucide-react";
+import { AlertCircle, ArrowLeft, Briefcase, CheckCircle2, Clock, Package as PackageIcon, Truck } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { checkPackageOwnership } from "./actions";
+import { checkPackageOwnership, executeTransfer } from "./actions";
+
+// Dynamically import PackageMap with SSR disabled to avoid Leaflet window errors
+const PackageMap = dynamic(
+    () => import("@/components/package-details/PackageMap").then((mod) => ({ default: mod.PackageMap })),
+    { ssr: false }
+);
 
 export default function PackageDetailsPage() {
     const params = useParams();
@@ -90,6 +91,15 @@ export default function PackageDetailsPage() {
     // Get offers for the active announcement
     const { offers: announcementOffers } = useAnnouncementOffers(
         activeAnnouncement?.messageId || ""
+    );
+
+    // Find accepted transfer for this package
+    const acceptedTransfer = useMemo(
+        () =>
+            packageTransfers.find(
+                (t) => t.status === TransferStatus.ACCEPTED
+            ),
+        [packageTransfers]
     );
 
     // Find related activities
@@ -200,6 +210,50 @@ export default function PackageDetailsPage() {
                 />
 
                 <Separator className="bg-border" />
+
+                {/* Accepted Transfer Notice */}
+                {acceptedTransfer && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <Card className="border-green-500/50 bg-green-500/10">
+                            <CardContent className="p-6">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex items-start gap-3">
+                                        <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
+                                        <div className="space-y-1">
+                                            <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-green-500">
+                                                Offer Accepted
+                                            </h3>
+                                            <p className="font-mono text-xs text-muted-foreground">
+                                                Transfer from <span className="font-semibold">{acceptedTransfer.fromMSP}</span> to{" "}
+                                                <span className="font-semibold">{acceptedTransfer.toMSP}</span>
+                                            </p>
+                                            {acceptedTransfer.price && (
+                                                <p className="font-mono text-xs text-muted-foreground">
+                                                    Price: <span className="font-semibold">{acceptedTransfer.price} kr</span>
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={async () => {
+                                            await executeTransfer(
+                                                acceptedTransfer.transferId,
+                                                acceptedTransfer.externalId
+                                            );
+                                        }}
+                                        className="font-mono text-xs uppercase"
+                                    >
+                                        Execute Transfer
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     {/* Package Tracking */}
