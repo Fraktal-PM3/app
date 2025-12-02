@@ -16,16 +16,18 @@ export enum Urgency {
   NONE = "none",
 }
 
-export enum Status {
-  PENDING = "pending",
-  READY_FOR_PICKUP = "ready_for_pickup",
-  PICKED_UP = "picked_up",
-  IN_TRANSIT = "in_transit",
-  DELIVERED = "delivered",
-  SUCCEEDED = "succeeded",
-  FAILED = "failed",
-  PROPOSED = "proposed",
-}
+// Status values for Typegoose enum (must match Status enum from fraktal-lib)
+// Note: Status enum is imported from fraktal-lib in types/package.ts
+const StatusValues = [
+  "pending",
+  "proposed",
+  "ready_for_pickup",
+  "picked_up",
+  "in_transit",
+  "delivered",
+  "succeeded",
+  "failed",
+] as const;
 
 // Nested classes for subdocuments
 @modelOptions({ schemaOptions: { _id: false } })
@@ -107,10 +109,16 @@ export class Package {
   @prop({ required: true })
   public recipientMSP!: string; // MSP ID of the recipient organization
 
+  @prop({ required: true })
+  public ownerOrgMSP!: string; // Owner MSP ID of the package
+
+  @prop({ required: true })
+  public senderOrgMSP!: string; // Sender MSP ID of the package
+
   @prop({ default: "null" })
   public termsId?: string;
 
-  @prop({ default: Status.PENDING, enum: Status })
+  @prop({ default: "pending", enum: StatusValues })
   public status!: string;
 
   @prop({ _id: false })

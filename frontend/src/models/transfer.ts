@@ -9,13 +9,18 @@ import {
 import mongoose from "mongoose";
 import { Package } from "./package";
 
-// Transfer status enum
-export enum TransferStatus {
-  PROPOSED = "proposed",
-  ACCEPTED = "accepted",
-  EXECUTED = "executed",
-  REJECTED = "rejected",
-}
+// Transfer status values (must match Status enum from fraktal-lib)
+// Note: Status enum is imported from fraktal-lib in types/package.ts
+const TransferStatusValues = [
+  "pending",
+  "proposed",
+  "ready_for_pickup",
+  "picked_up",
+  "in_transit",
+  "delivered",
+  "succeeded",
+  "failed",
+] as const;
 
 // Main Transfer class
 @modelOptions({
@@ -51,10 +56,10 @@ export class Transfer {
   // Transfer status
   @prop({
     required: true,
-    enum: TransferStatus,
-    default: TransferStatus.PROPOSED,
+    enum: TransferStatusValues,
+    default: "proposed",
   })
-  public status!: TransferStatus;
+  public status!: string;
 
   // Transfer price (from private transfer terms)
   @prop()

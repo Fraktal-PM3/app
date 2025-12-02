@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Transfer } from "@/types/package";
+import { Status } from "fraktal-lib";
 import { format } from "date-fns";
 import { Truck } from "lucide-react";
 
@@ -11,17 +12,24 @@ interface PackageTransfersTabProps {
 }
 
 export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
-  const getTransferStatusBadge = (status: string) => {
-    const variants = {
-      proposed: "secondary",
-      accepted: "default",
-      executed: "outline",
-      rejected: "destructive",
-    } as const;
+  const getTransferStatusBadge = (status: Status) => {
+    const variants: Record<
+      Status,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
+      [Status.PENDING]: "secondary",
+      [Status.PROPOSED]: "outline",
+      [Status.READY_FOR_PICKUP]: "default",
+      [Status.PICKED_UP]: "default",
+      [Status.IN_TRANSIT]: "default",
+      [Status.DELIVERED]: "secondary",
+      [Status.SUCCEEDED]: "secondary",
+      [Status.FAILED]: "destructive",
+    };
 
     return (
       <Badge
-        variant={variants[status as keyof typeof variants] || "secondary"}
+        variant={variants[status] || "secondary"}
         className="font-mono text-xs"
       >
         {status.toUpperCase()}
@@ -60,7 +68,7 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                       <div className="text-xs text-muted-foreground">
                         {format(
                           new Date(transfer.createdAt),
-                          "MMM dd, yyyy HH:mm"
+                          "MMM dd, yyyy HH:mm",
                         )}
                       </div>
                     )}
@@ -73,7 +81,7 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                     <div className="text-muted-foreground uppercase tracking-wider">
                       From MSP
                     </div>
-                    <div className="mt-1 font-semibold break-words">
+                    <div className="mt-1 font-semibold wrap-break-word">
                       {transfer.fromMSP}
                     </div>
                   </div>
@@ -81,7 +89,7 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                     <div className="text-muted-foreground uppercase tracking-wider">
                       To MSP
                     </div>
-                    <div className="mt-1 font-semibold break-words">
+                    <div className="mt-1 font-semibold wrap-break-word">
                       {transfer.toMSP}
                     </div>
                   </div>

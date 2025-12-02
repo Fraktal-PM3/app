@@ -1,9 +1,9 @@
 import {
-  prop,
+  DocumentType,
   getModelForClass,
   modelOptions,
+  prop,
   Severity,
-  DocumentType,
 } from "@typegoose/typegoose";
 import mongoose from "mongoose";
 
@@ -21,8 +21,8 @@ export class TransferOffer {
   public _id!: mongoose.Types.ObjectId;
 
   // Firefly message identifiers
-  @prop({ required: true, unique: true })
-  public messageId!: string; // Firefly message ID
+  @prop({ unique: true })
+  public messageId?: string; // Firefly message ID
 
   @prop()
   public messageHash?: string; // Hash of message content
@@ -46,14 +46,14 @@ export class TransferOffer {
   public price!: number; // Offered price for delivery
 
   @prop({ required: true })
-  public offerCreatedAt!: Date; // When the offer was created (from message data)
+  public createdISO!: Date; // When the offer was created (from message data)
 
   @prop({ required: true })
-  public deliveryDate!: Date; // Proposed delivery date/time (expiryISO from message)
+  public expiryISO!: Date; // Proposed delivery date/time (expiryISO from message)
 
   // Firefly message metadata
-  @prop({ required: true })
-  public senderNode!: string; // Firefly node/author that sent the offer
+  @prop()
+  public senderNode?: string; // Firefly node/author that sent the offer
 
   @prop()
   public signingKey?: string; // Signing key from message (contains MSP)

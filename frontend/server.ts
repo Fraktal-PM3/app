@@ -70,7 +70,7 @@ app.prepare().then(async () => {
 ║   Next.js Server with Background Event Listener           ║
 ║                                                           ║
 ║   🚀 Server:     http://${hostname}:${port}               ║
-║   🔗 Firefly:    ${process.env.FIREFLY_HOST || "Auto-detect"}           ║
+║   🔗 Firefly:    ${process.env.FIREFLY_NODE_URL || "Auto-detect"}           ║
 ║   📦 Database:   ${process.env.MONGODB_URI || "mongodb://localhost:27017/fraktal"} ║
 ║   🔧 Mode:       ${dev ? "Development" : "Production"}                    ║
 ║                                                           ║
@@ -84,7 +84,7 @@ app.prepare().then(async () => {
 
     const isTransporter = process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE";
     await eventListenerService.initialize({
-      fireflyHost: process.env.FIREFLY_HOST,
+      fireflyHost: process.env.FIREFLY_NODE_URL,
       fireflyNamespace: process.env.FIREFLY_NAMESPACE,
       isTransporter,
     });

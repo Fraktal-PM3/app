@@ -25,6 +25,8 @@ export default function MyPackagesPage() {
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
 
+  const isReceiver = process.env.NEXT_PUBLIC_RECEIVER === "TRUE";
+
   const handleAnnounce = (pkg: Package) => {
     setSelectedPackage(pkg);
     setShowAnnouncementModal(true);
@@ -148,6 +150,7 @@ export default function MyPackagesPage() {
                             package={pkg}
                             isAnnounced={announcedPackageIds.has(pkg.id)}
                             onAnnounce={handleAnnounce}
+                            showReceiptButton={isReceiver}
                           />
                         </Link>
                       </motion.div>
@@ -183,6 +186,7 @@ export default function MyPackagesPage() {
                           package={pkg}
                           isAnnounced={announcedPackageIds.has(pkg.id)}
                           onAnnounce={handleAnnounce}
+                          showReceiptButton={isReceiver}
                         />
                       </Link>
                     </motion.div>
@@ -217,6 +221,7 @@ export default function MyPackagesPage() {
                           package={pkg}
                           isAnnounced={announcedPackageIds.has(pkg.id)}
                           onAnnounce={handleAnnounce}
+                          showReceiptButton={isReceiver}
                         />
                       </Link>
                     </motion.div>

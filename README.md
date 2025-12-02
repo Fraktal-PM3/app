@@ -22,5 +22,19 @@ db.packages.find().pretty()
 db.packages.deleteMany({})
 ```
 
+### Start 
+```bash
+# Firefly
+
+./dev.sh up
+./dev.sh deploycc package
+
+# Frontend
+/GitHub/app docker compose up -d
+/GitHub/app/frontend npm i
+/GitHub/app/frontend npm i https://github.com/Fraktal-PM3/fraktal-lib#5f3b11a2f5ed5a955483a277e36fe14ae1f4b719
+/GitHub/app/frontend npm run start: "Whatever you want to have static"
+/GitHub/app/frontend npm run "Whatever you want as dev"
+```
 
 

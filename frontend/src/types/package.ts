@@ -1,17 +1,10 @@
 // Package types that match the MongoDB models
 
 import z from "zod";
+import { Status } from "fraktal-lib";
 
-export enum Status {
-  PENDING = "pending",
-  READY_FOR_PICKUP = "ready_for_pickup",
-  PICKED_UP = "picked_up",
-  IN_TRANSIT = "in_transit",
-  DELIVERED = "delivered",
-  SUCCEEDED = "succeeded",
-  FAILED = "failed",
-  PROPOSED = "proposed",
-}
+// Re-export Status from fraktal-lib for convenience
+export { Status };
 
 export enum Urgency {
   HIGH = "high",
@@ -60,22 +53,14 @@ export type Package = {
   packageDetails?: PackageDetails;
   salt?: string;
   pii?: PII;
-  mspId?: string;
+  mspId?: string; // Current owner MSP
+  ownerOrgMSP: string; // Original creator MSP (never changes)
+  senderOrgMSP: string; // Sender MSP (same as ownerOrgMSP initially)
   price?: number;
   active?: string; // "true", "false", "pending"
   createdAt?: string;
   updatedAt?: string;
 };
-
-/**
- * Transfer status enum matching Transfer model
- */
-export enum TransferStatus {
-  PROPOSED = "proposed",
-  ACCEPTED = "accepted",
-  EXECUTED = "executed",
-  REJECTED = "rejected",
-}
 
 /**
  * Transfer type matching the Transfer MongoDB model
@@ -87,7 +72,7 @@ export type Transfer = {
   externalId: string; // External package ID
   fromMSP: string; // MSP initiating the transfer
   toMSP: string; // MSP targeted to receive the package
-  status: TransferStatus;
+  status: Status;
   mspId: string;
   price?: number; // Price for the transfer (from private transfer terms)
   announcementMessageId?: string; // References PackageAnnouncement.messageId
@@ -113,6 +98,7 @@ export type PackageAnnouncement = {
   expiresAt?: string;
   packageDetails?: PackageDetails;
   messageData?: any;
+  transferStatus?: 'accepted' | 'pending'; // Client-side status for transfer proposals
   createdAt?: string;
   updatedAt?: string;
 };
@@ -157,8 +143,8 @@ export type TransferOffer = {
   fromMSP: string; // Transporter MSP offering delivery
   toMSP: string; // Sender MSP receiving offer
   price: number; // Offered price
-  offerCreatedAt: string; // When offer was created
-  deliveryDate: string; // Proposed delivery date/time
+  createdISO: string; // When offer was created
+  expiryISO: string; // Proposed delivery date/time
   senderNode: string; // Firefly node that sent the offer
   signingKey?: string;
   announcementMessageId?: string; // References PackageAnnouncement.messageId

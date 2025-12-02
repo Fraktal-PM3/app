@@ -28,6 +28,7 @@ import { useState } from "react";
 interface PackageDetailsHeaderProps {
   packageData: Package;
   isConnected: boolean;
+  isSender: boolean;
   isOwner: boolean;
   hasActiveAnnouncement?: boolean;
 }
@@ -35,6 +36,7 @@ interface PackageDetailsHeaderProps {
 export function PackageDetailsHeader({
   packageData,
   isConnected,
+  isSender,
   isOwner,
   hasActiveAnnouncement = false,
 }: PackageDetailsHeaderProps) {
@@ -176,11 +178,16 @@ export function PackageDetailsHeader({
               </Badge>
             )}
           </div>
-          {isOwner && packageData.packageDetails && (
+          {isSender && isOwner && !hasActiveAnnouncement && packageData.packageDetails && (
             <div className="flex flex-col gap-1">
               <Button
                 onClick={handleOpenAnnounceDialog}
-                disabled={announceSuccess || hasActiveAnnouncement}
+                disabled={
+                  announceSuccess ||
+                  packageData.status === "succeeded" ||
+                  packageData.status === "failed" ||
+                  packageData.active === "false"
+                }
                 size="sm"
                 variant={hasActiveAnnouncement ? "outline" : "default"}
                 className="font-mono text-xs uppercase"

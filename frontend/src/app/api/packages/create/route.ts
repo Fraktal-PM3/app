@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
       pii,
       salt,
       mspId: mspIdentity.mspId,
+      ownerOrgMSP: mspIdentity.mspId, // Track original creator (never changes)
+      senderOrgMSP: mspIdentity.mspId, // Set sender MSP (same as owner on creation)
       recipientMSP,
     });
 

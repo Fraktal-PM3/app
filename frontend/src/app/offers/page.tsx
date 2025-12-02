@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+import { AnnouncementCard } from "@/components/announcements/AnnouncementCard";
+import { PageHeader } from "@/components/common/PageHeader";
+import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
+import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAnnouncements, useTransferOffers } from "@/providers";
 import { PackageAnnouncement, TransferOffer } from "@/types/package";
-import { AnnouncementCard } from "@/components/announcements/AnnouncementCard";
-import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
-import { RealtimeIndicator } from "@/components/dashboard/RealtimeIndicator";
-import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
 import { Briefcase, Search } from "lucide-react";
-import { PageHeader } from "@/components/common/PageHeader";
+import { useEffect, useMemo, useState } from "react";
 import { getCurrentMspId } from "./actions";
 
 export default function OffersPage() {
@@ -22,7 +22,7 @@ export default function OffersPage() {
     isConnected,
     error,
     refetch,
-  } = useAnnouncements(false); // Show ALL announcements, not just active ones
+  } = useAnnouncements(true); // Show ALL announcements, not just active ones
 
   const { offers } = useTransferOffers();
 
@@ -46,7 +46,7 @@ export default function OffersPage() {
 
     offers.forEach((offer) => {
       // Check if this offer is from the current user
-      if (offer.fromMSP === currentMspId && offer.announcementMessageId) {
+      if (offer.announcementMessageId) {
         // Find the announcement this offer is for
         const announcement = announcements.find(
           (a) => a.messageId === offer.announcementMessageId
@@ -61,8 +61,8 @@ export default function OffersPage() {
     // Sort offers by creation date (most recent first) for each announcement
     offerMap.forEach((offers, announcementId) => {
       offers.sort((a, b) => {
-        const dateA = new Date(a.offerCreatedAt || a.createdAt || 0).getTime();
-        const dateB = new Date(b.offerCreatedAt || b.createdAt || 0).getTime();
+        const dateA = new Date(a.createdISO || a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdISO || b.createdAt || 0).getTime();
         return dateB - dateA;
       });
     });
@@ -120,14 +120,14 @@ export default function OffersPage() {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto space-y-6 px-4 py-6 md:py-8">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-4 w-64" />
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-10 w-32" />
           </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <Separator className="bg-border" />
+          <Separator className="bg-border" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-[500px]" />

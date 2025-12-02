@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbService";
 import PackageAnnouncementModel from "@/models/packageAnnouncement";
+import { NextResponse } from "next/server";
 
 /**
  * GET /api/announcements
@@ -10,12 +10,8 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
 
-    const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get("active") === "true";
 
-    const filter = activeOnly ? { isActive: true } : {};
-
-    const announcements = await PackageAnnouncementModel.find(filter)
+    const announcements = await PackageAnnouncementModel.find()
       .populate("packageId")
       .sort({ createdAt: -1 })
       .lean();

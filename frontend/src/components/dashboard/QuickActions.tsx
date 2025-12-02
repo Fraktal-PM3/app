@@ -7,7 +7,8 @@ import {
   MessageSquare,
   Package,
   Search,
-  Send
+  Send,
+  Inbox
 } from "lucide-react";
 import Link from "next/link";
 
@@ -38,6 +39,13 @@ export function QuickActions({ role }: QuickActionsProps) {
       href: "/messages",
       primary: false,
     },
+    {
+      title: "Received Offers",
+      description: "Check your inbox",
+      icon: Inbox,
+      href: "/receivePackage",
+      primary: false,
+    },
   ];
 
   const transporterActions = [
@@ -60,6 +68,13 @@ export function QuickActions({ role }: QuickActionsProps) {
       description: "Check your inbox",
       icon: MessageSquare,
       href: "/messages",
+      primary: false,
+    },
+    {
+      title: "Received Offers",
+      description: "Check your inbox",
+      icon: Inbox,
+      href: "/receivePackage",
       primary: false,
     },
   ];

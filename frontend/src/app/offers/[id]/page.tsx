@@ -1,31 +1,29 @@
 "use client";
 
-import { PageHeader } from "@/components/common/PageHeader";
 import { LocationDisplay } from "@/components/common/LocationDisplay";
+import { PageHeader } from "@/components/common/PageHeader";
+import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useAnnouncements, useTransferOffers } from "@/providers";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
-  Briefcase,
-  Weight,
-  Boxes,
-  DollarSign,
-  Building2,
-  Clock,
   AlertCircle,
   ArrowLeft,
+  Boxes,
+  Briefcase,
   Calendar,
+  DollarSign,
+  Weight
 } from "lucide-react";
-import { useParams } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
-import { format } from "date-fns";
-import Link from "next/link";
 import dynamic from "next/dynamic";
-import { TransferOfferModal } from "@/components/offers/TransferOfferModal";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { getCurrentMspId } from "../actions";
 
 // Dynamically import PackageMap with SSR disabled
@@ -43,7 +41,7 @@ export default function OfferDetailsPage() {
 
   const { announcements, isLoading, isConnected, error } =
     useAnnouncements(false); // Show ALL announcements, not just active ones
-  const { offers } = useTransferOffers();
+  const { offers, refetch } = useTransferOffers();
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [currentMspId, setCurrentMspId] = useState<string | null>(null);
 
@@ -62,16 +60,19 @@ export default function OfferDetailsPage() {
   const userOffers = useMemo(() => {
     if (!currentMspId || !announcement) return [];
 
+    console.log("Offers:", offers);
+
     const filteredOffers = offers.filter(
       (offer) =>
-        offer.fromMSP === currentMspId &&
         offer.announcementMessageId === announcement.messageId
     );
 
+    console.log("[OfferDetailsPage] User offers for announcement", announcementId, ":", filteredOffers);
+
     // Sort by creation date (most recent first)
     return filteredOffers.sort((a, b) => {
-      const dateA = new Date(a.offerCreatedAt || a.createdAt || 0).getTime();
-      const dateB = new Date(b.offerCreatedAt || b.createdAt || 0).getTime();
+      const dateA = new Date(a.createdISO || a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdISO || b.createdAt || 0).getTime();
       return dateB - dateA;
     });
   }, [offers, currentMspId, announcement]);
@@ -165,11 +166,11 @@ export default function OfferDetailsPage() {
   // Convert announcement to Package format for map component
   const packageDataForMap = pkg
     ? {
-        _id: announcement._id,
-        id: announcement.packageExternalId,
-        name: `Package ${announcement.packageExternalId}`,
-        packageDetails: pkg,
-      }
+      _id: announcement._id,
+      id: announcement.packageExternalId,
+      name: `Package ${announcement.packageExternalId}`,
+      packageDetails: pkg,
+    }
     : null;
 
   return (
@@ -187,7 +188,14 @@ export default function OfferDetailsPage() {
           rightContent={
             <div className="flex flex-wrap gap-2">
               {getUrgencyBadge()}
-              {userOffers.length > 0 ? (
+              {announcement?.transferStatus === 'accepted' ? (
+                <Badge
+                  variant="default"
+                  className="bg-green-600 font-mono text-xs"
+                >
+                  ACCEPTED
+                </Badge>
+              ) : userOffers.length > 0 ? (
                 <Badge
                   variant="outline"
                   className="bg-blue-50 font-mono text-xs dark:bg-blue-950"
@@ -302,9 +310,9 @@ export default function OfferDetailsPage() {
                         <span className="font-semibold text-right">
                           {announcement.createdAt
                             ? format(
-                                new Date(announcement.createdAt),
-                                "MMM dd, yyyy HH:mm"
-                              )
+                              new Date(announcement.createdAt),
+                              "MMM dd, yyyy HH:mm"
+                            )
                             : "N/A"}
                         </span>
                       </div>
@@ -365,6 +373,7 @@ export default function OfferDetailsPage() {
                       onClick={handleSendOffer}
                       size="lg"
                       className="font-mono text-xs uppercase"
+                      disabled={userOffers.length >= 1}
                     >
                       {userOffers.length > 0 ? 'Send Another Offer' : 'Send Transfer Offer'}
                     </Button>
@@ -415,21 +424,21 @@ export default function OfferDetailsPage() {
                               </div>
                             </div>
 
-                            {offer.deliveryDate && (
+                            {offer.expiryISO && (
                               <div className="rounded-md bg-blue-100 dark:bg-blue-900/50 p-3">
                                 <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
                                   <Calendar className="h-3 w-3" />
                                   <span className="uppercase tracking-wider">Delivery</span>
                                 </div>
                                 <div className="mt-1 text-sm font-bold text-blue-900 dark:text-blue-100">
-                                  {format(new Date(offer.deliveryDate), "MMM dd, yyyy HH:mm")}
+                                  {format(new Date(offer.expiryISO), "MMM dd, yyyy HH:mm")}
                                 </div>
                               </div>
                             )}
                           </div>
 
                           <div className="text-xs text-blue-600 dark:text-blue-400">
-                            Sent: {format(new Date(offer.offerCreatedAt || offer.createdAt || new Date()), "MMM dd, yyyy HH:mm")}
+                            Sent: {format(new Date(offer.createdISO || offer.createdAt || new Date()), "MMM dd, yyyy HH:mm")}
                           </div>
                         </div>
                       ))}

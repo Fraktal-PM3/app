@@ -4,7 +4,7 @@
 export { SSEConnectionProvider, useSSEConnection } from "./SSEConnectionProvider";
 
 // Package Provider
-export { PackageProvider, usePackages, useTransfers } from "./PackageProvider";
+export { PackageProvider, usePackages, useTransfers, usePackage } from "./PackageProvider";
 
 // Auction Provider
 export { AuctionProvider, useAnnouncements, useOffers } from "./AuctionProvider";

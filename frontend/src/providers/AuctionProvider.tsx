@@ -1,14 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { useSSEConnection } from "./SSEConnectionProvider";
-import type { PackageAnnouncement } from "@/types/package";
 import type {
-  PackageAnnouncementEvent,
-  MessageEvent,
-  TransferExecutedEvent,
   DeletePackageEvent,
+  MessageEvent,
+  PackageAnnouncementEvent,
+  ProposeTransferEvent,
+  TransferExecutedEvent,
 } from "@/types/events";
+import type { PackageAnnouncement } from "@/types/package";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useSSEConnection } from "./SSEConnectionProvider";
 
 export interface TransferOffer {
   id: string;
@@ -18,6 +19,7 @@ export interface TransferOffer {
   toMSP: string;
   price: number;
   createdAt: string;
+  expiryISO: string;
 }
 
 interface AuctionContextValue {
@@ -47,6 +49,7 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Failed to fetch announcements: ${response.statusText}`);
       }
       const data = await response.json();
+      console.log("[AuctionProvider] Fetched announcements:", data);
       setAnnouncements(data || []);
       setError(null);
     } catch (err) {
@@ -86,6 +89,7 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
           announcerMSP: data.signingKey?.split(":")[0] || "",
           announcerNode: data.author,
           isActive: true,
+          price: packageDetails?.price, // Extract price from package details
           packageDetails: packageDetails,
           createdAt: data.created,
         };
@@ -111,6 +115,7 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
             toMSP: data.value.toMSP,
             price: data.value.price,
             createdAt: data.created,
+            expiryISO: data.value.expiryISO,
           };
 
           setOffers((prev) => {
@@ -150,6 +155,34 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
           );
         }
       }),
+
+      // ProposeTransfer - mark announcement as accepted (status comes from DB via refetch)
+      subscribe<ProposeTransferEvent>("ProposeTransfer", (data) => {
+        console.log("[AuctionProvider] ProposeTransfer event received:", data);
+        
+        const packageId = data.output?.externalId;
+        // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
+        const terms = (data.output as any)?.parsedTerms || data.output?.terms;
+        const toMSP = terms?.toMSP;
+        
+        if (packageId && toMSP) {
+          console.log("[AuctionProvider] Updating announcement status to accepted for package:", packageId);
+          
+          // Update announcement in state with transferStatus from event
+          // The status is already persisted in DB by eventListener
+          setAnnouncements((prev) =>
+            prev.map((announcement) => {
+              if (announcement.packageExternalId === packageId) {
+                console.log("[AuctionProvider] Found matching announcement, updating to accepted");
+                return { ...announcement, transferStatus: 'accepted' };
+              }
+              return announcement;
+            })
+          );
+        } else {
+          console.warn("[AuctionProvider] ProposeTransfer missing required fields:", { packageId, toMSP });
+        }
+      }),
     ];
 
     return () => {
@@ -185,6 +218,7 @@ export function useAnnouncements(activeOnly: boolean = true) {
     ? context.announcements.filter((a) => a.isActive)
     : context.announcements;
 
+  console.log("[useAnnouncements] Returning announcements:", filteredAnnouncements);
   return {
     announcements: filteredAnnouncements,
     isLoading: context.isLoading,
