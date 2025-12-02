@@ -48,12 +48,12 @@ export function TransferOfferModal({
     const now = new Date();
     const twelveHoursAhead = new Date(now.getTime() + 12 * 60 * 60 * 1000);
 
-    setDeliveryDate(twelveHoursAhead);
+    setExpiryDate(twelveHoursAhead);
 
     // Format time as HH:MM
     const hours = twelveHoursAhead.getHours().toString().padStart(2, '0');
     const minutes = twelveHoursAhead.getMinutes().toString().padStart(2, '0');
-    setDeliveryTime(`${hours}:${minutes}`);
+    setExpiryTime(`${hours}:${minutes}`);
   }, []);
 
   const handleSubmit = async () => {
