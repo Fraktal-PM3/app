@@ -57,10 +57,10 @@ export function AnnouncementCard({
         : 'border-border bg-card'
     }`}>
       <CardHeader className="pb-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex flex-col gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 w-full">
             <PackageIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-            <CardTitle className="text-sm font-bold uppercase tracking-wider truncate">
+            <CardTitle className="text-sm font-bold uppercase tracking-wider truncate overflow-hidden">
               {announcement.packageExternalId}
             </CardTitle>
           </div>
