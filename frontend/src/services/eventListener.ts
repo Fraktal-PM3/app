@@ -9,7 +9,7 @@ import type {
   StatusUpdatedEvent,
   TransferExecutedEvent,
 } from "fraktal-lib";
-import { PackageService, isPackageDetailsMessage } from "fraktal-lib";
+import { PackageService, Status, isPackageDetailsMessage } from "fraktal-lib";
 import dbConnect from "../lib/dbService";
 import eventBus from "../lib/eventBus";
 import PackageModel from "../models/package";
@@ -335,7 +335,11 @@ class EventListenerService {
           return;
 
         try {
-          await this.handleProposeTransfer(event);
+           if (process.env.NEXT_PUBLIC_RECEIVER === "TRUE" && event.output.price === 0) {
+            await this.handleProposeTransferRecive(event);
+          } else { 
+            await this.handleProposeTransfer(event);
+          }
           eventBus.emitBlockchainEvent("ProposeTransfer", event);
         } catch (error) {
           console.error(
@@ -562,14 +566,21 @@ class EventListenerService {
       console.log(
         `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
       );
+      console.log(
+        `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
+      );
 
-      // Retrieve the private transfer terms (includes salt and price)
-      const privateTransferTerms =
-        await this.packageService.readPrivateTransferTerms(output.termsId);
-
+      // As the recipient (toMSP), we need to read the private transfer terms
+      // that were shared with us during the proposal
+      console.log(
+        `[EventListener] We are the recipient (${terms.toMSP}), reading private transfer terms`,
+      );
+      const privateTransferTerms = await this.packageService.readPrivateTransferTerms(
+        output.termsId
+      );
       console.log(
         `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
-        JSON.stringify(privateTransferTerms, null, 2),
+        JSON.stringify(privateTransferTerms, null, 2)
       );
 
       // Accept the transfer (not propose - it's already proposed!)
@@ -601,7 +612,7 @@ class EventListenerService {
    * Handle ProposeTransfer event - create transfer record
    */
   private async handleProposeTransfer(
-    event: BlockchainEventDelivery & { output: ProposeTransferEvent }
+    event: BlockchainEventDelivery & { output: ProposeTransferEvent },
   ): Promise<void> {
     try {
       const output = event.output;
@@ -637,58 +648,8 @@ class EventListenerService {
       if (activeAnnouncement) {
         transferData.announcementMessageId = activeAnnouncement.messageId;
         console.log(
-          `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`
+          `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`,
         );
-
-        // Update announcement transferStatus and auto-accept if transfer is directed to our node
-        if (this.nodeMSP && output.parsedTerms.toMSP === this.nodeMSP) {
-          await PackageAnnouncementModel.findByIdAndUpdate(
-            activeAnnouncement._id,
-            { transferStatus: "accepted" },
-            { new: true },
-          );
-          console.log(
-            `[EventListener] Updated announcement ${activeAnnouncement._id} transferStatus to 'accepted'`
-          );
-
-          // Automatically accept the transfer proposal
-          try {
-            if (!this.packageService) {
-              throw new Error("PackageService not initialized");
-            }
-
-            console.log(
-              `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`
-            );
-
-            // Retrieve the private transfer terms (includes salt and price)
-            const privateTransferTerms =
-              await this.packageService.readPrivateTransferTerms(
-                output.termsId,
-              );
-
-            console.log(
-              `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
-              privateTransferTerms,
-            );
-
-            await this.packageService.acceptTransfer(
-              output.externalId,
-              output.termsId,
-              privateTransferTerms as any,
-            );
-
-            console.log(
-              `[EventListener] Successfully auto-accepted transfer ${output.termsId}`
-            );
-          } catch (acceptError) {
-            console.error(
-              `[EventListener] Failed to auto-accept transfer ${output.termsId}:`,
-              acceptError
-            );
-            // Don't throw - we still want to persist the transfer record
-          }
-        }
       }
 
       // Persist transfer record
@@ -701,8 +662,128 @@ class EventListenerService {
       console.log(
         `[EventListener] Transfer proposed and persisted: ${transferData.transferId}`,
       );
-
+      
       // Auto-accept transfer if it's directed to our node
+      await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
+    } catch (error) {
+      console.error("[EventListener] Error persisting ProposeTransfer:", error);
+      throw error;
+    }
+  }
+
+  /**
+ * Handle ProposeTransfer event for receiver nodes - only accept free transfers (price = 0)
+ */
+  private async handleProposeTransferRecive(
+    event: BlockchainEventDelivery & { output: ProposeTransferEvent },
+  ): Promise<void> {
+    try {
+      const output = event.output;
+      console.log("[EventListener] Processing ProposeTransfer event for receiver:", JSON.stringify(output, null, 2));
+      
+      if (!this.packageService) {
+        throw new Error("PackageService not initialized");
+      }
+
+            console.log(
+              `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`
+            );
+
+            // Retrieve the private transfer terms (includes salt and price)
+            const privateTransferTerms =
+              await this.packageService.readPrivateTransferTerms(
+                output.termsId,
+              );
+
+
+      console.log(
+        `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
+        JSON.stringify(privateTransferTerms, null, 2)
+      );
+
+      // Only process transfers with price = 0 (receiver nodes only accept free transfers)
+      if (privateTransferTerms.price !== 0 && privateTransferTerms.price !== "0") {
+        console.log(
+          `[EventListener] Receiver node ignoring transfer with price ${privateTransferTerms.price} (only accepting price = 0)`,
+        );
+        return;
+      }
+
+      
+
+      // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
+      const terms = (output as any).parsedTerms || output.terms;
+
+      if (!terms) {
+        console.error("[EventListener] ProposeTransfer event missing terms/parsedTerms:", output);
+        throw new Error("ProposeTransfer event missing terms data");
+      }
+
+      
+
+      console.log(
+        `[EventListener] Receiver node processing free transfer (price = 0) for package ${output.externalId}`,
+      );
+
+      // Find package by id and link it (optional - package may not be in local DB)
+      const pkg = await PackageModel.findOne({
+        id: output.externalId,
+      });
+
+      if (!pkg) {
+        console.log(
+          `[EventListener] ProposeTransfer for package ${output.externalId} - package not in local DB (likely from another node's announcement)`,
+        );
+      }
+
+      const transferData: Record<string, any> = {
+        transferId: output.termsId,
+        externalId: output.externalId,
+        fromMSP: terms.fromMSP,
+        toMSP: terms.toMSP,
+        status: Status.PROPOSED,
+        mspId: this.extractMSP(event) || "",
+        blockchainTxId: event.txid,
+        blockchainData: output,
+      };
+
+      // Link to package if it exists locally
+      if (pkg) {
+        transferData.packageId = pkg._id;
+      }
+
+      // Link transfer to active announcement for this package
+      const activeAnnouncement = await PackageAnnouncementModel.findOne({
+        packageExternalId: output.externalId,
+        isActive: true,
+      }).sort({ createdAt: -1 });
+
+      if (activeAnnouncement) {
+        transferData.announcementMessageId = activeAnnouncement.messageId;
+        console.log(
+          `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`,
+        );
+      }
+
+      // Persist transfer record
+      await TransferModel.findOneAndUpdate(
+        { transferId: transferData.transferId },
+        transferData,
+        { upsert: true, new: true },
+      );
+
+      console.log(
+        `[EventListener] Free transfer proposed and persisted: ${transferData.transferId}`,
+      );
+
+      if (!this.nodeMSP || terms.recipientMSP !== this.nodeMSP) {
+        console.log(
+          `[EventListener] Transfer not directed to our node (toMSP: ${terms.recipientMSP}, ourMSP: ${this.nodeMSP}), skipping auto-accept`,
+        );
+        return;
+    }
+
+      // Auto-accept the free transfer
       await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
     } catch (error) {
       console.error("[EventListener] Error persisting ProposeTransfer:", error);
@@ -840,12 +921,89 @@ class EventListenerService {
       console.log(
         `[EventListener] Marked announcements as inactive for package: ${output.externalId}`
       );
+
+      // Check if I'm the transporter (the one who executed the transfer)
+      if (this.nodeMSP && executed.toMSP === this.nodeMSP) {
+        console.log(
+          `[EventListener] I am the transporter who executed transfer ${output.termsId}. Proposing transfer to recipient...`
+        );
+        await this.proposeTransferToRecipient(
+          output.externalId,
+          output.termsId
+        );
+      }
     } catch (error) {
       console.error(
         "[EventListener] Error updating transfer execution:",
         error
       );
       throw error;
+    }
+  }
+
+  /**
+   * Propose a new transfer to the recipient
+   */
+  private async proposeTransferToRecipient(
+    externalId: string,
+    termsId: string
+  ): Promise<void> {
+    try {
+      if (!this.packageService) {
+        throw new Error("PackageService not initialized");
+      }
+
+      // Get package from database to find recipientMSP
+      const pkg = await this.packageService.readBlockchainPackage(externalId);
+
+      if (!pkg || !pkg.recipientOrgMSP) {
+        console.error(
+          `[EventListener] Could not find package or recipient MSP for ${externalId}. Cannot propose transfer to recipient.`
+        );
+        return;
+      }
+
+      // Read private transfer terms to get the salt
+      const transferTerms = await this.packageService.readPrivateTransferTerms(
+        termsId
+      );
+
+      if (!transferTerms || !transferTerms.salt) {
+        console.error(
+          `[EventListener] Could not read transfer terms for ${termsId}. Cannot propose transfer.`
+        );
+        return;
+      }
+
+      // Propose a new transfer to the recipient using fraktal-lib
+      console.log(
+        `[EventListener] Proposing new transfer to recipient ${pkg.recipientOrgMSP} for package ${externalId}...`
+      );
+
+      const terms = {
+        price: 0,
+        id: crypto.randomUUID(),
+        salt: transferTerms.salt,
+      };
+
+      const proposeResult = await this.packageService.proposeTransfer(
+        externalId,
+        pkg.recipientOrgMSP,
+        terms as any, // Type assertion needed - fraktal-lib types don't include salt property
+        new Date(Date.now() + 24 * 7 * 60 * 60 * 1000).toISOString() // 7 days expiry
+      );
+
+      console.log(
+        `[EventListener] Transfer proposed to recipient successfully: ${JSON.stringify(
+          proposeResult
+        )}`
+      );
+    } catch (error) {
+      console.error(
+        "[EventListener] Error proposing transfer to recipient:",
+        error
+      );
+      // Don't throw - we don't want to break the event listener
     }
   }
 

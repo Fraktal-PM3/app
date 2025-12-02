@@ -144,6 +144,9 @@ export async function confirmPackageReceipt(
 export async function executeTransfer(transferId: string, externalId: string) {
   const packageService = await getPackageService();
   const storeObject = await packageService.readPackageDetailsAndPII(externalId);
+  console.log("ExecuteTransfer - storeObject:", storeObject);
+  console.log("ExecuteTransfer - externalId:", externalId);
+  console.log("ExecuteTransfer - transferId:", transferId);
 
   const res = await packageService.executeTransfer(
     externalId,
