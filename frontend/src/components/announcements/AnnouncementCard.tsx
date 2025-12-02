@@ -50,17 +50,10 @@ export function AnnouncementCard({
 
   const isAccepted = announcement.transferStatus === 'accepted';
 
-  const isAccepted = announcement.transferStatus === 'accepted';
-
   return (
     <Card className={`font-mono transition-all hover:border-primary/50 h-full flex flex-col ${
-      isAccepted 
-        ? 'border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30' 
-        : 'border-border bg-card'
-    }`}>
-    <Card className={`font-mono transition-all hover:border-primary/50 h-full flex flex-col ${
-      isAccepted 
-        ? 'border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30' 
+      isAccepted
+        ? 'border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30'
         : 'border-border bg-card'
     }`}>
       <CardHeader className="pb-3">
