@@ -47,27 +47,10 @@ class EventListenerService {
       await dbConnect();
       console.log("[EventListener] MongoDB connected");
 
-<<<<<<< HEAD
-      // Initialize Firefly
-      const defaultHost =
-        config.isTransporter ?? process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE"
-          ? "http://localhost:8000"
-          : "http://localhost:8001";
-
-      const fireflyHost = process.env.FIREFLY_HOST;
-      if (!fireflyHost) {
-        throw new Error("FIREFLY_HOST environment variable is required");
-      }
-
-      this.fireflyInstance = new FireFly({
-        host: fireflyHost,
-        namespace: process.env.FIREFLY_NAMESPACE || "default",
-=======
       this.fireflyInstance = new FireFly({
         host: process.env.FIREFLY_NODE_URL || "",
         namespace:
           config.fireflyNamespace || process.env.FIREFLY_NAMESPACE || "default",
->>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
       });
 
       // Initialize PackageService
@@ -611,22 +594,8 @@ private async autoAcceptTransferIfRelevant(
   ): Promise<void> {
     try {
       const output = event.output;
-<<<<<<< HEAD
-      console.log(output);
-      // Find package by id and link it (optional - package may not be in local DB)
-      const pkg = await PackageModel.findOne({
-        id: output.externalId,
-      });
-
-      if (!pkg) {
-        console.log(
-          `[EventListener] ProposeTransfer for package ${output.externalId} - package not in local DB (likely from another node's announcement)`
-        );
-      }
-=======
       console.log("[EventListener] Handling ProposeTransfer for package:", output.externalId, event);
       console.log("handleProposeTransfer - output:", output);
->>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
 
       const transferData: Record<string, any> = {
         transferId: output.termsId,
@@ -702,21 +671,6 @@ private async autoAcceptTransferIfRelevant(
         }
       }
 
-<<<<<<< HEAD
-      await TransferModel.findOneAndUpdate(
-        { transferId: transferData.transferId },
-        transferData,
-        { upsert: true, new: true }
-      );
-
-      console.log(
-        `[EventListener] Transfer proposed: ${transferData.transferId}`
-      );
-    } catch (error) {
-      console.error("[EventListener] Error persisting ProposeTransfer:", error);
-      throw error;
-    }
-=======
     // Persist transfer record
     await TransferModel.findOneAndUpdate(
       { transferId: transferData.transferId },
@@ -733,7 +687,6 @@ private async autoAcceptTransferIfRelevant(
   } catch (error) {
     console.error("[EventListener] Error persisting ProposeTransfer:", error);
     throw error;
->>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
   }
 }
 
@@ -1027,11 +980,7 @@ private async autoAcceptTransferIfRelevant(
       );
 
       console.log(
-<<<<<<< HEAD
-        `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${fromMSP} with price ${offerValue.price}`
-=======
         `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${offerValue.fromMSP} with price ${offerValue.price}`,
->>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
       );
     } catch (error) {
       console.error("[EventListener] Error handling transfer offer:", error);

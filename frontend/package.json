@@ -4,23 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "ts-node --project tsconfig.json server.ts",
-<<<<<<< HEAD
-    "transporter": "cross-env FIREFLY_HOST=http://localhost:8000  NEXT_PUBLIC_TRANSPORTER=TRUE NEXT_PUBLIC_RECEIVER=FALSE MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3000 ts-node --project tsconfig.json server.ts",
-    "sender": "cross-env  FIREFLY_HOST=http://localhost:8001 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3001 ts-node --project tsconfig.json server.ts",
-    "receiver": "cross-env FIREFLY_HOST=http://localhost:8002 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27019/fraktal PORT=3002 ts-node --project tsconfig.json server.ts",
+    "transporter": "cross-env FIREFLY_NODE_URL=http://localhost:8000  NEXT_PUBLIC_TRANSPORTER=TRUE NEXT_PUBLIC_RECEIVER=FALSE MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3000 ts-node --project tsconfig.json server.ts",
+    "sender": "cross-env  FIREFLY_NODE_URL=http://localhost:8001 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3001 ts-node --project tsconfig.json server.ts",
+    "receiver": "cross-env FIREFLY_NODE_URL=http://localhost:8002 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27019/fraktal PORT=3002 ts-node --project tsconfig.json server.ts",
     "build": "next build",
     "start": "NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:transporter": "cross-env FIREFLY_HOST=http://localhost:8000 NEXT_PUBLIC_TRANSPORTER=TRUE NEXT_PUBLIC_RECEIVER=FALSE MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3000 NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:sender": "cross-env FIREFLY_HOST=http://localhost:8001 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3001 NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:receiver": "cross-env FIREFLY_HOST=http://localhost:8002 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27019/fraktal PORT=3002 NODE_ENV=production ts-node --project tsconfig.json server.ts",
-=======
-    "transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE FIREFLY_NODE_URL=http://localhost:8000 MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3001 ts-node --project tsconfig.json server.ts",
-    "sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE FIREFLY_NODE_URL=http://localhost:8001 MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3000 ts-node --project tsconfig.json server.ts",
-    "build": "next build",
-    "start": "NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:transporter": "cross-env NEXT_PUBLIC_TRANSPORTER=TRUE FIREFLY_NODE_URL=http://localhost:8000 MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3001 NODE_ENV=production ts-node --project tsconfig.json server.ts",
-    "start:sender": "cross-env NEXT_PUBLIC_TRANSPORTER=FALSE FIREFLY_NODE_URL=http://localhost:8001 MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3000 NODE_ENV=production ts-node --project tsconfig.json server.ts",
->>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
+    "start:transporter": "cross-env FIREFLY_NODE_URL=http://localhost:8000 NEXT_PUBLIC_TRANSPORTER=TRUE NEXT_PUBLIC_RECEIVER=FALSE MONGODB_URI=mongodb://localhost:27018/fraktal PORT=3000 NODE_ENV=production ts-node --project tsconfig.json server.ts",
+    "start:sender": "cross-env FIREFLY_NODE_URL=http://localhost:8001 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27017/fraktal PORT=3001 NODE_ENV=production ts-node --project tsconfig.json server.ts",
+    "start:receiver": "cross-env FIREFLY_NODE_URL=http://localhost:8002 NEXT_PUBLIC_TRANSPORTER=FALSE NEXT_PUBLIC_RECEIVER=TRUE MONGODB_URI=mongodb://localhost:27019/fraktal PORT=3002 NODE_ENV=production ts-node --project tsconfig.json server.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0",
     "test": "vitest"
   },
@@ -39,13 +30,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
-<<<<<<< HEAD
-    "fraktal-lib": "github:Fraktal-PM3/fraktal-lib#923fd0ee464d01ab825000e88a2852e9d2ca6a86",
-    "framer-motion": "^12.23.24",
-=======
     "fraktal-lib": "github:Fraktal-PM3/fraktal-lib",
     "framer-motion": "^12.23.25",
->>>>>>> 8e9c48225922eed7bf28714e8635d479422fdba7
     "leaflet": "^1.9.4",
     "lucide-react": "^0.544.0",
     "mongoose": "^8.19.1",
