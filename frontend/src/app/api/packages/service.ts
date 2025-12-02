@@ -8,12 +8,17 @@ let cachedMspIdentity: { mspId: string; nodeOrg: string } | null = null;
 export async function getPackageService(): Promise<PackageService> {
   if (!packageService) {
     // Use port 8000 for transporters, 8001 for others
-    const defaultHost = process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE" 
-      ? "http://localhost:8000" 
-      : "http://localhost:8001";
-    
+    const defaultHost =
+      process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE"
+        ? "http://localhost:8000"
+        : "http://localhost:8001";
+    const fireflyHost = process.env.FIREFLY_HOST;
+    if (!fireflyHost) {
+      throw new Error("FIREFLY_HOST environment variable is required");
+    }
+
     fireflyInstance = new FireFly({
-      host: process.env.FIREFLY_HOST || defaultHost,
+      host: fireflyHost,
       namespace: process.env.FIREFLY_NAMESPACE || "default",
     });
 
@@ -42,7 +47,10 @@ export async function getFireFly(): Promise<FireFly> {
  * Get the MSP identity of the current Firefly node
  * Uses the same approach as the event listener service
  */
-export async function getMspIdentity(): Promise<{ mspId: string; nodeOrg: string }> {
+export async function getMspIdentity(): Promise<{
+  mspId: string;
+  nodeOrg: string;
+}> {
   // Return cached value if available
   if (cachedMspIdentity) {
     return cachedMspIdentity;
@@ -82,13 +90,17 @@ export async function getMspIdentity(): Promise<{ mspId: string; nodeOrg: string
       nodeOrg: ourIdentity,
     };
 
-    console.log(`[getMspIdentity] Detected node MSP: ${mspId}, Org: ${ourIdentity}`);
+    console.log(
+      `[getMspIdentity] Detected node MSP: ${mspId}, Org: ${ourIdentity}`
+    );
 
     return cachedMspIdentity;
   } catch (error) {
     console.error("[getMspIdentity] Failed to fetch node identity:", error);
     throw new Error(
-      `Failed to get MSP identity: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Failed to get MSP identity: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
     );
   }
 }

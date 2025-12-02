@@ -49,14 +49,18 @@ class EventListenerService {
 
       // Initialize Firefly
       const defaultHost =
-        (config.isTransporter ?? process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE")
+        config.isTransporter ?? process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE"
           ? "http://localhost:8000"
           : "http://localhost:8001";
 
+      const fireflyHost = process.env.FIREFLY_HOST;
+      if (!fireflyHost) {
+        throw new Error("FIREFLY_HOST environment variable is required");
+      }
+
       this.fireflyInstance = new FireFly({
-        host: config.fireflyHost || process.env.FIREFLY_HOST || defaultHost,
-        namespace:
-          config.fireflyNamespace || process.env.FIREFLY_NAMESPACE || "default",
+        host: fireflyHost,
+        namespace: process.env.FIREFLY_NAMESPACE || "default",
       });
 
       // Initialize PackageService
@@ -76,7 +80,7 @@ class EventListenerService {
       this.isRunning = true;
       this.reconnectAttempts = 0;
       console.log(
-        `[EventListener] Successfully initialized. Node MSP: ${this.nodeMSP}`,
+        `[EventListener] Successfully initialized. Node MSP: ${this.nodeMSP}`
       );
     } catch (error) {
       console.error("[EventListener] Initialization failed:", error);
@@ -117,18 +121,18 @@ class EventListenerService {
         this.nodeMSP = msp;
         this.nodeOrg = ourIdentity;
         console.log(
-          `[EventListener] Detected node MSP: ${this.nodeMSP}, ${this.nodeOrg}`,
+          `[EventListener] Detected node MSP: ${this.nodeMSP}, ${this.nodeOrg}`
         );
       } else {
         console.warn(
-          "[EventListener] Could not extract MSP from verifier or node org identity, will process all events",
+          "[EventListener] Could not extract MSP from verifier or node org identity, will process all events"
         );
         this.nodeMSP = null;
       }
     } catch (error) {
       console.error("[EventListener] Failed to fetch node identity:", error);
       console.warn(
-        "[EventListener] Continuing without MSP filtering (will process all events)",
+        "[EventListener] Continuing without MSP filtering (will process all events)"
       );
       this.nodeMSP = null;
       this.nodeOrg = null;
@@ -148,7 +152,7 @@ class EventListenerService {
             value: this.nodeMSP,
             lastSyncTimestamp: new Date(),
           },
-          { upsert: true, new: true },
+          { upsert: true, new: true }
         );
         console.log("[EventListener] Node MSP stored in system state");
       }
@@ -164,7 +168,7 @@ class EventListenerService {
    * - For messages: signingKey (extracted MSP) matches our MSP
    */
   private isRelevantEvent(
-    event: BlockchainEventDelivery | FireFlyDatatypeMessage,
+    event: BlockchainEventDelivery | FireFlyDatatypeMessage
   ): boolean {
     // If no MSP filtering is configured, accept all events
     if (!this.nodeMSP) {
@@ -204,7 +208,7 @@ class EventListenerService {
       }
 
       console.log(
-        `[EventListener] Filtering out event - no matching MSP fields (ours: ${this.nodeMSP})`,
+        `[EventListener] Filtering out event - no matching MSP fields (ours: ${this.nodeMSP})`
       );
       return false;
     }
@@ -216,7 +220,7 @@ class EventListenerService {
 
       if (!isRelevant) {
         console.log(
-          `[EventListener] Filtering out message from MSP: ${eventMSP} (ours: ${this.nodeMSP})`,
+          `[EventListener] Filtering out message from MSP: ${eventMSP} (ours: ${this.nodeMSP})`
         );
       }
 
@@ -225,7 +229,7 @@ class EventListenerService {
 
     // If we can't determine, log and accept to be safe
     console.warn(
-      "[EventListener] Could not determine event MSP, accepting event",
+      "[EventListener] Could not determine event MSP, accepting event"
     );
     return true;
   }
@@ -236,7 +240,7 @@ class EventListenerService {
    * - For messages: Extract from signingKey field (before first ":")
    */
   private extractMSP(
-    event: BlockchainEventDelivery | FireFlyDatatypeMessage,
+    event: BlockchainEventDelivery | FireFlyDatatypeMessage
   ): string | undefined {
     // For blockchain events, use the caller field
     if ("output" in event && event.output && event.output.caller) {
@@ -265,7 +269,7 @@ class EventListenerService {
     await this.packageService.onEvent(
       "CreatePackage",
       async (
-        event: BlockchainEventDelivery & { output: CreatePackageEvent },
+        event: BlockchainEventDelivery & { output: CreatePackageEvent }
       ) => {
         if (!this.isRelevantEvent(event)) return;
 
@@ -277,14 +281,14 @@ class EventListenerService {
         } catch (error) {
           console.error("[EventListener] Error handling CreatePackage:", error);
         }
-      },
+      }
     );
 
     // StatusUpdated event
     await this.packageService.onEvent(
       "StatusUpdated",
       async (
-        event: BlockchainEventDelivery & { output: StatusUpdatedEvent },
+        event: BlockchainEventDelivery & { output: StatusUpdatedEvent }
       ) => {
         console.log("[EventListener] StatusUpdated event received: ", event);
 
@@ -296,14 +300,14 @@ class EventListenerService {
         } catch (error) {
           console.error("[EventListener] Error handling StatusUpdated:", error);
         }
-      },
+      }
     );
 
     // ProposeTransfer event
     await this.packageService.onEvent(
       "ProposeTransfer",
       async (
-        event: BlockchainEventDelivery & { output: ProposeTransferEvent },
+        event: BlockchainEventDelivery & { output: ProposeTransferEvent }
       ) => {
         console.log("[EventListener] ProposeTransfer event received");
 
@@ -315,17 +319,17 @@ class EventListenerService {
         } catch (error) {
           console.error(
             "[EventListener] Error handling ProposeTransfer:",
-            error,
+            error
           );
         }
-      },
+      }
     );
 
     // AcceptTransfer event
     await this.packageService.onEvent(
       "AcceptTransfer",
       async (
-        event: BlockchainEventDelivery & { output: AcceptTransferEvent },
+        event: BlockchainEventDelivery & { output: AcceptTransferEvent }
       ) => {
         console.log("[EventListener] AcceptTransfer event received: ", event);
 
@@ -337,17 +341,17 @@ class EventListenerService {
         } catch (error) {
           console.error(
             "[EventListener] Error handling AcceptTransfer:",
-            error,
+            error
           );
         }
-      },
+      }
     );
 
     // TransferExecuted event (note: fraktal-lib uses "TransferExecuted" not "ExecuteTransfer")
     await this.packageService.onEvent(
       "TransferExecuted",
       async (
-        event: BlockchainEventDelivery & { output: TransferExecutedEvent },
+        event: BlockchainEventDelivery & { output: TransferExecutedEvent }
       ) => {
         console.log("[EventListener] TransferExecuted event received: ", event);
 
@@ -359,17 +363,17 @@ class EventListenerService {
         } catch (error) {
           console.error(
             "[EventListener] Error handling TransferExecuted:",
-            error,
+            error
           );
         }
-      },
+      }
     );
 
     // DeletePackage event
     await this.packageService.onEvent(
       "DeletePackage",
       async (
-        event: BlockchainEventDelivery & { output: DeletePackageEvent },
+        event: BlockchainEventDelivery & { output: DeletePackageEvent }
       ) => {
         console.log("[EventListener] DeletePackage event received: ", event);
 
@@ -381,7 +385,7 @@ class EventListenerService {
         } catch (error) {
           console.error("[EventListener] Error handling DeletePackage:", error);
         }
-      },
+      }
     );
 
     // Message event (private messages from FireFly datatypes)
@@ -414,7 +418,7 @@ class EventListenerService {
         } catch (error) {
           console.error("[EventListener] Error handling message:", error);
         }
-      },
+      }
     );
 
     console.log("[EventListener] All event listeners registered successfully");
@@ -425,12 +429,12 @@ class EventListenerService {
    * Package is already created in DB via POST /api/packages
    */
   private async handleCreatePackage(
-    event: BlockchainEventDelivery & { output: CreatePackageEvent },
+    event: BlockchainEventDelivery & { output: CreatePackageEvent }
   ): Promise<void> {
     try {
       const output = event.output;
       console.log(
-        `[EventListener] CreatePackage event processed (DB not modified): ${output.externalId}`,
+        `[EventListener] CreatePackage event processed (DB not modified): ${output.externalId}`
       );
       // Just log the event - DB modifications are handled exclusively via API endpoints
       // Package creation in DB: POST /api/packages
@@ -445,7 +449,7 @@ class EventListenerService {
    * Handle StatusUpdated event - update existing package status only
    */
   private async handleStatusUpdated(
-    event: BlockchainEventDelivery & { output: StatusUpdatedEvent },
+    event: BlockchainEventDelivery & { output: StatusUpdatedEvent }
   ): Promise<void> {
     try {
       const output = event.output;
@@ -457,18 +461,18 @@ class EventListenerService {
           status: output.status,
           mspId: this.extractMSP(event),
         },
-        { new: true },
+        { new: true }
       );
 
       if (!updated) {
         console.warn(
-          `[EventListener] Package not found for StatusUpdated event: ${output.externalId}. Skipping update.`,
+          `[EventListener] Package not found for StatusUpdated event: ${output.externalId}. Skipping update.`
         );
         return;
       }
 
       console.log(
-        `[EventListener] Package status updated: ${output.externalId} -> ${output.status}`,
+        `[EventListener] Package status updated: ${output.externalId} -> ${output.status}`
       );
     } catch (error) {
       console.error("[EventListener] Error updating package status:", error);
@@ -480,7 +484,7 @@ class EventListenerService {
    * Handle ProposeTransfer event - create transfer record
    */
   private async handleProposeTransfer(
-    event: BlockchainEventDelivery & { output: ProposeTransferEvent },
+    event: BlockchainEventDelivery & { output: ProposeTransferEvent }
   ): Promise<void> {
     try {
       const output = event.output;
@@ -492,7 +496,7 @@ class EventListenerService {
 
       if (!pkg) {
         console.log(
-          `[EventListener] ProposeTransfer for package ${output.externalId} - package not in local DB (likely from another node's announcement)`,
+          `[EventListener] ProposeTransfer for package ${output.externalId} - package not in local DB (likely from another node's announcement)`
         );
       }
 
@@ -521,18 +525,18 @@ class EventListenerService {
       if (activeAnnouncement) {
         transferData.announcementMessageId = activeAnnouncement.messageId;
         console.log(
-          `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`,
+          `[EventListener] Linked transfer ${transferData.transferId} to announcement ${activeAnnouncement.messageId}`
         );
-        
+
         // Update announcement transferStatus and auto-accept if transfer is directed to our node
         if (this.nodeMSP && output.terms.toMSP === this.nodeMSP) {
           await PackageAnnouncementModel.findByIdAndUpdate(
             activeAnnouncement._id,
-            { transferStatus: 'accepted' },
+            { transferStatus: "accepted" },
             { new: true }
           );
           console.log(
-            `[EventListener] Updated announcement ${activeAnnouncement._id} transferStatus to 'accepted'`,
+            `[EventListener] Updated announcement ${activeAnnouncement._id} transferStatus to 'accepted'`
           );
 
           // Automatically accept the transfer proposal
@@ -542,13 +546,14 @@ class EventListenerService {
             }
 
             console.log(
-              `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
+              `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`
             );
 
             // Retrieve the private transfer terms (includes salt and price)
-            const privateTransferTerms = await this.packageService.readPrivateTransferTerms(
-              output.termsId
-            );
+            const privateTransferTerms =
+              await this.packageService.readPrivateTransferTerms(
+                output.termsId
+              );
 
             console.log(
               `[EventListener] Retrieved private transfer terms for ${output.termsId}:`,
@@ -562,26 +567,26 @@ class EventListenerService {
             );
 
             console.log(
-              `[EventListener] Successfully auto-accepted transfer ${output.termsId}`,
+              `[EventListener] Successfully auto-accepted transfer ${output.termsId}`
             );
           } catch (acceptError) {
             console.error(
               `[EventListener] Failed to auto-accept transfer ${output.termsId}:`,
-              acceptError,
+              acceptError
             );
             // Don't throw - we still want to persist the transfer record
           }
         }
-      };
+      }
 
       await TransferModel.findOneAndUpdate(
         { transferId: transferData.transferId },
         transferData,
-        { upsert: true, new: true },
+        { upsert: true, new: true }
       );
 
       console.log(
-        `[EventListener] Transfer proposed: ${transferData.transferId}`,
+        `[EventListener] Transfer proposed: ${transferData.transferId}`
       );
     } catch (error) {
       console.error("[EventListener] Error persisting ProposeTransfer:", error);
@@ -593,7 +598,7 @@ class EventListenerService {
    * Handle AcceptTransfer event - update transfer status (transfer must exist)
    */
   private async handleAcceptTransfer(
-    event: BlockchainEventDelivery & { output: AcceptTransferEvent },
+    event: BlockchainEventDelivery & { output: AcceptTransferEvent }
   ): Promise<void> {
     try {
       const output = event.output;
@@ -607,12 +612,12 @@ class EventListenerService {
           mspId: this.extractMSP(event),
           blockchainTxId: event.txid,
         },
-        { new: true },
+        { new: true }
       );
 
       if (!updated) {
         console.warn(
-          `[EventListener] Transfer not found for AcceptTransfer event: ${output.termsId}. Skipping update.`,
+          `[EventListener] Transfer not found for AcceptTransfer event: ${output.termsId}. Skipping update.`
         );
         return;
       }
@@ -621,7 +626,7 @@ class EventListenerService {
     } catch (error) {
       console.error(
         "[EventListener] Error updating transfer acceptance:",
-        error,
+        error
       );
       throw error;
     }
@@ -631,7 +636,7 @@ class EventListenerService {
    * Handle TransferExecuted event - finalize transfer (transfer must exist)
    */
   private async handleTransferExecuted(
-    event: BlockchainEventDelivery & { output: TransferExecutedEvent },
+    event: BlockchainEventDelivery & { output: TransferExecutedEvent }
   ): Promise<void> {
     try {
       const output = event.output;
@@ -643,12 +648,12 @@ class EventListenerService {
           mspId: this.extractMSP(event),
           blockchainTxId: event.txid,
         },
-        { new: true },
+        { new: true }
       );
 
       if (!executed) {
         console.warn(
-          `[EventListener] Transfer not found for TransferExecuted event: ${output.termsId}. Skipping update.`,
+          `[EventListener] Transfer not found for TransferExecuted event: ${output.termsId}. Skipping update.`
         );
         return;
       }
@@ -662,17 +667,17 @@ class EventListenerService {
         },
         {
           $set: { isActive: false },
-        },
+        }
       );
 
       console.log(`[EventListener] Transfer executed: ${output.termsId}`);
       console.log(
-        `[EventListener] Marked announcements as inactive for package: ${output.externalId}`,
+        `[EventListener] Marked announcements as inactive for package: ${output.externalId}`
       );
     } catch (error) {
       console.error(
         "[EventListener] Error updating transfer execution:",
-        error,
+        error
       );
       throw error;
     }
@@ -682,7 +687,7 @@ class EventListenerService {
    * Handle DeletePackage event - soft delete existing packages only
    */
   private async handleDeletePackage(
-    event: BlockchainEventDelivery & { output: DeletePackageEvent },
+    event: BlockchainEventDelivery & { output: DeletePackageEvent }
   ): Promise<void> {
     try {
       const output = event.output;
@@ -694,12 +699,12 @@ class EventListenerService {
           status: "failed",
           mspId: this.extractMSP(event),
         },
-        { new: true },
+        { new: true }
       );
 
       if (!deleted) {
         console.warn(
-          `[EventListener] Package not found for DeletePackage event: ${output.externalId}. Skipping delete.`,
+          `[EventListener] Package not found for DeletePackage event: ${output.externalId}. Skipping delete.`
         );
         return;
       }
@@ -712,12 +717,12 @@ class EventListenerService {
         },
         {
           $set: { isActive: false },
-        },
+        }
       );
 
       console.log(`[EventListener] Package deleted: ${output.externalId}`);
       console.log(
-        `[EventListener] Marked announcements as inactive for deleted package: ${output.externalId}`,
+        `[EventListener] Marked announcements as inactive for deleted package: ${output.externalId}`
       );
     } catch (error) {
       console.error("[EventListener] Error handling delete package:", error);
@@ -729,7 +734,7 @@ class EventListenerService {
    * Handle PACKAGE_ANNOUNCE message - track package announcements for bidding
    */
   private async handlePackageAnnouncement(
-    event: FireFlyDatatypeMessage,
+    event: FireFlyDatatypeMessage
   ): Promise<void> {
     try {
       // Extract MSP from signingKey (format: "MSP_ID:certificate...")
@@ -741,7 +746,7 @@ class EventListenerService {
 
       if (!packageExternalId) {
         console.warn(
-          "[EventListener] PACKAGE_ANNOUNCE message missing package id, skipping",
+          "[EventListener] PACKAGE_ANNOUNCE message missing package id, skipping"
         );
         return;
       }
@@ -769,18 +774,16 @@ class EventListenerService {
       await PackageAnnouncementModel.findOneAndUpdate(
         { messageId: event.id },
         announcementData,
-        { upsert: true, new: true },
+        { upsert: true, new: true }
       );
 
-
-
       console.log(
-        `[EventListener] Package announcement stored: ${packageExternalId} from ${announcerMSP}`,
+        `[EventListener] Package announcement stored: ${packageExternalId} from ${announcerMSP}`
       );
     } catch (error) {
       console.error(
         "[EventListener] Error handling package announcement:",
-        error,
+        error
       );
       throw error;
     }
@@ -790,7 +793,7 @@ class EventListenerService {
    * Handle TRANSFER_OFFER message - store transfer offer in DB
    */
   private async handleTransferOffer(
-    event: FireFlyDatatypeMessage,
+    event: FireFlyDatatypeMessage
   ): Promise<void> {
     try {
       // Extract MSP from signingKey (format: "MSP_ID:certificate...")
@@ -802,7 +805,7 @@ class EventListenerService {
 
       if (!offerValue || !offerValue.externalPackageId) {
         console.warn(
-          "[EventListener] TRANSFER_OFFER message missing package id, skipping",
+          "[EventListener] TRANSFER_OFFER message missing package id, skipping"
         );
         return;
       }
@@ -834,24 +837,21 @@ class EventListenerService {
           ? activeAnnouncement.messageId
           : undefined,
         messageData: offerValue,
-        packageDetails: offerValue
+        packageDetails: offerValue,
       };
 
       // Upsert transfer offer (create or update if exists)
       await TransferOfferModel.findOneAndUpdate(
         { externalPackageId: offerValue.externalPackageId },
         transferOfferData,
-        { upsert: true, new: true },
+        { upsert: true, new: true }
       );
 
       console.log(
-        `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${fromMSP} with price ${offerValue.price}`,
+        `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${fromMSP} with price ${offerValue.price}`
       );
     } catch (error) {
-      console.error(
-        "[EventListener] Error handling transfer offer:",
-        error,
-      );
+      console.error("[EventListener] Error handling transfer offer:", error);
       throw error;
     }
   }
@@ -862,7 +862,7 @@ class EventListenerService {
   private async handleReconnect(): Promise<void> {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error(
-        "[EventListener] Max reconnection attempts reached. Giving up.",
+        "[EventListener] Max reconnection attempts reached. Giving up."
       );
       return;
     }
@@ -871,7 +871,7 @@ class EventListenerService {
     const delay = this.reconnectDelay * this.reconnectAttempts;
 
     console.log(
-      `[EventListener] Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+      `[EventListener] Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
     );
 
     setTimeout(async () => {

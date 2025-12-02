@@ -6,19 +6,52 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { MapPin, Package as PackageIcon, Clock, Weight } from "lucide-react";
+import { MapPin, Package as PackageIcon, Clock, Weight, CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { confirmPackageReceipt } from "@/app/packages/[id]/actions";
 
 interface PackageCardProps {
   package: Package;
   isAnnounced?: boolean;
   onAnnounce?: (pkg: Package) => void;
+  showReceiptButton?: boolean;
 }
 
 export function PackageCard({
   package: pkg,
   isAnnounced = false,
   onAnnounce,
+  showReceiptButton = false,
 }: PackageCardProps) {
+   const [isConfirming, setIsConfirming] = useState(false);
+
+  const handleConfirmReceipt = async () => {
+    if (!pkg.id || !pkg.termsId) {
+      toast.error("Missing package or transfer information");
+      return;
+    }
+
+    setIsConfirming(true);
+    const loadingToast = toast.loading("Confirming package receipt...");
+
+    try {
+      const result = await confirmPackageReceipt(pkg.id, pkg.termsId);
+
+      if (result.success) {
+        toast.success("Package receipt confirmed!", { id: loadingToast });
+      } else {
+        toast.error(result.error || "Failed to confirm receipt", {
+          id: loadingToast,
+        });
+      }
+    } catch (error) {
+      toast.error("An error occurred", { id: loadingToast });
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   const getStatusBadge = () => {
     if (isAnnounced) {
       return (
@@ -175,6 +208,22 @@ export function PackageCard({
                 size="sm"
               >
                 Announce Package
+              </Button>
+            </>
+          )}
+          {/* Confirm Receipt Button (for receivers) */}
+        {showReceiptButton &&
+           (
+            <>
+              <Separator />
+              <Button
+                onClick={handleConfirmReceipt}
+                disabled={isConfirming}
+                className="w-full font-mono text-xs uppercase bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                <CheckCircle className="mr-2 h-3 w-3" />
+                {isConfirming ? "Confirming..." : "Confirm Receipt"}
               </Button>
             </>
           )}
