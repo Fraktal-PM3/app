@@ -4,7 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from "
 import { usePackages, useTransfers } from "./PackageProvider";
 import { useAnnouncements } from "./AuctionProvider";
 import { addHours, differenceInHours, format, startOfWeek } from "date-fns";
-import type { Package, Transfer, TransferStatus } from "@/types/package";
+import type { Package, Transfer } from "@/types/package";
+import { Status } from "fraktal-lib";
 
 export type UserRole = "sender" | "transporter";
 
@@ -94,9 +95,9 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
       (pkg) => pkg.active === "true" && pkg.packageDetails
     ).length;
 
-    // Get only EXECUTED transfers for financial calculations
+    // Get only SUCCEEDED transfers for financial calculations
     const executedTransfers = transfers.filter(
-      (t) => t.status === "executed" && t.price && t.price > 0
+      (t) => t.status === Status.SUCCEEDED && t.price && t.price > 0
     );
 
     // Total earnings and spending

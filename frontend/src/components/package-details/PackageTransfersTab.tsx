@@ -4,6 +4,7 @@ import { executeTransfer } from "@/app/packages/[id]/actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Transfer } from "@/types/package";
+import { Status } from "fraktal-lib";
 import { format } from "date-fns";
 import { Truck } from "lucide-react";
 import { Button } from "../ui/button";
@@ -13,17 +14,24 @@ interface PackageTransfersTabProps {
 }
 
 export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
-  const getTransferStatusBadge = (status: string) => {
-    const variants = {
-      proposed: "secondary",
-      accepted: "default",
-      executed: "outline",
-      rejected: "destructive",
-    } as const;
+  const getTransferStatusBadge = (status: Status) => {
+    const variants: Record<
+      Status,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
+      [Status.PENDING]: "secondary",
+      [Status.PROPOSED]: "outline",
+      [Status.READY_FOR_PICKUP]: "default",
+      [Status.PICKED_UP]: "default",
+      [Status.IN_TRANSIT]: "default",
+      [Status.DELIVERED]: "secondary",
+      [Status.SUCCEEDED]: "secondary",
+      [Status.FAILED]: "destructive",
+    };
 
     return (
       <Badge
-        variant={variants[status as keyof typeof variants] || "secondary"}
+        variant={variants[status] || "secondary"}
         className="font-mono text-xs"
       >
         {status.toUpperCase()}
@@ -31,9 +39,12 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
     );
   };
 
-  const handleExecuteTransfer = async (transferId: string, externalId: string) => {
+  const handleExecuteTransfer = async (
+    transferId: string,
+    externalId: string,
+  ) => {
     await executeTransfer(transferId, externalId);
-  }
+  };
 
   return (
     <Card className="border-border bg-card font-mono">
@@ -66,7 +77,7 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                       <div className="text-xs text-muted-foreground">
                         {format(
                           new Date(transfer.createdAt),
-                          "MMM dd, yyyy HH:mm"
+                          "MMM dd, yyyy HH:mm",
                         )}
                       </div>
                     )}
@@ -79,7 +90,7 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                     <div className="text-muted-foreground uppercase tracking-wider">
                       From MSP
                     </div>
-                    <div className="mt-1 font-semibold break-words">
+                    <div className="mt-1 font-semibold wrap-break-word">
                       {transfer.fromMSP}
                     </div>
                   </div>
@@ -87,7 +98,7 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                     <div className="text-muted-foreground uppercase tracking-wider">
                       To MSP
                     </div>
-                    <div className="mt-1 font-semibold break-words">
+                    <div className="mt-1 font-semibold wrap-break-word">
                       {transfer.toMSP}
                     </div>
                   </div>
@@ -102,10 +113,15 @@ export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
                   </div>
                 )}
 
-                {transfer.status === "accepted" && (
+                {transfer.status === Status.READY_FOR_PICKUP && (
                   <Button
                     className="mt-2"
-                    onClick={() => handleExecuteTransfer(transfer.transferId, transfer.externalId)}
+                    onClick={() =>
+                      handleExecuteTransfer(
+                        transfer.transferId,
+                        transfer.externalId,
+                      )
+                    }
                   >
                     Execute Transfer
                   </Button>
