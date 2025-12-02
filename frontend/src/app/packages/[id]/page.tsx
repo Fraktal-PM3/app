@@ -48,6 +48,7 @@ export default function PackageDetailsPage() {
     const { activities } = useRecentActivity();
     const { isConnected } = useSSEConnection();
     const [isOwner, setIsOwner] = useState(false);
+    const [isExecuting, setIsExecuting] = useState(false);
 
     // Find the package by ID (blockchain id)
     const packageData = useMemo(
@@ -102,6 +103,8 @@ export default function PackageDetailsPage() {
         [packageTransfers]
     );
 
+    
+
     // Find related activities
     const packageActivities = useMemo(
         () =>
@@ -131,6 +134,29 @@ export default function PackageDetailsPage() {
             refetch();
         }
     }, [isConnected, refetch]);
+
+    const handleDelivered = async () => {
+        console.log("Handling Delivered action...");
+        console.log("Package Transfers:", packageTransfers);
+        
+        if (packageTransfers.length === 0) {
+            console.log("No transfers found");
+            return;
+        }
+        
+        const transfer = packageTransfers[0]; // Get the first (and likely only) transfer
+        console.log("Using Transfer:", transfer);
+        
+        setIsExecuting(true);
+        try {
+            await executeTransfer(
+                transfer.transferId,
+                transfer.externalId
+            );
+        } finally {
+            setIsExecuting(false);
+        }
+    };
 
     if (isLoading || transfersLoading || announcementsLoading) {
         return (
@@ -351,6 +377,35 @@ export default function PackageDetailsPage() {
                         </TabsContent>
                     </Tabs>
                 </motion.div>
+
+                {/* Delivered Button - Only for Transporters */}
+                {process.env.NEXT_PUBLIC_TRANSPORTER === 'TRUE' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="flex justify-center pb-6"
+                    >
+                        <Button
+                            onClick={handleDelivered}
+                            disabled={isExecuting}
+                            size="lg"
+                            className="font-mono text-sm uppercase w-full sm:w-auto min-w-[200px]"
+                        >
+                            {isExecuting ? (
+                                <>
+                                    <Clock className="mr-2 h-4 w-4 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                    Delivered
+                                </>
+                            )}
+                        </Button>
+                    </motion.div>
+                )}
             </div>
         </div>
     );
