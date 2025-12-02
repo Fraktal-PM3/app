@@ -7,8 +7,13 @@ let cachedMspIdentity: { mspId: string; nodeOrg: string } | null = null;
 
 export async function getPackageService(): Promise<PackageService> {
   if (!packageService) {
+    const fireflyHost = process.env.FIREFLY_HOST;
+    if (!fireflyHost) {
+      throw new Error("FIREFLY_HOST environment variable is required");
+    }
+
     fireflyInstance = new FireFly({
-      host: process.env.FIREFLY_NODE_URL || "",
+      host: fireflyHost,
       namespace: process.env.FIREFLY_NAMESPACE || "default",
     });
 
