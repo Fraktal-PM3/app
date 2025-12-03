@@ -154,7 +154,7 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       // TransferToPM3 - refetch packages
       subscribe<TransferToPM3Event>("TransferToPM3", async (data) => {
         console.log("[PackageProvider] TransferToPM3 event:", data);
-        await refetchPackages();
+        await Promise.all([refetchPackages()]);
       }),
     ];
 
