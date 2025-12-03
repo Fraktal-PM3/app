@@ -566,7 +566,11 @@ class EventListenerService {
   private async autoAcceptTransferIfRelevant(
     output: ProposeTransferEvent,
     activeAnnouncement: PackageAnnouncementDocument | null,
+    retryCount: number = 0,
   ): Promise<void> {
+    const maxRetries = 5;
+    const retryDelay = 2000; // 2 seconds between retries
+
     // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
     const terms = (output as any).parsedTerms || output.terms;
 
@@ -585,7 +589,7 @@ class EventListenerService {
     }
 
     console.log(
-      `[EventListener] Transfer ${output.termsId} is directed to our node, proceeding with auto-accept`,
+      `[EventListener] Transfer ${output.termsId} is directed to our node, proceeding with auto-accept (attempt ${retryCount + 1}/${maxRetries + 1})`,
     );
 
     // Update announcement status if exists
@@ -606,9 +610,6 @@ class EventListenerService {
         throw new Error("PackageService not initialized");
       }
 
-      console.log(
-        `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
-      );
       console.log(
         `[EventListener] Auto-accepting transfer proposal ${output.termsId} for package ${output.externalId}`,
       );
@@ -643,9 +644,27 @@ class EventListenerService {
         );
       } else {
         console.error(
-          `[EventListener] Failed to auto-accept transfer ${output.termsId}:`,
+          `[EventListener] Failed to auto-accept transfer ${output.termsId} (attempt ${retryCount + 1}/${maxRetries + 1}):`,
           acceptError,
         );
+
+        // Retry if we haven't exceeded max retries
+        if (retryCount < maxRetries) {
+          console.log(
+            `[EventListener] Retrying auto-accept for transfer ${output.termsId} in ${retryDelay}ms...`,
+          );
+          setTimeout(() => {
+            this.autoAcceptTransferIfRelevant(
+              output,
+              activeAnnouncement,
+              retryCount + 1,
+            );
+          }, retryDelay * (retryCount + 1)); // Exponential backoff
+        } else {
+          console.error(
+            `[EventListener] Max retries (${maxRetries}) reached for auto-accept transfer ${output.termsId}. Giving up.`,
+          );
+        }
       }
     }
   }
@@ -1213,26 +1232,64 @@ class EventListenerService {
   /**
    * Execute transfer automatically when making final delivery
    * @params externalId
+   * @params termsId
+   * @params retryCount
    */
   private async executeTransferDelivery(
     externalId: string,
     termsId: string,
+    retryCount: number = 0,
   ): Promise<void> {
-    console.log("[EventListener] Executing transfer for delivery...");
-    if (!this.packageService) {
-      throw new Error("[EventListener] Could not get package service");
-    }
+    const maxRetries = 5;
+    const retryDelay = 2000; // 2 seconds between retries
 
-    const storeObject = (await this.packageService.readPackageDetailsAndPII(
-      externalId,
-    )) as StoreObject;
-    if (!storeObject) {
-      throw new Error(
-        "[EventListener] Could not find package details and PII in PDC",
+    console.log(
+      `[EventListener] Executing transfer for delivery (attempt ${retryCount + 1}/${maxRetries + 1})...`,
+    );
+
+    try {
+      if (!this.packageService) {
+        throw new Error("[EventListener] Could not get package service");
+      }
+
+      const storeObject = (await this.packageService.readPackageDetailsAndPII(
+        externalId,
+      )) as StoreObject;
+      if (!storeObject) {
+        throw new Error(
+          "[EventListener] Could not find package details and PII in PDC",
+        );
+      }
+
+      await this.packageService.executeTransfer(
+        externalId,
+        termsId,
+        storeObject,
       );
-    }
 
-    this.packageService.executeTransfer(externalId, termsId, storeObject);
+      console.log(
+        `[EventListener] Successfully executed transfer for delivery: ${externalId}`,
+      );
+    } catch (error) {
+      console.error(
+        `[EventListener] Failed to execute transfer for delivery ${externalId} (attempt ${retryCount + 1}/${maxRetries + 1}):`,
+        error,
+      );
+
+      // Retry if we haven't exceeded max retries
+      if (retryCount < maxRetries) {
+        console.log(
+          `[EventListener] Retrying execute transfer for ${externalId} in ${retryDelay * (retryCount + 1)}ms...`,
+        );
+        setTimeout(() => {
+          this.executeTransferDelivery(externalId, termsId, retryCount + 1);
+        }, retryDelay * (retryCount + 1)); // Exponential backoff
+      } else {
+        console.error(
+          `[EventListener] Max retries (${maxRetries}) reached for execute transfer ${externalId}. Giving up.`,
+        );
+      }
+    }
   }
 
   /**
