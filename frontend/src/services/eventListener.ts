@@ -450,7 +450,7 @@ class EventListenerService {
         console.log("[EventListener] TransferToPM3 event received: ", event);
         if (!this.packageService) return;
         // Check if we are tracking the package
-        if (!PackageModel.exists({ id: event.output.externalId })) {
+        if (!(await PackageModel.exists({ id: event.output.externalId }))) {
           console.log(
             "[EventListener] Not tracking package, discarding TransferToPM3Event",
           );
@@ -681,6 +681,7 @@ class EventListenerService {
       await PackageModel.findOneAndUpdate(
         { id: output.externalId },
         { status: output.status },
+        { new: true },
       );
 
       if (activeAnnouncement) {
@@ -717,13 +718,17 @@ class EventListenerService {
   ): Promise<void> {
     try {
       if (!this.packageService) return;
+      console.log(
+        "[EventListener] Handling TransferToPM3 event for package:",
+        event.output.externalId,
+      );
       const blockchainPackage = await this.packageService.readBlockchainPackage(
         event.output.externalId,
       );
 
       PackageModel.findOneAndUpdate(
         { id: event.output.externalId },
-        { ...blockchainPackage },
+        { status: blockchainPackage.status },
         { new: true },
       );
     } catch (error) {
