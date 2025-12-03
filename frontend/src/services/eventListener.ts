@@ -707,7 +707,9 @@ class EventListenerService {
       );
 
       // Auto-accept transfer if it's directed to our node
-      await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
+      setTimeout(async () => {
+        await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
+      }, 5000);
     } catch (error) {
       console.error("[EventListener] Error persisting ProposeTransfer:", error);
       throw error;
@@ -862,7 +864,11 @@ class EventListenerService {
       }
 
       // Auto-accept the free transfer
-      await this.autoAcceptTransferIfRelevant(output, activeAnnouncement);
+      setTimeout(
+        async () =>
+          await this.autoAcceptTransferIfRelevant(output, activeAnnouncement),
+        5000,
+      );
     } catch (error) {
       console.error("[EventListener] Error persisting ProposeTransfer:", error);
       throw error;
@@ -920,7 +926,14 @@ class EventListenerService {
         blockchainPackage.status === Status.IN_TRANSIT &&
         blockchainPackage.ownerOrgMSP === this.nodeMSP
       ) {
-        this.executeTransferDelivery(output.externalId, output.termsId);
+        setTimeout(
+          async () =>
+            await this.executeTransferDelivery(
+              output.externalId,
+              output.termsId,
+            ),
+          5000,
+        );
       }
     } catch (error) {
       console.error(
