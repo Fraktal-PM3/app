@@ -1,12 +1,18 @@
 "use client";
 
-import { Package } from "@/types/package";
+import { Package, Status } from "@/types/package";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { MapPin, Package as PackageIcon, Clock, Weight, CheckCircle } from "lucide-react";
+import {
+  MapPin,
+  Package as PackageIcon,
+  Clock,
+  Weight,
+  CheckCircle,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { confirmPackageReceipt } from "@/app/packages/[id]/actions";
@@ -24,7 +30,7 @@ export function PackageCard({
   onAnnounce,
   showReceiptButton = false,
 }: PackageCardProps) {
-   const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const handleConfirmReceipt = async () => {
     if (!pkg.id || !pkg.termsId) {
@@ -36,7 +42,7 @@ export function PackageCard({
     const loadingToast = toast.loading("Confirming package receipt...");
 
     try {
-      const result = await confirmPackageReceipt(pkg.id, pkg.termsId);
+      const result = await confirmPackageReceipt(pkg.id);
 
       if (result.success) {
         toast.success("Package receipt confirmed!", { id: loadingToast });
@@ -92,8 +98,8 @@ export function PackageCard({
       urgency === "high"
         ? "destructive"
         : urgency === "medium"
-        ? "default"
-        : "secondary";
+          ? "default"
+          : "secondary";
 
     return (
       <Badge variant={variant} className="font-mono text-xs">
@@ -127,7 +133,8 @@ export function PackageCard({
           <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-900">
             <p className="font-semibold">⚠️ Package details not available</p>
             <p className="mt-1 text-yellow-700">
-              This package was created on the blockchain but details haven't synced yet.
+              This package was created on the blockchain but details haven't
+              synced yet.
             </p>
           </div>
         )}
@@ -198,7 +205,7 @@ export function PackageCard({
         {!isAnnounced &&
           hasDetails &&
           pkg.active === "true" &&
-          pkg.status !== "succeeded" &&
+          pkg.status !== Status.SUCCEEDED &&
           onAnnounce && (
             <>
               <Separator />
@@ -211,22 +218,21 @@ export function PackageCard({
               </Button>
             </>
           )}
-          {/* Confirm Receipt Button (for receivers) */}
-        {showReceiptButton &&
-           (
-            <>
-              <Separator />
-              <Button
-                onClick={handleConfirmReceipt}
-                disabled={isConfirming}
-                className="w-full font-mono text-xs uppercase bg-green-600 hover:bg-green-700"
-                size="sm"
-              >
-                <CheckCircle className="mr-2 h-3 w-3" />
-                {isConfirming ? "Confirming..." : "Confirm Receipt"}
-              </Button>
-            </>
-          )}
+        {/* Confirm Receipt Button (for receivers) */}
+        {showReceiptButton && (
+          <>
+            <Separator />
+            <Button
+              onClick={handleConfirmReceipt}
+              disabled={isConfirming}
+              className="w-full font-mono text-xs uppercase bg-green-600 hover:bg-green-700"
+              size="sm"
+            >
+              <CheckCircle className="mr-2 h-3 w-3" />
+              {isConfirming ? "Confirming..." : "Confirm Receipt"}
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );

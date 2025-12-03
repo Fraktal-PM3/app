@@ -18,7 +18,7 @@ import {
   Briefcase,
   Calendar,
   DollarSign,
-  Weight
+  Weight,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -32,7 +32,7 @@ const PackageMap = dynamic(
     import("@/components/package-details/PackageMap").then((mod) => ({
       default: mod.PackageMap,
     })),
-  { ssr: false }
+  { ssr: false },
 );
 
 export default function OfferDetailsPage() {
@@ -53,7 +53,7 @@ export default function OfferDetailsPage() {
   // Find the announcement by ID
   const announcement = useMemo(
     () => announcements.find((a) => a._id === announcementId),
-    [announcements, announcementId]
+    [announcements, announcementId],
   );
 
   // Find all user's offers for this announcement
@@ -63,11 +63,15 @@ export default function OfferDetailsPage() {
     console.log("Offers:", offers);
 
     const filteredOffers = offers.filter(
-      (offer) =>
-        offer.announcementMessageId === announcement.messageId
+      (offer) => offer.announcementMessageId === announcement.messageId,
     );
 
-    console.log("[OfferDetailsPage] User offers for announcement", announcementId, ":", filteredOffers);
+    console.log(
+      "[OfferDetailsPage] User offers for announcement",
+      announcementId,
+      ":",
+      filteredOffers,
+    );
 
     // Sort by creation date (most recent first)
     return filteredOffers.sort((a, b) => {
@@ -166,11 +170,11 @@ export default function OfferDetailsPage() {
   // Convert announcement to Package format for map component
   const packageDataForMap = pkg
     ? {
-      _id: announcement._id,
-      id: announcement.packageExternalId,
-      name: `Package ${announcement.packageExternalId}`,
-      packageDetails: pkg,
-    }
+        _id: announcement._id,
+        id: announcement.packageExternalId,
+        name: `Package ${announcement.packageExternalId}`,
+        packageDetails: pkg,
+      }
     : null;
 
   return (
@@ -188,7 +192,7 @@ export default function OfferDetailsPage() {
           rightContent={
             <div className="flex flex-wrap gap-2">
               {getUrgencyBadge()}
-              {announcement?.transferStatus === 'accepted' ? (
+              {announcement?.transferStatus === "accepted" ? (
                 <Badge
                   variant="default"
                   className="bg-green-600 font-mono text-xs"
@@ -200,7 +204,8 @@ export default function OfferDetailsPage() {
                   variant="outline"
                   className="bg-blue-50 font-mono text-xs dark:bg-blue-950"
                 >
-                  {userOffers.length} OFFER{userOffers.length > 1 ? 'S' : ''} SENT
+                  {userOffers.length} OFFER{userOffers.length > 1 ? "S" : ""}{" "}
+                  SENT
                 </Badge>
               ) : (
                 <Badge
@@ -287,9 +292,7 @@ export default function OfferDetailsPage() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Boxes className="h-3 w-3 flex-shrink-0" />
-                          <span className="uppercase tracking-wider">
-                            Size
-                          </span>
+                          <span className="uppercase tracking-wider">Size</span>
                         </div>
                         <div className="text-sm font-semibold">
                           {pkg.size
@@ -310,9 +313,9 @@ export default function OfferDetailsPage() {
                         <span className="font-semibold text-right">
                           {announcement.createdAt
                             ? format(
-                              new Date(announcement.createdAt),
-                              "MMM dd, yyyy HH:mm"
-                            )
+                                new Date(announcement.createdAt),
+                                "MMM dd, yyyy HH:mm",
+                              )
                             : "N/A"}
                         </span>
                       </div>
@@ -343,11 +346,11 @@ export default function OfferDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <LocationDisplay type="pickup" location={pkg.pickupLocation} />
                   <LocationDisplay
-                    type="dropoff"
-                    location={pkg.dropLocation}
+                    type="pickup"
+                    location={pkg.pickupLocation}
                   />
+                  <LocationDisplay type="dropoff" location={pkg.dropLocation} />
                 </CardContent>
               </Card>
             </motion.div>
@@ -363,10 +366,13 @@ export default function OfferDetailsPage() {
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <h3 className="font-mono text-sm font-bold uppercase">
-                        {userOffers.length > 0 ? 'Want to submit another offer?' : 'Interested in this delivery?'}
+                        {userOffers.length > 0
+                          ? "Want to submit another offer?"
+                          : "Interested in this delivery?"}
                       </h3>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Submit a transfer offer to the sender with your proposed terms
+                        Submit a transfer offer to the sender with your proposed
+                        terms
                       </p>
                     </div>
                     <Button
@@ -375,7 +381,9 @@ export default function OfferDetailsPage() {
                       className="font-mono text-xs uppercase"
                       disabled={userOffers.length >= 1}
                     >
-                      {userOffers.length > 0 ? 'Send Another Offer' : 'Send Transfer Offer'}
+                      {userOffers.length > 0
+                        ? "Send Another Offer"
+                        : "Send Transfer Offer"}
                     </Button>
                   </div>
                 </CardContent>
@@ -392,7 +400,8 @@ export default function OfferDetailsPage() {
                 <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 font-mono">
                   <CardHeader>
                     <CardTitle className="text-sm font-bold uppercase tracking-wider text-blue-900 dark:text-blue-200">
-                      Your Submitted Offer{userOffers.length > 1 ? 's' : ''} ({userOffers.length})
+                      Your Submitted Offer{userOffers.length > 1 ? "s" : ""} (
+                      {userOffers.length})
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -407,7 +416,10 @@ export default function OfferDetailsPage() {
                               Offer #{userOffers.length - index}
                             </div>
                             {index === 0 && (
-                              <Badge variant="outline" className="bg-blue-100 dark:bg-blue-800 text-xs">
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-100 dark:bg-blue-800 text-xs"
+                              >
                                 Latest
                               </Badge>
                             )}
@@ -417,7 +429,9 @@ export default function OfferDetailsPage() {
                             <div className="rounded-md bg-blue-100 dark:bg-blue-900/50 p-3">
                               <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
                                 <DollarSign className="h-3 w-3" />
-                                <span className="uppercase tracking-wider">Price</span>
+                                <span className="uppercase tracking-wider">
+                                  Price
+                                </span>
                               </div>
                               <div className="mt-1 text-xl font-bold text-blue-900 dark:text-blue-100">
                                 {offer.price} kr
@@ -428,17 +442,30 @@ export default function OfferDetailsPage() {
                               <div className="rounded-md bg-blue-100 dark:bg-blue-900/50 p-3">
                                 <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
                                   <Calendar className="h-3 w-3" />
-                                  <span className="uppercase tracking-wider">Delivery</span>
+                                  <span className="uppercase tracking-wider">
+                                    Expiry
+                                  </span>
                                 </div>
                                 <div className="mt-1 text-sm font-bold text-blue-900 dark:text-blue-100">
-                                  {format(new Date(offer.expiryISO), "MMM dd, yyyy HH:mm")}
+                                  {format(
+                                    new Date(offer.expiryISO),
+                                    "MMM dd, yyyy HH:mm",
+                                  )}
                                 </div>
                               </div>
                             )}
                           </div>
 
                           <div className="text-xs text-blue-600 dark:text-blue-400">
-                            Sent: {format(new Date(offer.createdISO || offer.createdAt || new Date()), "MMM dd, yyyy HH:mm")}
+                            Sent:{" "}
+                            {format(
+                              new Date(
+                                offer.createdISO ||
+                                  offer.createdAt ||
+                                  new Date(),
+                              ),
+                              "MMM dd, yyyy HH:mm",
+                            )}
                           </div>
                         </div>
                       ))}
@@ -447,10 +474,15 @@ export default function OfferDetailsPage() {
                     <Separator className="bg-blue-200 dark:bg-blue-800" />
 
                     <div className="space-y-2 text-center text-xs text-blue-700 dark:text-blue-400">
-                      <p>Your offer{userOffers.length > 1 ? 's have' : ' has'} been sent to the sender.</p>
+                      <p>
+                        Your offer{userOffers.length > 1 ? "s have" : " has"}{" "}
+                        been sent to the sender.
+                      </p>
                       <p>They will review and respond soon.</p>
                       {announcement.price && (
-                        <p className="font-semibold">(Asking price: {announcement.price} kr)</p>
+                        <p className="font-semibold">
+                          (Asking price: {announcement.price} kr)
+                        </p>
                       )}
                     </div>
                   </CardContent>

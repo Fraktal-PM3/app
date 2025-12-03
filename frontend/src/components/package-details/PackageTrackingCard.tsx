@@ -4,10 +4,12 @@ import { Stage, TransportTimeline } from "@/components/TransportTimeline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "@/types/package";
 import { CheckCircle2, Clock, Flag, Package as PackageIcon, Truck } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 interface PackageTrackingCardProps {
   packageData: Package;
+  isOwner?: boolean;
+  onMarkInTransit?: () => Promise<void>;
 }
 
 // Map blockchain status to stage keys
@@ -21,7 +23,13 @@ const STATUS_TO_STAGE: Record<string, string> = {
   failed: "failed",
 };
 
-export function PackageTrackingCard({ packageData }: PackageTrackingCardProps) {
+export function PackageTrackingCard({
+  packageData,
+  isOwner = false,
+  onMarkInTransit,
+}: PackageTrackingCardProps) {
+  const [isMarkingInTransit, setIsMarkingInTransit] = useState(false);
+
   const STAGES: Stage[] = useMemo(
     () => [
       { key: "waiting_pickup", label: "Waiting for pickup", icon: Clock },
@@ -37,6 +45,21 @@ export function PackageTrackingCard({ packageData }: PackageTrackingCardProps) {
     const status = packageData.status?.toLowerCase() || "pending";
     return STATUS_TO_STAGE[status] || "waiting_pickup";
   }, [packageData.status]);
+
+  const isPickedUp = packageData.status?.toLowerCase() === "picked_up";
+  const shouldShowInTransitAction = isOwner && isPickedUp && onMarkInTransit;
+
+  const handleMarkInTransit = async (stageKey: string) => {
+    if (!onMarkInTransit) return;
+    setIsMarkingInTransit(true);
+    try {
+      await onMarkInTransit();
+    } catch (error) {
+      console.error("Error marking package in transit:", error);
+    } finally {
+      setIsMarkingInTransit(false);
+    }
+  };
 
   // Don't show tracking for failed packages
   if (packageData.status === "failed") {
@@ -96,7 +119,15 @@ export function PackageTrackingCard({ packageData }: PackageTrackingCardProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex items-center">
-        <TransportTimeline stages={STAGES} currentKey={currentStage} />
+        <TransportTimeline
+          stages={STAGES}
+          currentKey={currentStage}
+          interactiveStageKey={shouldShowInTransitAction ? "in_transit" : undefined}
+          onInteractiveStageClick={
+            shouldShowInTransitAction ? handleMarkInTransit : undefined
+          }
+          isLoadingInteractive={isMarkingInTransit}
+        />
       </CardContent>
     </Card>
   );

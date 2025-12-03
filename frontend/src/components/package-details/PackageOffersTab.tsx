@@ -5,7 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransferOffer } from "@/types/package";
 import { format } from "date-fns";
-import { Briefcase, Calendar, CheckCircle2, DollarSign, Loader2 } from "lucide-react";
+import {
+  Briefcase,
+  Calendar,
+  CheckCircle2,
+  DollarSign,
+  Loader2,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";
 
@@ -59,7 +65,8 @@ export function PackageOffersTab({
   // 1. User is the owner
   // 2. Package status is "pending" (announcement sent but no transfer accepted yet)
   // 3. Package is active
-  const canAcceptOffers = isOwner && packageStatus === "pending" && packageActive !== "false";
+  const canAcceptOffers =
+    isOwner && packageStatus === "pending" && packageActive !== "false";
 
   return (
     <Card className="border-border bg-card font-mono">
@@ -121,7 +128,7 @@ export function PackageOffersTab({
                     {offer.expiryISO && (
                       <Badge variant="outline" className="font-mono text-xs">
                         <Calendar className="mr-1 h-3 w-3" />
-                        Delivery:{" "}
+                        Expiry:{" "}
                         {format(new Date(offer.expiryISO), "MMM dd, HH:mm")}
                       </Badge>
                     )}
@@ -152,7 +159,9 @@ export function PackageOffersTab({
                         Offered Price
                       </div>
                       <div className="flex items-center justify-center gap-2">
-                        <div className="text-lg font-bold">{offer.price} kr</div>
+                        <div className="text-lg font-bold">
+                          {offer.price} kr
+                        </div>
                         {announcementPrice &&
                           offer.price !== announcementPrice && (
                             <Badge
@@ -178,7 +187,13 @@ export function PackageOffersTab({
                       <Button
                         onClick={() => handleAccept(offer)}
                         disabled={isAccepting || isAccepted}
-                        variant={isAccepted ? "outline" : hasError ? "destructive" : "default"}
+                        variant={
+                          isAccepted
+                            ? "outline"
+                            : hasError
+                              ? "destructive"
+                              : "default"
+                        }
                         className="w-full font-mono text-xs uppercase"
                       >
                         {isAccepting ? (

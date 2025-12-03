@@ -25,19 +25,12 @@ const shutdown = async (signal: string) => {
 
     // Close server
     if (server) {
-      server.close(() => {
-        console.log("HTTP server closed");
-        process.exit(0);
-      });
+      server.close().closeAllConnections();
     } else {
-      process.exit(0);
-    }
-
-    // Force exit after 10 seconds if graceful shutdown fails
-    setTimeout(() => {
-      console.error("Forced shutdown after timeout");
+      console.error("No server to shutdown!");
       process.exit(1);
-    }, 10000);
+    }
+    process.exit(0);
   } catch (error) {
     console.error("Error during shutdown:", error);
     process.exit(1);
@@ -45,8 +38,8 @@ const shutdown = async (signal: string) => {
 };
 
 // Register shutdown handlers
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", async () => await shutdown("SIGTERM"));
+process.on("SIGINT", async () => await shutdown("SIGINT"));
 
 // Initialize and start server
 app.prepare().then(async () => {

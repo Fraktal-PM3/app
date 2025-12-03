@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package } from "@/types/package";
+import { Package, Status } from "@/types/package";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -86,7 +86,7 @@ export function PackageDetailsHeader({
     } catch (error) {
       console.error("Error announcing package:", error);
       setAnnounceError(
-        error instanceof Error ? error.message : "Failed to announce package"
+        error instanceof Error ? error.message : "Failed to announce package",
       );
     } finally {
       setIsAnnouncing(false);
@@ -178,39 +178,43 @@ export function PackageDetailsHeader({
               </Badge>
             )}
           </div>
-          {isSender && isOwner && !hasActiveAnnouncement && packageData.packageDetails && (
-            <div className="flex flex-col gap-1">
-              <Button
-                onClick={handleOpenAnnounceDialog}
-                disabled={
-                  announceSuccess ||
-                  packageData.status === "succeeded" ||
-                  packageData.status === "failed" ||
-                  packageData.active === "false"
-                }
-                size="sm"
-                variant={hasActiveAnnouncement ? "outline" : "default"}
-                className="font-mono text-xs uppercase"
-              >
-                {announceSuccess ? (
-                  <>
-                    <CheckCircle2 className="mr-2 h-3 w-3" />
-                    Announced!
-                  </>
-                ) : hasActiveAnnouncement ? (
-                  <>
-                    <CheckCircle2 className="mr-2 h-3 w-3" />
-                    Already Announced
-                  </>
-                ) : (
-                  <>
-                    <Megaphone className="mr-2 h-3 w-3" />
-                    Announce Package
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+          {isSender &&
+            isOwner &&
+            packageData.status !== Status.DELIVERED &&
+            !hasActiveAnnouncement &&
+            packageData.packageDetails && (
+              <div className="flex flex-col gap-1">
+                <Button
+                  onClick={handleOpenAnnounceDialog}
+                  disabled={
+                    announceSuccess ||
+                    packageData.status === "succeeded" ||
+                    packageData.status === "failed" ||
+                    packageData.active === "false"
+                  }
+                  size="sm"
+                  variant={hasActiveAnnouncement ? "outline" : "default"}
+                  className="font-mono text-xs uppercase"
+                >
+                  {announceSuccess ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-3 w-3" />
+                      Announced!
+                    </>
+                  ) : hasActiveAnnouncement ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-3 w-3" />
+                      Already Announced
+                    </>
+                  ) : (
+                    <>
+                      <Megaphone className="mr-2 h-3 w-3" />
+                      Announce Package
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
         </div>
       </div>
 
@@ -222,13 +226,17 @@ export function PackageDetailsHeader({
               Announce Package
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Broadcast this package to all transporters with your suggested price
+              Broadcast this package to all transporters with your suggested
+              price
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="announce-price" className="text-xs uppercase tracking-wider">
+              <Label
+                htmlFor="announce-price"
+                className="text-xs uppercase tracking-wider"
+              >
                 Suggested Price (SEK)
               </Label>
               <Input

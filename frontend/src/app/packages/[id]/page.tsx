@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  MapPin,
   Package as PackageIcon,
   Truck,
 } from "lucide-react";
@@ -38,7 +39,14 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { checkPackageOwnership, checkIsSender, executeTransfer } from "./actions";
+import {
+  checkPackageOwnership,
+  checkIsSender,
+  confirmPackageReceipt,
+  executeTransfer,
+  initiateDelivery,
+  markPackageInTransit,
+} from "./actions";
 
 // Dynamically import PackageMap with SSR disabled to avoid Leaflet window errors
 const PackageMap = dynamic(
@@ -62,6 +70,9 @@ export default function PackageDetailsPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [isSender, setIsSender] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [isDelivering, setIsDelivering] = useState(false);
+  const [isMarkingInTransit, setIsMarkingInTransit] = useState(false);
+  const [isTransferringToPM3, setIsTransferringToPM3] = useState(false);
 
   const acceptedTransfer = useMemo(() => {
     return transfers.find(
@@ -139,6 +150,48 @@ export default function PackageDetailsPage() {
       refetch();
     }
   }, [isConnected, refetch]);
+
+  const handleMarkInTransit = async (externalId: string) => {
+    setIsMarkingInTransit(true);
+    try {
+      const result = await markPackageInTransit(externalId);
+      if (!result.success) {
+        console.error("Error marking package in transit:", result.error);
+      }
+    } catch (error) {
+      console.error("Error marking package in transit:", error);
+    } finally {
+      setIsMarkingInTransit(false);
+    }
+  };
+
+  const handleDeliver = async (externalId: string) => {
+    setIsDelivering(true);
+    try {
+      const result = await initiateDelivery(externalId);
+      if (!result.success) {
+        console.error("Error initiating delivery:", result.error);
+      }
+    } catch (error) {
+      console.error("Error initiating delivery:", error);
+    } finally {
+      setIsDelivering(false);
+    }
+  };
+
+  const handleTransferToPM3 = async (externalId: string) => {
+    setIsTransferringToPM3(true);
+    try {
+      const result = await confirmPackageReceipt(externalId);
+      if (!result.success) {
+        console.error("Error transferring to PM3:", result.error);
+      }
+    } catch (error) {
+      console.error("Error transferring to PM3:", error);
+    } finally {
+      setIsTransferringToPM3(false);
+    }
+  };
 
   if (isLoading || transfersLoading || announcementsLoading || !packageData) {
     return (
@@ -221,65 +274,149 @@ export default function PackageDetailsPage() {
         <Separator className="bg-border" />
 
         {/* Accepted Transfer Notice */}
-        {packageData.status === Status.READY_FOR_PICKUP && acceptedTransfer && (
+        {packageData.status === Status.READY_FOR_PICKUP &&
+          acceptedTransfer &&
+          isOwner && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="border-green-500/50 bg-green-500/10">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
+                      <div className="space-y-1">
+                        <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-green-500">
+                          Transfer Accepted
+                        </h3>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          Transfer from{" "}
+                          <span className="font-semibold">
+                            {acceptedTransfer.fromMSP}
+                          </span>{" "}
+                          to{" "}
+                          <span className="font-semibold">
+                            {acceptedTransfer.toMSP}
+                          </span>
+                        </p>
+                        {acceptedTransfer.price && (
+                          <p className="font-mono text-xs text-muted-foreground">
+                            Price:{" "}
+                            <span className="font-semibold">
+                              {acceptedTransfer.price} kr
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      onClick={async () => {
+                        setIsExecuting(true);
+                        try {
+                          await executeTransfer(
+                            acceptedTransfer.transferId,
+                            acceptedTransfer.externalId,
+                          );
+                        } catch (error) {
+                          console.error("Error executing transfer:", error);
+                        } finally {
+                          setIsExecuting(false);
+                        }
+                      }}
+                      disabled={isExecuting}
+                      className="font-mono text-xs uppercase"
+                    >
+                      {isExecuting ? (
+                        <>
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                          Executing...
+                        </>
+                      ) : (
+                        "Execute Transfer"
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+        {/* Deliver Package Action */}
+        {packageData.status === Status.IN_TRANSIT && isOwner && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border-green-500/50 bg-green-500/10">
+            <Card className="border-amber-500/50 bg-amber-500/10">
               <CardContent className="p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-3">
-                    <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
+                    <MapPin className="h-6 w-6 text-amber-500 flex-shrink-0 mt-1" />
                     <div className="space-y-1">
-                      <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-green-500">
-                        Offer Accepted
+                      <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-amber-500">
+                        Ready for Delivery
                       </h3>
                       <p className="font-mono text-xs text-muted-foreground">
-                        Transfer from{" "}
-                        <span className="font-semibold">
-                          {acceptedTransfer.fromMSP}
-                        </span>{" "}
-                        to{" "}
-                        <span className="font-semibold">
-                          {acceptedTransfer.toMSP}
-                        </span>
+                        Package is in transit. Complete delivery to recipient.
                       </p>
-                      {acceptedTransfer.price && (
-                        <p className="font-mono text-xs text-muted-foreground">
-                          Price:{" "}
-                          <span className="font-semibold">
-                            {acceptedTransfer.price} kr
-                          </span>
-                        </p>
-                      )}
                     </div>
                   </div>
                   <Button
-                    onClick={async () => {
-                      setIsExecuting(true);
-                      try {
-                        await executeTransfer(
-                          acceptedTransfer.transferId,
-                          acceptedTransfer.externalId,
-                        );
-                      } catch (error) {
-                        console.error("Error executing transfer:", error);
-                      } finally {
-                        setIsExecuting(false);
-                      }
-                    }}
-                    disabled={isExecuting}
+                    onClick={() => handleDeliver(packageData.id)}
+                    disabled={isDelivering}
                     className="font-mono text-xs uppercase"
                   >
-                    {isExecuting ? (
+                    {isDelivering ? (
                       <>
                         <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        Executing...
+                        Delivering...
                       </>
                     ) : (
-                      "Execute Transfer"
+                      "Deliver Package"
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Transfer to PM3 Action */}
+        {packageData.status === Status.DELIVERED && isOwner && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="border-blue-500/50 bg-blue-500/10">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-6 w-6 text-blue-500 flex-shrink-0 mt-1" />
+                    <div className="space-y-1">
+                      <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-blue-500">
+                        Delivery Complete
+                      </h3>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        Mark package as completed (transfers to PM3)
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => handleTransferToPM3(packageData.id)}
+                    disabled={isTransferringToPM3}
+                    className="font-mono text-xs uppercase"
+                  >
+                    {isTransferringToPM3 ? (
+                      <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Completing...
+                      </>
+                    ) : (
+                      "Mark as Completed"
                     )}
                   </Button>
                 </div>
@@ -295,7 +432,11 @@ export default function PackageDetailsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <PackageTrackingCard packageData={packageData} />
+            <PackageTrackingCard
+              packageData={packageData}
+              isOwner={isOwner}
+              onMarkInTransit={() => handleMarkInTransit(packageData.id)}
+            />
           </motion.div>
 
           {/* Package Map */}

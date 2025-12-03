@@ -7,12 +7,13 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAnnouncements, usePackages } from "@/providers";
-import { Package } from "@/types/package";
+import { Package, Status } from "@/types/package";
 import { motion } from "framer-motion";
 import { Package as PackageIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { getCurrentMspId } from "./[id]/actions";
 
 export default function MyPackagesPage() {
   const { packages, isLoading, isConnected, error, refetch } = usePackages();
@@ -24,8 +25,12 @@ export default function MyPackagesPage() {
 
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [currentMspId, setCurrentMspId] = useState<string | null>(null);
 
-  const isReceiver = process.env.NEXT_PUBLIC_RECEIVER === "TRUE";
+  // Get current MSP ID on mount
+  useEffect(() => {
+    getCurrentMspId().then(setCurrentMspId);
+  }, []);
 
   const handleAnnounce = (pkg: Package) => {
     setSelectedPackage(pkg);
@@ -70,14 +75,14 @@ export default function MyPackagesPage() {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto space-y-6 px-4 py-6 md:py-8">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-4 w-64" />
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-10 w-32" />
           </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <Separator className="bg-border" />
+          <Separator className="bg-border" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-[400px]" />
@@ -150,7 +155,10 @@ export default function MyPackagesPage() {
                             package={pkg}
                             isAnnounced={announcedPackageIds.has(pkg.id)}
                             onAnnounce={handleAnnounce}
-                            showReceiptButton={isReceiver}
+                            showReceiptButton={
+                              pkg.status === Status.DELIVERED &&
+                              pkg.ownerOrgMSP === currentMspId
+                            }
                           />
                         </Link>
                       </motion.div>
@@ -186,7 +194,10 @@ export default function MyPackagesPage() {
                           package={pkg}
                           isAnnounced={announcedPackageIds.has(pkg.id)}
                           onAnnounce={handleAnnounce}
-                          showReceiptButton={isReceiver}
+                          showReceiptButton={
+                            pkg.status === Status.DELIVERED &&
+                            pkg.ownerOrgMSP === currentMspId
+                          }
                         />
                       </Link>
                     </motion.div>
@@ -221,7 +232,10 @@ export default function MyPackagesPage() {
                           package={pkg}
                           isAnnounced={announcedPackageIds.has(pkg.id)}
                           onAnnounce={handleAnnounce}
-                          showReceiptButton={isReceiver}
+                          showReceiptButton={
+                            pkg.status === Status.DELIVERED &&
+                            pkg.ownerOrgMSP === currentMspId
+                          }
                         />
                       </Link>
                     </motion.div>

@@ -18,6 +18,7 @@ import React, {
   useState,
 } from "react";
 import { useSSEConnection } from "./SSEConnectionProvider";
+import { TransferToPM3Event } from "fraktal-lib";
 
 // Helper to normalize date fields to ISO strings
 function toIso(s?: string | null | undefined): string | undefined {
@@ -116,17 +117,11 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       }),
 
       // StatusUpdated - update package status
-      subscribe<StatusUpdatedEvent>("StatusUpdated", (data) => {
+      subscribe<StatusUpdatedEvent>("StatusUpdated", async (data) => {
+        setIsLoading(true);
         console.log("[PackageProvider] StatusUpdated event:", data);
-        const packageId = data.output?.externalId;
-        const status = data.output?.status;
-        if (packageId) {
-          setPackages((prev) =>
-            prev.map((pkg) =>
-              pkg.id === packageId ? { ...pkg, active: status } : pkg,
-            ),
-          );
-        }
+        await refetchPackages();
+        setIsLoading(false);
       }),
 
       // DeletePackage - remove package
@@ -154,6 +149,12 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       subscribe<TransferExecutedEvent>("TransferExecuted", async (data) => {
         console.log("[PackageProvider] TransferExecuted event:", data);
         await Promise.all([refetchPackages(), refetchTransfers()]);
+      }),
+
+      // TransferToPM3 - refetch packages
+      subscribe<TransferToPM3Event>("TransferToPM3", async (data) => {
+        console.log("[PackageProvider] TransferToPM3 event:", data);
+        await refetchPackages();
       }),
     ];
 

@@ -48,14 +48,16 @@ export function AnnouncementCard({
     );
   };
 
-  const isAccepted = announcement.transferStatus === 'accepted';
+  const isAccepted = announcement.transferStatus === "accepted";
 
   return (
-    <Card className={`font-mono transition-all hover:border-primary/50 h-full flex flex-col ${
-      isAccepted
-        ? 'border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30'
-        : 'border-border bg-card'
-    }`}>
+    <Card
+      className={`font-mono transition-all hover:border-primary/50 h-full flex flex-col ${
+        isAccepted
+          ? "border-green-500 dark:border-green-600 border-2 bg-green-50 dark:bg-green-950/30"
+          : "border-border bg-card"
+      }`}
+    >
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 flex-1">
@@ -67,15 +69,24 @@ export function AnnouncementCard({
           <div className="flex flex-wrap gap-2">
             {getUrgencyBadge()}
             {isAccepted ? (
-              <Badge variant="default" className="bg-green-600 font-mono text-xs whitespace-nowrap">
+              <Badge
+                variant="default"
+                className="bg-green-600 font-mono text-xs whitespace-nowrap"
+              >
                 ACCEPTED
               </Badge>
             ) : userOffers.length > 0 ? (
-              <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 font-mono text-xs whitespace-nowrap">
-                {userOffers.length} OFFER{userOffers.length > 1 ? 'S' : ''} SENT
+              <Badge
+                variant="outline"
+                className="bg-blue-50 dark:bg-blue-950 font-mono text-xs whitespace-nowrap"
+              >
+                {userOffers.length} OFFER{userOffers.length > 1 ? "S" : ""} SENT
               </Badge>
             ) : (
-              <Badge variant="default" className="bg-green-600 font-mono text-xs whitespace-nowrap">
+              <Badge
+                variant="default"
+                className="bg-green-600 font-mono text-xs whitespace-nowrap"
+              >
                 AVAILABLE
               </Badge>
             )}
@@ -141,7 +152,10 @@ export function AnnouncementCard({
                 </span>
                 <span className="font-semibold text-right">
                   {announcement.createdAt
-                    ? format(new Date(announcement.createdAt), "MMM dd, yyyy HH:mm")
+                    ? format(
+                        new Date(announcement.createdAt),
+                        "MMM dd, yyyy HH:mm",
+                      )
                     : "N/A"}
                 </span>
               </div>
@@ -181,7 +195,9 @@ export function AnnouncementCard({
               size="sm"
               disabled={userOffers.length >= 1}
             >
-              {userOffers.length > 0 ? 'Send Another Offer' : 'Send Transfer Offer'}
+              {userOffers.length > 0
+                ? "Send Another Offer"
+                : "Send Transfer Offer"}
             </Button>
           )}
 
@@ -189,7 +205,8 @@ export function AnnouncementCard({
           {userOffers.length > 0 && (
             <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
               <div className="text-center text-xs font-bold uppercase text-blue-900 dark:text-blue-200">
-                Your Offer{userOffers.length > 1 ? 's' : ''} ({userOffers.length})
+                Your Offer{userOffers.length > 1 ? "s" : ""} (
+                {userOffers.length})
               </div>
               <Separator className="bg-blue-200 dark:bg-blue-800" />
               <div className="max-h-[200px] space-y-3 overflow-y-auto">
@@ -202,7 +219,9 @@ export function AnnouncementCard({
                       <div className="text-xs font-bold text-blue-700 dark:text-blue-400">
                         Offer #{userOffers.length - index}
                         {index === 0 && (
-                          <span className="ml-2 text-blue-600 dark:text-blue-300">(Latest)</span>
+                          <span className="ml-2 text-blue-600 dark:text-blue-300">
+                            (Latest)
+                          </span>
                         )}
                       </div>
                     )}
@@ -219,7 +238,7 @@ export function AnnouncementCard({
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-blue-700 dark:text-blue-400 flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          Delivery:
+                          Expiry:
                         </span>
                         <span className="font-semibold text-blue-900 dark:text-blue-100">
                           {format(new Date(offer.expiryISO), "MMM dd, HH:mm")}
@@ -227,7 +246,13 @@ export function AnnouncementCard({
                       </div>
                     )}
                     <div className="text-xs text-blue-600 dark:text-blue-400">
-                      Sent: {format(new Date(offer.createdISO || offer.createdAt || new Date()), "MMM dd, HH:mm")}
+                      Sent:{" "}
+                      {format(
+                        new Date(
+                          offer.createdISO || offer.createdAt || new Date(),
+                        ),
+                        "MMM dd, HH:mm",
+                      )}
                     </div>
                   </div>
                 ))}

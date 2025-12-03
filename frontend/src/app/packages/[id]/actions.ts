@@ -1,8 +1,11 @@
 "use server";
 
 import { getMspIdentity, getPackageService } from "@/app/api/packages/service";
+import dbConnect from "@/lib/dbService";
+import PackageModel from "@/models/package";
 import { TransferOffer } from "@/types/package";
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
+import { PrivateTransferTerms, Status, TransferTerms } from "fraktal-lib";
 
 /**
  * Server action to get the current node's MSP identity
@@ -24,7 +27,7 @@ export async function getCurrentMspId(): Promise<string | null> {
  * @returns true if current user owns the package
  */
 export async function checkPackageOwnership(
-  packageMspId: string | undefined
+  packageMspId: string | undefined,
 ): Promise<boolean> {
   console.log("Checking package ownership for MSP ID:", packageMspId);
   if (!packageMspId) {
@@ -34,7 +37,7 @@ export async function checkPackageOwnership(
   try {
     const identity = await getMspIdentity();
     console.log(
-      `Checking ownership: node MSP=${identity.mspId}, package MSP=${packageMspId}`
+      `Checking ownership: node MSP=${identity.mspId}, package MSP=${packageMspId}`,
     );
     return identity.mspId === packageMspId;
   } catch (error) {
@@ -80,7 +83,7 @@ export async function proposeTransfer(offer: TransferOffer) {
     offer.externalPackageId,
     offer.toMSP,
     terms,
-    new Date(Date.now() + 24 * 7 * 60 * 60 * 1000).toISOString()
+    new Date(Date.now() + 24 * 7 * 60 * 60 * 1000).toISOString(),
   );
 }
 
@@ -93,10 +96,9 @@ export async function proposeTransfer(offer: TransferOffer) {
  */
 export async function confirmPackageReceipt(
   externalId: string,
-  termsId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!externalId || !termsId) {
+    if (!externalId) {
       return {
         success: false,
         error: "Package ID and Terms ID are required",
@@ -104,7 +106,7 @@ export async function confirmPackageReceipt(
     }
 
     console.log(
-      `[confirmPackageReceipt] Confirming receipt for package ${externalId}, terms ${termsId}`
+      `[confirmPackageReceipt] Confirming receipt for package ${externalId}`,
     );
     const service = await getPackageService();
     const identity = await getMspIdentity();
@@ -151,7 +153,103 @@ export async function executeTransfer(transferId: string, externalId: string) {
   const res = await packageService.executeTransfer(
     externalId,
     transferId,
-    storeObject as any
+    storeObject as any,
   );
   console.log("ExecuteTransfer - result:", res);
+}
+
+/**
+ * Server action to mark package as in transit
+ * Called when transporter starts moving the package to destination
+ * @param externalId - The blockchain package ID
+ */
+export async function markPackageInTransit(externalId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    if (!externalId) {
+      return {
+        success: false,
+        error: "Package ID is required",
+      };
+    }
+    console.log(
+      `[markPackageInTransit] Marking package ${externalId} as in transit`,
+    );
+
+    const packageService = await getPackageService();
+
+    await packageService.updatePackageStatus(externalId, Status.IN_TRANSIT);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[markPackageInTransit] Error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to mark package in transit",
+    };
+  }
+}
+
+/**
+ * Server action to initiate delivery package to recipient
+ * @param externalId - The blockchain package ID
+ * @returns Success status
+ */
+export async function initiateDelivery(externalId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    if (!externalId) {
+      return {
+        success: false,
+        error: "Package ID is required",
+      };
+    }
+
+    console.log(
+      `[initiateDelivery] Initiating delivery for package ${externalId}`,
+    );
+
+    const packageService = await getPackageService();
+    const blockchainPackage =
+      await packageService.readBlockchainPackage(externalId);
+
+    if (!blockchainPackage) {
+      return {
+        success: false,
+        error: "Package not found",
+      };
+    }
+
+    const privateTerms: PrivateTransferTerms = {
+      price: 0,
+      salt: randomBytes(16).toString("hex"),
+    };
+
+    await packageService.proposeTransfer(
+      externalId,
+      blockchainPackage.recipientOrgMSP,
+      {
+        ...privateTerms,
+        id: randomUUID(),
+      },
+      // Set the expiryISO to be in 7 days as a default
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error("[initiateDelivery] Error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to initiate delivery",
+    };
+  }
 }
