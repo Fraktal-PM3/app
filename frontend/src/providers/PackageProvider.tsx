@@ -125,36 +125,43 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       }),
 
       // DeletePackage - remove package
-      subscribe<DeletePackageEvent>("DeletePackage", (data) => {
+      subscribe<DeletePackageEvent>("DeletePackage", async (data) => {
+        setIsLoading(true);
         console.log("[PackageProvider] DeletePackage event:", data);
-        const packageId = data.output?.externalId;
-        if (packageId) {
-          setPackages((prev) => prev.filter((pkg) => pkg.id !== packageId));
-        }
+        await refetchPackages();
+        setIsLoading(false);
       }),
 
       // ProposeTransfer - refetch packages to get updated termsId
       subscribe<ProposeTransferEvent>("ProposeTransfer", async (data) => {
+        setIsLoading(true);
         console.log("[PackageProvider] ProposeTransfer event:", data);
         await Promise.all([refetchPackages(), refetchTransfers()]);
+        setIsLoading(false);
       }),
 
       // AcceptTransfer - refetch packages and transfers
       subscribe<AcceptTransferEvent>("AcceptTransfer", async (data) => {
+        setIsLoading(true);
         console.log("[PackageProvider] AcceptTransfer event:", data);
         await Promise.all([refetchPackages(), refetchTransfers()]);
+        setIsLoading(false);
       }),
 
       // TransferExecuted - refetch packages and transfers
       subscribe<TransferExecutedEvent>("TransferExecuted", async (data) => {
+        setIsLoading(true);
         console.log("[PackageProvider] TransferExecuted event:", data);
         await Promise.all([refetchPackages(), refetchTransfers()]);
+        setIsLoading(false);
       }),
 
       // TransferToPM3 - refetch packages
       subscribe<TransferToPM3Event>("TransferToPM3", async (data) => {
+        setIsLoading(true);
         console.log("[PackageProvider] TransferToPM3 event:", data);
         await Promise.all([refetchPackages()]);
+        setIsLoading(false);
       }),
     ];
 
