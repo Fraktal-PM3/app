@@ -730,9 +730,14 @@ class EventListenerService {
         event.output.externalId,
       );
 
-      PackageModel.findOneAndUpdate(
+      console.log(
+        "[EventListener] Event TransferToPM3 - blockchainPackage:",
+        blockchainPackage,
+      );
+
+      await PackageModel.findOneAndUpdate(
         { id: event.output.externalId },
-        { status: blockchainPackage.status },
+        { ...blockchainPackage },
         { new: true },
       );
     } catch (error) {

@@ -8,7 +8,14 @@ import type {
   TransferExecutedEvent,
 } from "@/types/events";
 import type { PackageAnnouncement } from "@/types/package";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useSSEConnection } from "./SSEConnectionProvider";
 
 export interface TransferOffer {
@@ -30,7 +37,9 @@ interface AuctionContextValue {
   refetchAnnouncements: () => Promise<void>;
 }
 
-const AuctionContext = createContext<AuctionContextValue | undefined>(undefined);
+const AuctionContext = createContext<AuctionContextValue | undefined>(
+  undefined,
+);
 
 export function AuctionProvider({ children }: { children: React.ReactNode }) {
   const [announcements, setAnnouncements] = useState<PackageAnnouncement[]>([]);
@@ -46,14 +55,17 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       const response = await fetch("/api/announcements", { cache: "no-store" });
       if (!response.ok) {
-        throw new Error(`Failed to fetch announcements: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch announcements: ${response.statusText}`,
+        );
       }
       const data = await response.json();
       console.log("[AuctionProvider] Fetched announcements:", data);
       setAnnouncements(data || []);
       setError(null);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Failed to load announcements";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to load announcements";
       setError(errorMsg);
       console.error("[AuctionProvider] Error fetching announcements:", err);
     } finally {
@@ -77,7 +89,9 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
         const packageExternalId = packageDetails?.id;
 
         if (!packageExternalId) {
-          console.warn("[AuctionProvider] PackageAnnouncement missing package id");
+          console.warn(
+            "[AuctionProvider] PackageAnnouncement missing package id",
+          );
           return;
         }
 
@@ -95,7 +109,9 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
         };
 
         setAnnouncements((prev) => {
-          const exists = prev.some((a) => a.messageId === newAnnouncement.messageId);
+          const exists = prev.some(
+            (a) => a.messageId === newAnnouncement.messageId,
+          );
           if (exists) return prev;
           return [newAnnouncement, ...prev];
         });
@@ -130,13 +146,16 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
       subscribe<TransferExecutedEvent>("TransferExecuted", (data) => {
         const packageId = data.output?.externalId;
         if (packageId) {
-          console.log("[AuctionProvider] Marking announcement inactive for package:", packageId);
+          console.log(
+            "[AuctionProvider] Marking announcement inactive for package:",
+            packageId,
+          );
           setAnnouncements((prev) =>
             prev.map((announcement) =>
               announcement.packageExternalId === packageId
                 ? { ...announcement, isActive: false }
-                : announcement
-            )
+                : announcement,
+            ),
           );
         }
       }),
@@ -145,13 +164,16 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
       subscribe<DeletePackageEvent>("DeletePackage", (data) => {
         const packageId = data.output?.externalId;
         if (packageId) {
-          console.log("[AuctionProvider] Marking announcement inactive for deleted package:", packageId);
+          console.log(
+            "[AuctionProvider] Marking announcement inactive for deleted package:",
+            packageId,
+          );
           setAnnouncements((prev) =>
             prev.map((announcement) =>
               announcement.packageExternalId === packageId
                 ? { ...announcement, isActive: false }
-                : announcement
-            )
+                : announcement,
+            ),
           );
         }
       }),
@@ -159,28 +181,36 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
       // ProposeTransfer - mark announcement as accepted (status comes from DB via refetch)
       subscribe<ProposeTransferEvent>("ProposeTransfer", (data) => {
         console.log("[AuctionProvider] ProposeTransfer event received:", data);
-        
+
         const packageId = data.output?.externalId;
         // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
         const terms = (data.output as any)?.parsedTerms || data.output?.terms;
         const toMSP = terms?.toMSP;
-        
+
         if (packageId && toMSP) {
-          console.log("[AuctionProvider] Updating announcement status to accepted for package:", packageId);
-          
+          console.log(
+            "[AuctionProvider] Updating announcement status to accepted for package:",
+            packageId,
+          );
+
           // Update announcement in state with transferStatus from event
           // The status is already persisted in DB by eventListener
           setAnnouncements((prev) =>
             prev.map((announcement) => {
               if (announcement.packageExternalId === packageId) {
-                console.log("[AuctionProvider] Found matching announcement, updating to accepted");
-                return { ...announcement, transferStatus: 'accepted' };
+                console.log(
+                  "[AuctionProvider] Found matching announcement, updating to accepted",
+                );
+                return { ...announcement, transferStatus: "accepted" };
               }
               return announcement;
-            })
+            }),
           );
         } else {
-          console.warn("[AuctionProvider] ProposeTransfer missing required fields:", { packageId, toMSP });
+          console.warn(
+            "[AuctionProvider] ProposeTransfer missing required fields:",
+            { packageId, toMSP },
+          );
         }
       }),
     ];
@@ -198,10 +228,12 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
       error,
       refetchAnnouncements,
     }),
-    [announcements, offers, isLoading, error, refetchAnnouncements]
+    [announcements, offers, isLoading, error, refetchAnnouncements],
   );
 
-  return <AuctionContext.Provider value={value}>{children}</AuctionContext.Provider>;
+  return (
+    <AuctionContext.Provider value={value}>{children}</AuctionContext.Provider>
+  );
 }
 
 // Hook to access announcements
@@ -218,7 +250,6 @@ export function useAnnouncements(activeOnly: boolean = true) {
     ? context.announcements.filter((a) => a.isActive)
     : context.announcements;
 
-  console.log("[useAnnouncements] Returning announcements:", filteredAnnouncements);
   return {
     announcements: filteredAnnouncements,
     isLoading: context.isLoading,
