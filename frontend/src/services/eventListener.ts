@@ -409,7 +409,11 @@ class EventListenerService {
 
         console.log("TransferExecuted - found transfer:", transfer);
 
-        if (!transfer) return;
+        const packageData = await PackageModel.findOne({
+          id: event.output.externalId,
+        });
+
+        if (!transfer && !packageData) return;
 
         try {
           await this.handleTransferExecuted(event);
@@ -967,50 +971,47 @@ class EventListenerService {
         );
       }
 
-      const executed = await TransferModel.findOneAndUpdate(
-        { transferId: output.termsId },
-        {
-          status: event.output.status,
-          mspId: this.extractMSP(event),
-          blockchainTxId: event.txid,
-        },
-        { new: true },
-      );
-
-      if (!executed) {
-        console.warn(
-          `[EventListener] Transfer not found for TransferExecuted event: ${output.termsId}. Skipping update.`,
+      if (await TransferModel.exists({ transferId: output.termsId })) {
+        const executed = await TransferModel.findOneAndUpdate(
+          { transferId: output.termsId },
+          {
+            status: event.output.status,
+            mspId: this.extractMSP(event),
+            blockchainTxId: event.txid,
+          },
+          { new: true },
         );
-        return;
+
+        if (!executed) {
+          console.warn(
+            `[EventListener] Transfer not found for TransferExecuted event: ${output.termsId}. Skipping update.`,
+          );
+          return;
+        }
       }
 
-      // Mark all active announcements for this package as inactive
-      // since it has been transferred to a new owner
-      await PackageAnnouncementModel.updateMany(
-        {
+      if (
+        await PackageAnnouncementModel.exists({
           packageExternalId: output.externalId,
-          isActive: true,
-        },
-        {
-          $set: { isActive: false },
-        },
-      );
+        })
+      ) {
+        // Mark all active announcements for this package as inactive
+        // since it has been transferred to a new owner
+        await PackageAnnouncementModel.updateMany(
+          {
+            packageExternalId: output.externalId,
+            isActive: true,
+          },
+          {
+            $set: { isActive: false },
+          },
+        );
+      }
 
       console.log(`[EventListener] Transfer executed: ${output.termsId}`);
       console.log(
         `[EventListener] Marked announcements as inactive for package: ${output.externalId}`,
       );
-
-      // Check if I'm the transporter (the one who executed the transfer)
-      if (this.nodeMSP && executed.toMSP === this.nodeMSP) {
-        console.log(
-          `[EventListener] I am the transporter who executed transfer ${output.termsId}. Proposing transfer to recipient...`,
-        );
-        // await this.proposeTransferToRecipient(
-        //   output.externalId,
-        //   output.termsId
-        // );
-      }
     } catch (error) {
       console.error(
         "[EventListener] Error updating transfer execution:",
