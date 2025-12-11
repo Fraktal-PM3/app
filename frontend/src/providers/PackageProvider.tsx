@@ -1,11 +1,11 @@
 "use client";
 
 import type {
-  AcceptTransferEvent,
   CreatePackageEvent,
   DeletePackageEvent,
-  ProposeTransferEvent,
   StatusUpdatedEvent,
+  StatusUpdatedAfterProposeEvent,
+  StatusUpdatedAfterAcceptEvent,
   TransferExecutedEvent,
 } from "@/types/events";
 import type { Package, Transfer } from "@/types/package";
@@ -132,18 +132,18 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }),
 
-      // ProposeTransfer - refetch packages to get updated termsId
-      subscribe<ProposeTransferEvent>("ProposeTransfer", async (data) => {
+      // StatusUpdatedAfterPropose - refetch packages to get updated status
+      subscribe<StatusUpdatedAfterProposeEvent>("StatusUpdatedAfterPropose", async (data) => {
         setIsLoading(true);
-        console.log("[PackageProvider] ProposeTransfer event:", data);
+        console.log("[PackageProvider] StatusUpdatedAfterPropose event:", data);
         await Promise.all([refetchPackages(), refetchTransfers()]);
         setIsLoading(false);
       }),
 
-      // AcceptTransfer - refetch packages and transfers
-      subscribe<AcceptTransferEvent>("AcceptTransfer", async (data) => {
+      // StatusUpdatedAfterAccept - refetch packages and transfers
+      subscribe<StatusUpdatedAfterAcceptEvent>("StatusUpdatedAfterAccept", async (data) => {
         setIsLoading(true);
-        console.log("[PackageProvider] AcceptTransfer event:", data);
+        console.log("[PackageProvider] StatusUpdatedAfterAccept event:", data);
         await Promise.all([refetchPackages(), refetchTransfers()]);
         setIsLoading(false);
       }),

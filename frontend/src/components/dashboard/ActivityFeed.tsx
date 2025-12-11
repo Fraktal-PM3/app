@@ -28,13 +28,13 @@ export function ActivityFeed() {
             STATUS
           </Badge>
         );
-      case "ProposeTransfer":
+      case "StatusUpdatedAfterPropose":
         return (
           <Badge className="bg-yellow-600 text-white font-mono text-xs">
             PROPOSE
           </Badge>
         );
-      case "AcceptTransfer":
+      case "StatusUpdatedAfterAccept":
         return (
           <Badge className="bg-green-600 text-white font-mono text-xs">
             ACCEPT

@@ -4,7 +4,7 @@ import type {
   DeletePackageEvent,
   MessageEvent,
   PackageAnnouncementEvent,
-  ProposeTransferEvent,
+  StatusUpdatedAfterProposeEvent,
   TransferExecutedEvent,
 } from "@/types/events";
 import type { PackageAnnouncement } from "@/types/package";
@@ -178,38 +178,25 @@ export function AuctionProvider({ children }: { children: React.ReactNode }) {
         }
       }),
 
-      // ProposeTransfer - mark announcement as accepted (status comes from DB via refetch)
-      subscribe<ProposeTransferEvent>("ProposeTransfer", (data) => {
-        console.log("[AuctionProvider] ProposeTransfer event received:", data);
+      // StatusUpdatedAfterPropose - transfer proposed, refetch to get updated status from DB
+      subscribe<StatusUpdatedAfterProposeEvent>("StatusUpdatedAfterPropose", (data) => {
+        console.log("[AuctionProvider] StatusUpdatedAfterPropose event received:", data);
 
         const packageId = data.output?.externalId;
-        // Handle both 'terms' (library type) and 'parsedTerms' (actual runtime data)
-        const terms = (data.output as any)?.parsedTerms || data.output?.terms;
-        const toMSP = terms?.toMSP;
 
-        if (packageId && toMSP) {
+        if (packageId) {
           console.log(
-            "[AuctionProvider] Updating announcement status to accepted for package:",
+            "[AuctionProvider] Transfer proposed for package:",
             packageId,
+            "- refetching announcements",
           );
 
-          // Update announcement in state with transferStatus from event
+          // Refetch announcements to get updated status from DB
           // The status is already persisted in DB by eventListener
-          setAnnouncements((prev) =>
-            prev.map((announcement) => {
-              if (announcement.packageExternalId === packageId) {
-                console.log(
-                  "[AuctionProvider] Found matching announcement, updating to accepted",
-                );
-                return { ...announcement, transferStatus: "accepted" };
-              }
-              return announcement;
-            }),
-          );
+          refetchAnnouncements();
         } else {
           console.warn(
-            "[AuctionProvider] ProposeTransfer missing required fields:",
-            { packageId, toMSP },
+            "[AuctionProvider] StatusUpdatedAfterPropose missing packageId",
           );
         }
       }),

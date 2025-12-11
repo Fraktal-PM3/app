@@ -46,9 +46,6 @@ export class TransferOffer {
   public price!: number; // Offered price for delivery
 
   @prop({ required: true })
-  public createdISO!: Date; // When the offer was created (from message data)
-
-  @prop({ required: true })
   public expiryISO!: Date; // Proposed delivery date/time (expiryISO from message)
 
   // Firefly message metadata
@@ -72,7 +69,9 @@ export class TransferOffer {
 }
 
 // Export the model with hot reload handling for Next.js
-let TransferOfferModel: ReturnType<typeof getModelForClass<typeof TransferOffer>>;
+let TransferOfferModel: ReturnType<
+  typeof getModelForClass<typeof TransferOffer>
+>;
 try {
   TransferOfferModel =
     (mongoose.models && (mongoose.models.TransferOffer as any)) ||

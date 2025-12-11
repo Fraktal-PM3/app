@@ -4,8 +4,8 @@ import type {
   CreatePackageEvent,
   StatusUpdatedEvent,
   DeletePackageEvent,
-  ProposeTransferEvent,
-  AcceptTransferEvent,
+  StatusUpdatedAfterProposeEvent,
+  StatusUpdatedAfterAcceptEvent,
   TransferExecutedEvent,
   FireFlyDatatypeMessage,
 } from "fraktal-lib";
@@ -17,8 +17,8 @@ type TypedBlockchainEvent =
   | (BlockchainEventDelivery & { output: CreatePackageEvent })
   | (BlockchainEventDelivery & { output: StatusUpdatedEvent })
   | (BlockchainEventDelivery & { output: DeletePackageEvent })
-  | (BlockchainEventDelivery & { output: ProposeTransferEvent })
-  | (BlockchainEventDelivery & { output: AcceptTransferEvent })
+  | (BlockchainEventDelivery & { output: StatusUpdatedAfterProposeEvent })
+  | (BlockchainEventDelivery & { output: StatusUpdatedAfterAcceptEvent })
   | (BlockchainEventDelivery & { output: TransferExecutedEvent })
   | FireFlyDatatypeMessage;
 

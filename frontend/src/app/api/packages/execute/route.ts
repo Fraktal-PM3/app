@@ -1,25 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPackageService } from "../service";
 import type { PackageDetails, PackagePII } from "fraktal-lib";
+
 export const runtime = "nodejs";
 
 interface Body {
   externalId?: string;
   termsId?: string;
-  salt: string;
-  pii: PackagePII;
-  packageDetails: PackageDetails;
+  salt?: string;
+  pii?: PackagePII;
+  packageDetails?: PackageDetails;
 }
-// salt, pii , packageDetails
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Body;
     const { externalId, termsId, salt, pii, packageDetails } = body ?? {};
-    const storeObject = {
-        salt: body.salt as string,
-        pii: body.pii as PackagePII,
-        packageDetails: body.packageDetails as PackageDetails
-    };
 
     if (!externalId || !termsId) {
       return NextResponse.json(
@@ -28,12 +24,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!storeObject) {
+    if (!salt || !pii || !packageDetails) {
       return NextResponse.json(
-        { success: false, error: "`storeObject` is required." },
+        { success: false, error: "`salt`, `pii`, and `packageDetails` are required." },
         { status: 400 }
       );
     }
+
+    const storeObject = {
+      salt,
+      pii,
+      packageDetails
+    };
 
     const service = await getPackageService();
 

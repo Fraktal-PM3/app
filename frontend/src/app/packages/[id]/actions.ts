@@ -5,7 +5,7 @@ import dbConnect from "@/lib/dbService";
 import PackageModel from "@/models/package";
 import { TransferOffer } from "@/types/package";
 import { randomBytes, randomUUID } from "crypto";
-import { PrivateTransferTerms, Status, TransferTerms } from "fraktal-lib";
+import { Status, TransferTerms } from "fraktal-lib";
 
 /**
  * Server action to get the current node's MSP identity
@@ -72,18 +72,26 @@ export async function checkIsSender(
  */
 export async function proposeTransfer(offer: TransferOffer) {
   console.log("Proposing transfer for offer:", offer);
-  const terms = {
+  const termsId = randomUUID();
+  const transferTerms: TransferTerms = {
+    externalPackageId: offer.externalPackageId,
+    fromMSP: offer.fromMSP,
+    toMSP: offer.toMSP,
     price: offer.price,
-    id: randomUUID(),
-    salt: crypto.getRandomValues(new Uint8Array(16)).toString(),
+    expiryISO: offer.expiryISO,
   };
 
   const packageService = await getPackageService();
   await packageService.proposeTransfer(
     offer.externalPackageId,
-    offer.toMSP,
-    terms,
-    new Date(Date.now() + 24 * 7 * 60 * 60 * 1000).toISOString(),
+    termsId,
+    transferTerms,
+  );
+
+  await packageService.updateStatusAfterPropose(
+    offer.externalPackageId,
+    termsId,
+    transferTerms.toMSP,
   );
 }
 
@@ -227,20 +235,21 @@ export async function initiateDelivery(externalId: string): Promise<{
       };
     }
 
-    const privateTerms: PrivateTransferTerms = {
+    const identity = await getMspIdentity();
+    const termsId = randomUUID();
+    const transferTerms: TransferTerms = {
+      externalPackageId: externalId,
+      fromMSP: identity.mspId,
+      toMSP: blockchainPackage.recipientOrgMSP,
       price: 0,
-      salt: randomBytes(16).toString("hex"),
+      expiryISO: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
-    await packageService.proposeTransfer(
+    await packageService.proposeTransfer(externalId, termsId, transferTerms);
+    await packageService.updateStatusAfterPropose(
       externalId,
-      blockchainPackage.recipientOrgMSP,
-      {
-        ...privateTerms,
-        id: randomUUID(),
-      },
-      // Set the expiryISO to be in 7 days as a default
-      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      termsId,
+      transferTerms.toMSP,
     );
 
     return { success: true };

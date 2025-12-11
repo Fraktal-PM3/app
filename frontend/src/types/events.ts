@@ -17,21 +17,18 @@ export interface DeletePackageOutput {
   externalId: string;
 }
 
-export interface TransferTerms {
-  fromMSP: string;
-  toMSP: string;
-  price?: number;
+export interface StatusUpdatedAfterProposeOutput {
+  externalId: string;
+  termsID: string;
+  status: string;
+  caller: string;
 }
 
-export interface ProposeTransferOutput {
+export interface StatusUpdatedAfterAcceptOutput {
   externalId: string;
-  termsId: string;
-  terms?: TransferTerms;
-}
-
-export interface AcceptTransferOutput {
-  externalId: string;
-  termsId: string;
+  termsID: string;
+  status: string;
+  caller: string;
 }
 
 export interface TransferExecutedOutput {
@@ -73,8 +70,8 @@ export interface MessageEvent {
 export type CreatePackageEvent = BlockchainEvent<CreatePackageOutput>;
 export type StatusUpdatedEvent = BlockchainEvent<StatusUpdatedOutput>;
 export type DeletePackageEvent = BlockchainEvent<DeletePackageOutput>;
-export type ProposeTransferEvent = BlockchainEvent<ProposeTransferOutput>;
-export type AcceptTransferEvent = BlockchainEvent<AcceptTransferOutput>;
+export type StatusUpdatedAfterProposeEvent = BlockchainEvent<StatusUpdatedAfterProposeOutput>;
+export type StatusUpdatedAfterAcceptEvent = BlockchainEvent<StatusUpdatedAfterAcceptOutput>;
 export type TransferExecutedEvent = BlockchainEvent<TransferExecutedOutput>;
 export type PackageAnnouncementEvent = MessageEvent & {
   value: PackageAnnouncementValue;

@@ -7,8 +7,8 @@ export type ActivityType =
   | "CreatePackage"
   | "StatusUpdated"
   | "DeletePackage"
-  | "ProposeTransfer"
-  | "AcceptTransfer"
+  | "StatusUpdatedAfterPropose"
+  | "StatusUpdatedAfterAccept"
   | "TransferExecuted"
   | "PackageAnnouncement"
   | "TransferOffer"
@@ -111,33 +111,33 @@ function transformEventToActivity(eventName: string, data: any): Activity | null
       };
     }
 
-    case "ProposeTransfer": {
+    case "StatusUpdatedAfterPropose": {
       const packageId = data.output?.externalId;
-      const termsId = data.output?.termsId;
-      const fromMSP = data.output?.terms?.fromMSP;
-      const toMSP = data.output?.terms?.toMSP;
+      const termsID = data.output?.termsID;
+      const status = data.output?.status;
 
       return {
-        id: `propose-${termsId}-${Date.now()}`,
-        type: "ProposeTransfer",
+        id: `propose-${termsID}-${Date.now()}`,
+        type: "StatusUpdatedAfterPropose",
         timestamp: data.timestamp || new Date().toISOString(),
         title: "Transfer Proposed",
-        description: `${fromMSP} proposed transfer of package ${packageId} to ${toMSP}`,
-        metadata: { packageId, termsId, fromMSP, toMSP },
+        description: `Package ${packageId} status updated to ${status} after transfer proposal`,
+        metadata: { packageId, termsID, status },
       };
     }
 
-    case "AcceptTransfer": {
+    case "StatusUpdatedAfterAccept": {
       const packageId = data.output?.externalId;
-      const termsId = data.output?.termsId;
+      const termsID = data.output?.termsID;
+      const status = data.output?.status;
 
       return {
-        id: `accept-${termsId}-${Date.now()}`,
-        type: "AcceptTransfer",
+        id: `accept-${termsID}-${Date.now()}`,
+        type: "StatusUpdatedAfterAccept",
         timestamp: data.timestamp || new Date().toISOString(),
         title: "Transfer Accepted",
-        description: `Transfer proposal for package ${packageId} was accepted`,
-        metadata: { packageId, termsId },
+        description: `Package ${packageId} status updated to ${status} after transfer acceptance`,
+        metadata: { packageId, termsID, status },
       };
     }
 
