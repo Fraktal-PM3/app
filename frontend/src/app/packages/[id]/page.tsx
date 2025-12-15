@@ -77,7 +77,7 @@ export default function PackageDetailsPage() {
   const acceptedTransfer = useMemo(() => {
     return transfers.find(
       (transfer) =>
-        transfer.status === Status.READY_FOR_PICKUP &&
+        transfer.status === "accepted" &&
         transfer.externalId === packageData?.id,
     );
   }, [transfers, packageData]);

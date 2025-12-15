@@ -3,7 +3,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Transfer } from "@/types/package";
-import { Status } from "fraktal-lib";
 import { format } from "date-fns";
 import { Truck } from "lucide-react";
 
@@ -12,19 +11,18 @@ interface PackageTransfersTabProps {
 }
 
 export function PackageTransfersTab({ transfers }: PackageTransfersTabProps) {
-  const getTransferStatusBadge = (status: Status) => {
+  const getTransferStatusBadge = (
+    status: "pending" | "proposed" | "accepted" | "executed" | "rejected",
+  ) => {
     const variants: Record<
-      Status,
+      "pending" | "proposed" | "accepted" | "executed" | "rejected",
       "default" | "secondary" | "destructive" | "outline"
     > = {
-      [Status.PENDING]: "secondary",
-      [Status.PROPOSED]: "outline",
-      [Status.READY_FOR_PICKUP]: "default",
-      [Status.PICKED_UP]: "default",
-      [Status.IN_TRANSIT]: "default",
-      [Status.DELIVERED]: "secondary",
-      [Status.SUCCEEDED]: "secondary",
-      [Status.FAILED]: "destructive",
+      ["pending"]: "secondary",
+      ["proposed"]: "outline",
+      ["accepted"]: "default",
+      ["executed"]: "default",
+      ["rejected"]: "destructive",
     };
 
     return (

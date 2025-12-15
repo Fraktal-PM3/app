@@ -113,31 +113,31 @@ function transformEventToActivity(eventName: string, data: any): Activity | null
 
     case "StatusUpdatedAfterPropose": {
       const packageId = data.output?.externalId;
-      const termsID = data.output?.termsID;
+      const termsId = data.output?.termsId;
       const status = data.output?.status;
 
       return {
-        id: `propose-${termsID}-${Date.now()}`,
+        id: `propose-${termsId}-${Date.now()}`,
         type: "StatusUpdatedAfterPropose",
         timestamp: data.timestamp || new Date().toISOString(),
         title: "Transfer Proposed",
         description: `Package ${packageId} status updated to ${status} after transfer proposal`,
-        metadata: { packageId, termsID, status },
+        metadata: { packageId, termsId, status },
       };
     }
 
     case "StatusUpdatedAfterAccept": {
       const packageId = data.output?.externalId;
-      const termsID = data.output?.termsID;
+      const termsId = data.output?.termsId;
       const status = data.output?.status;
 
       return {
-        id: `accept-${termsID}-${Date.now()}`,
+        id: `accept-${termsId}-${Date.now()}`,
         type: "StatusUpdatedAfterAccept",
         timestamp: data.timestamp || new Date().toISOString(),
         title: "Transfer Accepted",
         description: `Package ${packageId} status updated to ${status} after transfer acceptance`,
-        metadata: { packageId, termsID, status },
+        metadata: { packageId, termsId, status },
       };
     }
 

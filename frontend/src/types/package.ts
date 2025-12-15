@@ -47,7 +47,7 @@ export type Package = {
   _id: string;
   id: string; // UUID - same as blockchain externalId
   name: string; // Human-readable package name/identifier
-  recipientMSP: string; // MSP of the recipient
+  recipientOrgMSP: string; // MSP of the recipient
   termsId?: string;
   status: string;
   packageDetails?: PackageDetails;
@@ -72,7 +72,7 @@ export type Transfer = {
   externalId: string; // External package ID
   fromMSP: string; // MSP initiating the transfer
   toMSP: string; // MSP targeted to receive the package
-  status: Status;
+  status: "pending" | "proposed" | "accepted" | "executed" | "rejected";
   mspId: string;
   price?: number; // Price for the transfer (from private transfer terms)
   announcementMessageId?: string; // References PackageAnnouncement.messageId

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import { usePackages, useTransfers } from "./PackageProvider";
 import { useAnnouncements } from "./AuctionProvider";
 import { addHours, differenceInHours, format, startOfWeek } from "date-fns";
@@ -45,7 +51,9 @@ interface MetricsContextValue {
   metrics: PackageMetrics;
 }
 
-const MetricsContext = createContext<MetricsContextValue | undefined>(undefined);
+const MetricsContext = createContext<MetricsContextValue | undefined>(
+  undefined,
+);
 
 export function MetricsProvider({ children }: { children: React.ReactNode }) {
   const [role, setRoleState] = useState<UserRole>("sender");
@@ -76,7 +84,8 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
     }
 
     // 3. Fall back to environment variable
-    const envRole = process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE" ? "transporter" : "sender";
+    const envRole =
+      process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE" ? "transporter" : "sender";
     setRoleState(envRole);
     setIsRoleDetected(true);
   }, [packages]);
@@ -92,30 +101,32 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
   const metrics = useMemo(() => {
     // Active shipments
     const activeShipments = packages.filter(
-      (pkg) => pkg.active === "true" && pkg.packageDetails
+      (pkg) => pkg.active === "true" && pkg.packageDetails,
     ).length;
 
     // Get only SUCCEEDED transfers for financial calculations
     const executedTransfers = transfers.filter(
-      (t) => t.status === Status.SUCCEEDED && t.price && t.price > 0
+      (t) => t.status === "executed" && t.price && t.price > 0,
     );
 
     // Total earnings and spending
     const totalEarnings = executedTransfers.reduce(
       (sum, transfer) => sum + (transfer.price || 0),
-      0
+      0,
     );
     const totalSpending = executedTransfers.reduce(
       (sum, transfer) => sum + (transfer.price || 0),
-      0
+      0,
     );
 
     // Acceptance rate
     const packagesWithTerms = packages.filter(
-      (pkg) => pkg.termsId && pkg.termsId !== "null"
+      (pkg) => pkg.termsId && pkg.termsId !== "null",
     );
     const acceptanceRate =
-      packages.length > 0 ? (packagesWithTerms.length / packages.length) * 100 : 0;
+      packages.length > 0
+        ? (packagesWithTerms.length / packages.length) * 100
+        : 0;
 
     // On-time delivery rate
     const completedPackages = packages.filter((pkg) => pkg.active === "false");
@@ -134,7 +145,9 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
 
     // Delivery estimates for active packages
     const deliveryEstimates = packages
-      .filter((pkg) => pkg.active === "true" && pkg.packageDetails && pkg.createdAt)
+      .filter(
+        (pkg) => pkg.active === "true" && pkg.packageDetails && pkg.createdAt,
+      )
       .map((pkg) => {
         const createdAt = new Date(pkg.createdAt!);
         const expectedHours = getExpectedHours(pkg.packageDetails!.urgency);
@@ -184,10 +197,12 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
       setRole,
       metrics,
     }),
-    [role, isRoleDetected, metrics]
+    [role, isRoleDetected, metrics],
   );
 
-  return <MetricsContext.Provider value={value}>{children}</MetricsContext.Provider>;
+  return (
+    <MetricsContext.Provider value={value}>{children}</MetricsContext.Provider>
+  );
 }
 
 // Hook to access metrics
@@ -219,7 +234,9 @@ function analyzePackageActivity(packages: Package[]): UserRole {
 
   // Heuristic: If more than half of recent packages have price set,
   // assume user is more involved in transport
-  const packagesWithPrice = recentPackages.filter((pkg) => pkg.price && pkg.price > 0);
+  const packagesWithPrice = recentPackages.filter(
+    (pkg) => pkg.price && pkg.price > 0,
+  );
 
   if (packagesWithPrice.length > recentPackages.length / 2) {
     return "transporter";
@@ -227,7 +244,7 @@ function analyzePackageActivity(packages: Package[]): UserRole {
 
   // If most packages are active, assume user is a sender waiting for transport
   const activePackages = recentPackages.filter(
-    (pkg) => pkg.active === "true" || pkg.active === "pending"
+    (pkg) => pkg.active === "true" || pkg.active === "pending",
   );
 
   if (activePackages.length > recentPackages.length / 2) {
@@ -235,7 +252,9 @@ function analyzePackageActivity(packages: Package[]): UserRole {
   }
 
   // Default: check environment variable
-  return process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE" ? "transporter" : "sender";
+  return process.env.NEXT_PUBLIC_TRANSPORTER === "TRUE"
+    ? "transporter"
+    : "sender";
 }
 
 function getExpectedHours(urgency: string): number {
@@ -252,7 +271,7 @@ function getExpectedHours(urgency: string): number {
 }
 
 function getPackagesOverTime(
-  packages: Package[]
+  packages: Package[],
 ): Array<{ date: string; count: number }> {
   const dateGroups = new Map<string, number>();
 
@@ -269,12 +288,14 @@ function getPackagesOverTime(
 }
 
 function getEarningsByWeek(
-  transfers: Transfer[]
+  transfers: Transfer[],
 ): Array<{ week: string; amount: number }> {
   const weekGroups = new Map<string, number>();
 
   transfers
-    .filter((transfer) => transfer.price && transfer.price > 0 && transfer.updatedAt)
+    .filter(
+      (transfer) => transfer.price && transfer.price > 0 && transfer.updatedAt,
+    )
     .forEach((transfer) => {
       const updated = new Date(transfer.updatedAt!);
       const weekStart = startOfWeek(updated, { weekStartsOn: 1 });
@@ -289,7 +310,7 @@ function getEarningsByWeek(
 }
 
 function getStatusDistribution(
-  packages: Package[]
+  packages: Package[],
 ): Array<{ name: string; value: number; fill: string }> {
   const active = packages.filter((pkg) => pkg.active === "true").length;
   const pending = packages.filter((pkg) => pkg.active === "pending").length;

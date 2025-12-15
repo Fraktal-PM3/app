@@ -107,7 +107,7 @@ export class Package {
   public name!: string; // Human-readable package name/identifier
 
   @prop({ required: true })
-  public recipientMSP!: string; // MSP ID of the recipient organization
+  public recipientOrgMSP!: string; // MSP ID of the recipient organization
 
   @prop({ required: true })
   public ownerOrgMSP!: string; // Owner MSP ID of the package

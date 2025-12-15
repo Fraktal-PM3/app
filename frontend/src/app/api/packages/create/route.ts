@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const body = await request.json()
+    const body = await request.json();
 
     const validationResult = CreatePackageRequestSchema.safeParse(body);
     if (!validationResult.success) {
@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, packageDetails, pii, salt, recipientMSP } = validationResult.data;
+    const { name, packageDetails, pii, salt, recipientOrgMSP } =
+      validationResult.data;
 
     // Generate UUID automatically
     const packageId = randomUUID();
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       mspId: mspIdentity.mspId,
       ownerOrgMSP: mspIdentity.mspId, // Track original creator (never changes)
       senderOrgMSP: mspIdentity.mspId, // Set sender MSP (same as owner on creation)
-      recipientMSP,
+      recipientOrgMSP,
     });
 
     if (!newPackage.packageDetails || !newPackage.pii || !newPackage.salt) {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     const service = await getPackageService();
     const result = await service.createPackage(
       newPackage.id,
-      newPackage.recipientMSP,
+      newPackage.recipientOrgMSP,
       newPackage.packageDetails,
       newPackage.pii,
       newPackage.salt,

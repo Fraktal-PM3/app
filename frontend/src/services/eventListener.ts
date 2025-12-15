@@ -15,13 +15,14 @@ import type {
 import { PackageService, Status, isPackageDetailsMessage } from "fraktal-lib";
 import dbConnect from "../lib/dbService";
 import eventBus from "../lib/eventBus";
-import PackageModel from "../models/package";
+import PackageModel, { Package } from "../models/package";
 import PackageAnnouncementModel, {
   PackageAnnouncementDocument,
 } from "../models/packageAnnouncement";
 import SystemStateModel from "../models/systemState";
 import TransferModel from "../models/transfer";
 import TransferOfferModel from "../models/transferOffer";
+import { a } from "vitest/dist/chunks/suite.d.FvehnV49.js";
 
 interface EventListenerConfig {
   fireflyHost?: string;
@@ -378,6 +379,27 @@ class EventListenerService {
 
         await dbConnect();
 
+        const packageData = await PackageModel.findOne({
+          id: event.output.externalId,
+        });
+
+        if (!packageData) {
+          console.log(
+            "[EventListener] StatusUpdatedAfterAccept event discarded, found no relevant package",
+          );
+          return;
+        }
+
+        if (
+          packageData.senderOrgMSP !== this.nodeMSP &&
+          packageData.recipientOrgMSP !== this.nodeMSP &&
+          packageData.mspId !== this.nodeMSP
+        ) {
+          console.log(
+            "[EventListener] StatusUpdatedAfterAccept event discarded, not addressed to this MSP",
+          );
+          return;
+        }
         try {
           await this.handleStatusUpdatedAfterAccept(event);
           eventBus.emitBlockchainEvent("StatusUpdatedAfterAccept", event);
@@ -398,13 +420,15 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] TransferExecuted event received: ", event);
 
-        const transfer = await TransferModel.findOne({
+        await dbConnect();
+
+        const transfer = await TransferModel.exists({
           transferId: event.output.termsId,
         });
 
         console.log("TransferExecuted - found transfer:", transfer);
 
-        const packageData = await PackageModel.findOne({
+        const packageData = await PackageModel.exists({
           id: event.output.externalId,
         });
 
@@ -607,7 +631,9 @@ class EventListenerService {
           await this.packageService.readBlockchainPackage(output.externalId);
         console.log("Fetched blockchain package:", blockchainPackage);
         const packageDetailsAndPII =
-          await this.packageService.readPackageDetailsAndPII(output.externalId);
+          (await this.packageService.readPackageDetailsAndPII(
+            output.externalId,
+          )) as StoreObject;
         console.log("Fetched package details and PII:", packageDetailsAndPII);
         await PackageModel.findOneAndUpdate(
           { id: output.externalId },
@@ -637,7 +663,7 @@ class EventListenerService {
         const executed = await TransferModel.findOneAndUpdate(
           { transferId: output.termsId },
           {
-            status: event.output.status,
+            status: "executed",
             mspId: this.extractMSP(event),
             blockchainTxId: event.txid,
           },
@@ -909,7 +935,7 @@ class EventListenerService {
 
       if (!offer) {
         console.warn(
-          `[EventListener] Transfer not found for StatusUpdatedAfterPropose event: ${output.termsID}. Skipping update.`,
+          `[EventListener] Transfer not found for StatusUpdatedAfterPropose event: ${output.termsId}. Skipping update.`,
         );
         return;
       }
@@ -923,7 +949,7 @@ class EventListenerService {
       };
 
       const transfer = await TransferModel.findOneAndUpdate(
-        { transferId: output.termsID },
+        { transferId: output.termsId },
         {
           externalId: output.externalId,
           packageId: offer.packageId,
@@ -931,7 +957,7 @@ class EventListenerService {
           toMSP: transferTerms.toMSP,
           price: transferTerms.price,
           expiryISO: transferTerms.expiryISO,
-          status: Status.PROPOSED,
+          status: "proposed",
           mspId: output.caller,
         },
         { new: true, upsert: true },
@@ -939,25 +965,25 @@ class EventListenerService {
 
       if (!transfer) {
         console.warn(
-          `[EventListener] Transfer not found for StatusUpdatedAfterPropose event: ${output.termsID}. Skipping update.`,
+          `[EventListener] Transfer not found for StatusUpdatedAfterPropose event: ${output.termsId}. Skipping update.`,
         );
         return;
       }
 
       console.log(
-        `[EventListener] Transfer ${output.termsID} updated with status proposed`,
+        `[EventListener] Transfer ${output.termsId} updated with status proposed`,
       );
 
       if (transfer.toMSP === this.nodeMSP) {
         await this.packageService.acceptTransfer(
           output.externalId,
-          output.termsID,
+          output.termsId,
           transferTerms,
         );
 
         await this.packageService.updateStatusAfterAccept(
           output.externalId,
-          output.termsID,
+          output.termsId,
         );
       }
 
@@ -986,26 +1012,68 @@ class EventListenerService {
         output.externalId,
       );
 
-      await PackageModel.findOneAndUpdate(
+      const packageData = (await PackageModel.findOneAndUpdate(
         { id: output.externalId },
         { status: output.status },
         { new: true },
-      );
+      )) as Package;
 
-      const transfer = await TransferModel.findOne({
-        transferId: output.termsID,
-      });
-
-      if (transfer) {
-        transfer.status = "accepted";
-        await transfer.save();
-        console.log(
-          `[EventListener] Transfer ${output.termsID} marked as accepted`,
+      if (!packageData) {
+        console.warn(
+          `[EventListener] Package not found for StatusUpdatedAfterAccept event: ${output.externalId}. Skipping update.`,
         );
+        return;
       }
 
       console.log(
         `[EventListener] Package ${output.externalId} status updated to ${output.status} after accept`,
+      );
+
+      const transfer = await TransferModel.findOneAndUpdate(
+        {
+          transferId: output.termsId,
+        },
+        {
+          status: "accepted",
+        },
+        { new: true, upsert: true },
+      );
+      if (!transfer) {
+        console.warn(
+          `[EventListener] Transfer not found for StatusUpdatedAfterAccept event: ${output.termsId}. Skipping update.`,
+        );
+        return;
+      }
+
+      if (
+        transfer.toMSP === packageData.recipientOrgMSP &&
+        transfer.fromMSP === this.nodeMSP
+      ) {
+        console.log(
+          `[EventListener] Executing transfer ${output.termsId} to recipient`,
+        );
+        if (!this.packageService) {
+          throw new Error("PackageService not initialized");
+        }
+        const storeObject = await this.packageService.readPackageDetailsAndPII(
+          output.externalId,
+        );
+        const transferTerms =
+          await this.packageService.readPrivateTransferTerms(
+            output.externalId,
+            output.termsId,
+          );
+
+        await this.packageService.executeTransfer(
+          output.externalId,
+          output.termsId,
+          storeObject as any,
+          transferTerms as TransferTerms,
+        );
+      }
+
+      console.log(
+        `[EventListener] Transfer ${output.termsId} marked as accepted`,
       );
     } catch (error) {
       console.error(

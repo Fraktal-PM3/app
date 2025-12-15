@@ -269,7 +269,7 @@ export default function CreatePackagePage() {
           packageDetails,
           pii,
           salt,
-          recipientMSP: form.recipientOrgMSP,
+          recipientOrgMSP: form.recipientOrgMSP,
         }),
       });
 
@@ -279,8 +279,10 @@ export default function CreatePackagePage() {
       }
 
       // Announce package (optional - user can trigger later)
-      toast.success("Package created successfully! You can announce it later.", { id: loadingToast });
-
+      toast.success(
+        "Package created successfully! You can announce it later.",
+        { id: loadingToast },
+      );
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "Failed to create package", {

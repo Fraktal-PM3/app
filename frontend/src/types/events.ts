@@ -19,14 +19,14 @@ export interface DeletePackageOutput {
 
 export interface StatusUpdatedAfterProposeOutput {
   externalId: string;
-  termsID: string;
+  termsId: string;
   status: string;
   caller: string;
 }
 
 export interface StatusUpdatedAfterAcceptOutput {
   externalId: string;
-  termsID: string;
+  termsId: string;
   status: string;
   caller: string;
 }
