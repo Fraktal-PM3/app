@@ -98,7 +98,7 @@ export type PackageAnnouncement = {
   expiresAt?: string;
   packageDetails?: PackageDetails;
   messageData?: any;
-  transferStatus?: 'accepted' | 'pending'; // Client-side status for transfer proposals
+  transferStatus?: "accepted" | "pending"; // Client-side status for transfer proposals
   createdAt?: string;
   updatedAt?: string;
 };
@@ -124,7 +124,6 @@ export const TransferOfferSchema = z.object({
   fromMSP: z.string(),
   toMSP: z.string(),
   price: z.number(),
-  createdISO: z.coerce.date().transform((date) => date.toISOString()),
   expiryISO: z.coerce.date().transform((date) => date.toISOString()),
 });
 
@@ -143,7 +142,6 @@ export type TransferOffer = {
   fromMSP: string; // Transporter MSP offering delivery
   toMSP: string; // Sender MSP receiving offer
   price: number; // Offered price
-  createdISO: string; // When offer was created
   expiryISO: string; // Proposed delivery date/time
   senderNode: string; // Firefly node that sent the offer
   signingKey?: string;
@@ -152,4 +150,3 @@ export type TransferOffer = {
   createdAt?: string; // When we received/stored this offer
   updatedAt?: string;
 };
-

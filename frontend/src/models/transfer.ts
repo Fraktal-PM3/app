@@ -11,16 +11,7 @@ import { Package } from "./package";
 
 // Transfer status values (must match Status enum from fraktal-lib)
 // Note: Status enum is imported from fraktal-lib in types/package.ts
-const TransferStatusValues = [
-  "pending",
-  "proposed",
-  "ready_for_pickup",
-  "picked_up",
-  "in_transit",
-  "delivered",
-  "succeeded",
-  "failed",
-] as const;
+const TransferStatusValues = ["pending", "proposed", "accepted"] as const;
 
 // Main Transfer class
 @modelOptions({

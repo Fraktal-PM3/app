@@ -75,8 +75,8 @@ export default function OfferDetailsPage() {
 
     // Sort by creation date (most recent first)
     return filteredOffers.sort((a, b) => {
-      const dateA = new Date(a.createdISO || a.createdAt || 0).getTime();
-      const dateB = new Date(b.createdISO || b.createdAt || 0).getTime();
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
       return dateB - dateA;
     });
   }, [offers, currentMspId, announcement]);
@@ -459,11 +459,7 @@ export default function OfferDetailsPage() {
                           <div className="text-xs text-blue-600 dark:text-blue-400">
                             Sent:{" "}
                             {format(
-                              new Date(
-                                offer.createdISO ||
-                                  offer.createdAt ||
-                                  new Date(),
-                              ),
+                              new Date(offer.createdAt || new Date()),
                               "MMM dd, yyyy HH:mm",
                             )}
                           </div>

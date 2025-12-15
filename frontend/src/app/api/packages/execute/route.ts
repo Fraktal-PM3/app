@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPackageService } from "../service";
-import type { PackageDetails, PackagePII } from "fraktal-lib";
+import type { PackageDetails, PackagePII, TransferTerms } from "fraktal-lib";
 
 export const runtime = "nodejs";
 
@@ -20,29 +20,37 @@ export async function POST(request: NextRequest) {
     if (!externalId || !termsId) {
       return NextResponse.json(
         { success: false, error: "`externalId` and `termsId` are required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!salt || !pii || !packageDetails) {
       return NextResponse.json(
-        { success: false, error: "`salt`, `pii`, and `packageDetails` are required." },
-        { status: 400 }
+        {
+          success: false,
+          error: "`salt`, `pii`, and `packageDetails` are required.",
+        },
+        { status: 400 },
       );
     }
 
     const storeObject = {
       salt,
       pii,
-      packageDetails
+      packageDetails,
     };
 
     const service = await getPackageService();
+    const transferTerms = await service.readPrivateTransferTerms(
+      externalId,
+      termsId,
+    );
 
     const result = await service.executeTransfer(
       externalId,
       termsId,
-      storeObject
+      storeObject,
+      transferTerms as TransferTerms,
     );
 
     return NextResponse.json(
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
         termsId,
         result,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     console.error("Error in /api/packages/execute:", error);
@@ -61,7 +69,8 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error?.message || "Unexpected server error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
+

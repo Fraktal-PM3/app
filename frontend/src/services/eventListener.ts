@@ -339,7 +339,10 @@ class EventListenerService {
           throw new Error("PackageService not initialized");
         }
 
-        if (event.output.toMSP !== this.nodeMSP) {
+        if (
+          event.output.toMSP !== this.nodeMSP &&
+          event.output.caller !== this.nodeMSP
+        ) {
           console.log(
             "[EventListener] StatusUpdatedAfterPropose event discarded, not addressed to this MSP",
           );
@@ -919,33 +922,44 @@ class EventListenerService {
         price: offer.price,
       };
 
-      // Create transfer record in DB
-      const newTransfer = new TransferModel({
-        transferId: output.termsID,
-        externalPackageId: output.externalId,
-        packageId: offer.packageId,
-        fromMSP: transferTerms.fromMSP,
-        toMSP: transferTerms.toMSP,
-        price: transferTerms.price,
-        expiryISO: transferTerms.expiryISO,
-        status: "proposed",
-        mspId: output.caller,
-      });
-      await newTransfer.save();
+      const transfer = await TransferModel.findOneAndUpdate(
+        { transferId: output.termsID },
+        {
+          externalId: output.externalId,
+          packageId: offer.packageId,
+          fromMSP: transferTerms.fromMSP,
+          toMSP: transferTerms.toMSP,
+          price: transferTerms.price,
+          expiryISO: transferTerms.expiryISO,
+          status: Status.PROPOSED,
+          mspId: output.caller,
+        },
+        { new: true, upsert: true },
+      );
+
+      if (!transfer) {
+        console.warn(
+          `[EventListener] Transfer not found for StatusUpdatedAfterPropose event: ${output.termsID}. Skipping update.`,
+        );
+        return;
+      }
+
       console.log(
-        `[EventListener] Transfer ${output.termsID} created with status proposed`,
+        `[EventListener] Transfer ${output.termsID} updated with status proposed`,
       );
 
-      await this.packageService.acceptTransfer(
-        output.externalId,
-        output.termsID,
-        transferTerms,
-      );
+      if (transfer.toMSP === this.nodeMSP) {
+        await this.packageService.acceptTransfer(
+          output.externalId,
+          output.termsID,
+          transferTerms,
+        );
 
-      await this.packageService.updateStatusAfterAccept(
-        output.externalId,
-        output.termsID,
-      );
+        await this.packageService.updateStatusAfterAccept(
+          output.externalId,
+          output.termsID,
+        );
+      }
 
       console.log(
         `[EventListener] Package ${output.externalId} status updated to ${output.status} after propose`,

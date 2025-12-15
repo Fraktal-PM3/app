@@ -92,6 +92,7 @@ export async function proposeTransfer(offer: TransferOffer) {
     offer.externalPackageId,
     termsId,
     transferTerms.toMSP,
+    transferTerms.expiryISO,
   );
 }
 
@@ -154,14 +155,16 @@ export async function confirmPackageReceipt(
 export async function executeTransfer(transferId: string, externalId: string) {
   const packageService = await getPackageService();
   const storeObject = await packageService.readPackageDetailsAndPII(externalId);
-  console.log("ExecuteTransfer - storeObject:", storeObject);
-  console.log("ExecuteTransfer - externalId:", externalId);
-  console.log("ExecuteTransfer - transferId:", transferId);
+  const transferTerms = await packageService.readPrivateTransferTerms(
+    externalId,
+    transferId,
+  );
 
   const res = await packageService.executeTransfer(
     externalId,
     transferId,
     storeObject as any,
+    transferTerms as TransferTerms,
   );
   console.log("ExecuteTransfer - result:", res);
 }
@@ -250,6 +253,7 @@ export async function initiateDelivery(externalId: string): Promise<{
       externalId,
       termsId,
       transferTerms.toMSP,
+      transferTerms.expiryISO,
     );
 
     return { success: true };

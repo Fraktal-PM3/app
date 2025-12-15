@@ -16,13 +16,8 @@ import { useEffect, useMemo, useState } from "react";
 import { getCurrentMspId } from "./actions";
 
 export default function OffersPage() {
-  const {
-    announcements,
-    isLoading,
-    isConnected,
-    error,
-    refetch,
-  } = useAnnouncements(true); // Show ALL announcements, not just active ones
+  const { announcements, isLoading, isConnected, error, refetch } =
+    useAnnouncements(true); // Show ALL announcements, not just active ones
 
   const { offers } = useTransferOffers();
 
@@ -49,7 +44,7 @@ export default function OffersPage() {
       if (offer.announcementMessageId) {
         // Find the announcement this offer is for
         const announcement = announcements.find(
-          (a) => a.messageId === offer.announcementMessageId
+          (a) => a.messageId === offer.announcementMessageId,
         );
         if (announcement) {
           const existingOffers = offerMap.get(announcement._id) || [];
@@ -61,8 +56,8 @@ export default function OffersPage() {
     // Sort offers by creation date (most recent first) for each announcement
     offerMap.forEach((offers, announcementId) => {
       offers.sort((a, b) => {
-        const dateA = new Date(a.createdISO || a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdISO || b.createdAt || 0).getTime();
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
         return dateB - dateA;
       });
     });

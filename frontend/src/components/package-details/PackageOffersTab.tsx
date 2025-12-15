@@ -115,11 +115,11 @@ export function PackageOffersTab({
                       <div className="font-mono text-xs text-muted-foreground break-all">
                         {offer.messageId}
                       </div>
-                      {offer.createdISO && (
+                      {offer.createdAt && (
                         <div className="text-xs text-muted-foreground">
                           Received{" "}
                           {format(
-                            new Date(offer.createdISO),
+                            new Date(offer.createdAt),
                             "MMM dd, yyyy HH:mm",
                           )}
                         </div>

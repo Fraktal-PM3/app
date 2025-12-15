@@ -51,8 +51,8 @@ export function TransferOfferModal({
     setExpiryDate(twelveHoursAhead);
 
     // Format time as HH:MM
-    const hours = twelveHoursAhead.getHours().toString().padStart(2, '0');
-    const minutes = twelveHoursAhead.getMinutes().toString().padStart(2, '0');
+    const hours = twelveHoursAhead.getHours().toString().padStart(2, "0");
+    const minutes = twelveHoursAhead.getMinutes().toString().padStart(2, "0");
     setExpiryTime(`${hours}:${minutes}`);
   }, []);
 
@@ -88,7 +88,6 @@ export function TransferOfferModal({
         price: priceValue,
         fromMSP: announcement.announcerMSP, // Assuming sender and announcer are the same for this example
         toMSP: await getCurrentMspId(), // Function to get current user's MSP ID
-        createdISO: new Date().toISOString(),
         expiryISO: deliveryDateTimeISO,
       });
 

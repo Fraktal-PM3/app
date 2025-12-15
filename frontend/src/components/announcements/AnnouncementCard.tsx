@@ -248,9 +248,7 @@ export function AnnouncementCard({
                     <div className="text-xs text-blue-600 dark:text-blue-400">
                       Sent:{" "}
                       {format(
-                        new Date(
-                          offer.createdISO || offer.createdAt || new Date(),
-                        ),
+                        new Date(offer.createdAt || new Date()),
                         "MMM dd, HH:mm",
                       )}
                     </div>
