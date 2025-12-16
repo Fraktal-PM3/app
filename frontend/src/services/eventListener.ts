@@ -22,7 +22,6 @@ import PackageAnnouncementModel, {
 import SystemStateModel from "../models/systemState";
 import TransferModel from "../models/transfer";
 import TransferOfferModel from "../models/transferOffer";
-import { a } from "vitest/dist/chunks/suite.d.FvehnV49.js";
 
 interface EventListenerConfig {
   fireflyHost?: string;
@@ -39,6 +38,8 @@ class EventListenerService {
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 10;
   private reconnectDelay: number = 5000; // 5 seconds
+  private processedEventsCache: Set<string> = new Set(); // Short-lived cache for recent events
+  private readonly maxCacheSize: number = 20; // Keep only last 20 events
 
   /**
    * Initialize the event listener service
@@ -260,6 +261,69 @@ class EventListenerService {
   }
 
   /**
+   * Generate a unique key for an event based on transaction ID and event name
+   */
+  private getEventKey(transactionId: string, eventName: string): string {
+    return `${transactionId}:${eventName}`;
+  }
+
+  /**
+   * Check if an event has already been processed
+   * Uses short-lived in-memory cache (last 20 events)
+   */
+  private isEventProcessed(transactionId: string, eventName: string): boolean {
+    const eventKey = this.getEventKey(transactionId, eventName);
+
+    if (this.processedEventsCache.has(eventKey)) {
+      console.log(
+        `[EventListener] Duplicate event detected: ${eventName} - ${transactionId}`,
+      );
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Mark an event as processed
+   * Stores in short-lived in-memory cache (last 20 events)
+   */
+  private markEventAsProcessed(
+    event: BlockchainEventDelivery,
+    eventName: string,
+  ): void {
+    // For blockchain events, use info.transactionId
+    // For message events, use event.id
+    const transactionId = event.txid;
+
+    if (!transactionId) {
+      console.warn(
+        `[EventListener] Cannot mark event as processed - missing transactionId/id: ${eventName}`,
+      );
+      return;
+    }
+
+    const eventKey = this.getEventKey(transactionId, eventName);
+    this.addToCache(eventKey);
+  }
+
+  /**
+   * Add event key to in-memory cache with FIFO eviction
+   * Maintains a rolling window of the last N events
+   */
+  private addToCache(eventKey: string): void {
+    // If cache is full, remove the oldest entry (first inserted)
+    if (this.processedEventsCache.size >= this.maxCacheSize) {
+      const firstKey = this.processedEventsCache.values().next().value;
+      if (firstKey) {
+        this.processedEventsCache.delete(firstKey);
+      }
+    }
+
+    this.processedEventsCache.add(eventKey);
+  }
+
+  /**
    * Set up event listeners for all blockchain events
    */
   private async setupEventListeners(): Promise<void> {
@@ -279,6 +343,15 @@ class EventListenerService {
           throw new Error("PackageService not initialized");
         }
 
+        // Check for duplicate event
+        const transactionId = event.txid;
+        const eventName = "CreatePackage";
+        if (transactionId && this.isEventProcessed(transactionId, eventName)) {
+          return; // Skip duplicate event
+        }
+
+        this.markEventAsProcessed(event, eventName);
+
         const { ownerOrgMSP, recipientOrgMSP } = event.output;
 
         if (ownerOrgMSP !== this.nodeMSP && recipientOrgMSP !== this.nodeMSP)
@@ -289,6 +362,7 @@ class EventListenerService {
         try {
           await this.handleCreatePackage(event);
           eventBus.emitBlockchainEvent("CreatePackage", event);
+          // Mark event as processed after successful handling
         } catch (error) {
           console.error("[EventListener] Error handling CreatePackage:", error);
         }
@@ -306,6 +380,15 @@ class EventListenerService {
           throw new Error("PackageService not initialized");
         }
 
+        // Check for duplicate event
+        const transactionId = event.txid;
+        const eventName = "StatusUpdated";
+        if (transactionId && this.isEventProcessed(transactionId, eventName)) {
+          return; // Skip duplicate event
+        }
+
+        this.markEventAsProcessed(event, eventName);
+
         const packageData = await PackageModel.findOne({
           id: event.output.externalId,
         });
@@ -320,6 +403,7 @@ class EventListenerService {
         try {
           await this.handleStatusUpdated(event);
           eventBus.emitBlockchainEvent("StatusUpdated", event);
+          // Mark event as processed after successful handling
         } catch (error) {
           console.error("[EventListener] Error handling StatusUpdated:", error);
         }
@@ -340,6 +424,16 @@ class EventListenerService {
           throw new Error("PackageService not initialized");
         }
 
+        // Check for duplicate event
+        const transactionId = event.txid;
+        const eventName =
+          (event as any).info?.eventName || "StatusUpdatedAfterPropose";
+        if (transactionId && this.isEventProcessed(transactionId, eventName)) {
+          return; // Skip duplicate event
+        }
+
+        this.markEventAsProcessed(event, eventName);
+
         if (
           event.output.toMSP !== this.nodeMSP &&
           event.output.caller !== this.nodeMSP
@@ -355,6 +449,7 @@ class EventListenerService {
         try {
           await this.handleStatusUpdatedAfterPropose(event);
           eventBus.emitBlockchainEvent("StatusUpdatedAfterPropose", event);
+          // Mark event as processed after successful handling
         } catch (error) {
           console.error(
             "[EventListener] Error handling StatusUpdatedAfterPropose:",
@@ -376,6 +471,17 @@ class EventListenerService {
           "[EventListener] StatusUpdatedAfterAccept event received: ",
           event,
         );
+
+        // Check for duplicate event
+        const transactionId = event.txid;
+        if (
+          transactionId &&
+          this.isEventProcessed(transactionId, "StatusUpdatedAfterAccept")
+        ) {
+          return; // Skip duplicate event
+        }
+
+        this.markEventAsProcessed(event, "StatusUpdatedAfterAccept");
 
         await dbConnect();
 
@@ -420,6 +526,13 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] TransferExecuted event received: ", event);
 
+        // Check for duplicate event
+        const transactionId = event.txid;
+        const eventName = "TransferExecuted";
+        if (transactionId && this.isEventProcessed(transactionId, eventName)) {
+          return; // Skip duplicate event
+        }
+
         await dbConnect();
 
         const transfer = await TransferModel.exists({
@@ -435,8 +548,10 @@ class EventListenerService {
         if (!transfer && !packageData) return;
 
         try {
+          this.markEventAsProcessed(event, eventName);
           await this.handleTransferExecuted(event);
           eventBus.emitBlockchainEvent("TransferExecuted", event);
+          // Mark event as processed after successful handling
         } catch (error) {
           console.error(
             "[EventListener] Error handling TransferExecuted:",
@@ -454,9 +569,17 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] DeletePackage event received: ", event);
 
+        // Check for duplicate event
+        const transactionId = event.txid;
+        const eventName = "DeletePackage";
+        if (transactionId && this.isEventProcessed(transactionId, eventName)) {
+          return; // Skip duplicate event
+        }
+
         if (!this.isRelevantEvent(event)) return;
 
         try {
+          this.markEventAsProcessed(event, eventName);
           await this.handleDeletePackage(event);
           eventBus.emitBlockchainEvent("DeletePackage", event);
         } catch (error) {
@@ -472,6 +595,16 @@ class EventListenerService {
       ) => {
         console.log("[EventListener] TransferToPM3 event received: ", event);
         if (!this.packageService) return;
+
+        // Check for duplicate event
+        const transactionId = event.txid;
+        const eventName = "TransferToPM3";
+        if (transactionId && this.isEventProcessed(transactionId, eventName)) {
+          return; // Skip duplicate event
+        }
+
+        this.markEventAsProcessed(event, eventName);
+
         // Check if we are tracking the package
         if (!(await PackageModel.exists({ id: event.output.externalId }))) {
           console.log(
@@ -481,6 +614,7 @@ class EventListenerService {
         try {
           this.handleTransferToPM3(event);
           eventBus.emitBlockchainEvent("TransferToPM3", event);
+          // Mark event as processed after successful handling
         } catch (error) {
           console.error("[EventListener] Error handling TransferToPM3:", error);
         }
@@ -494,8 +628,10 @@ class EventListenerService {
         console.log("[EventListener] message event received: ", event);
 
         try {
-          // Check message tag to determine message type
-          const messageTag = (event as any).tag || event.header?.tag;
+          // Check for duplicate message using message ID
+          // For messages, we use the message ID as the transaction ID
+          const messageTag =
+            (event as any).tag || event.header?.tag || "message";
 
           if (
             messageTag === "PACKAGE_ANNOUNCE" &&
@@ -505,14 +641,17 @@ class EventListenerService {
             console.log("[EventListener] PACKAGE_ANNOUNCE message detected");
             await this.handlePackageAnnouncement(event);
             eventBus.emitBlockchainEvent("PackageAnnouncement", event);
+            // Mark message as processed
           } else if (messageTag === "TRANSFER_OFFER") {
             // Handle transfer offers (private messages)
             console.log("[EventListener] TRANSFER_OFFER message detected");
             await this.handleTransferOffer(event);
             eventBus.emitBlockchainEvent("TransferOffer", event);
+            // Mark message as processed
           } else {
             // Emit generic message event for other message types
             eventBus.emitBlockchainEvent("message", event);
+            // Mark message as processed
           }
         } catch (error) {
           console.error("[EventListener] Error handling message:", error);
@@ -923,39 +1062,32 @@ class EventListenerService {
         throw new Error("PackageService not initialized");
       }
 
-      await PackageModel.findOneAndUpdate(
+      const packageData = await PackageModel.findOneAndUpdate(
         { id: output.externalId },
         { status: output.status },
-        { new: true },
+        { new: true, upsert: true },
       );
 
       const offer = await TransferOfferModel.findOne({
         externalPackageId: output.externalId,
       });
 
-      if (!offer) {
-        console.warn(
-          `[EventListener] Transfer not found for StatusUpdatedAfterPropose event: ${output.termsId}. Skipping update.`,
-        );
-        return;
-      }
-
       const transferTerms: TransferTerms = {
         externalPackageId: output.externalId,
         fromMSP: output.caller,
         toMSP: output.toMSP,
-        expiryISO: offer.expiryISO.toISOString(),
-        price: offer.price,
+        expiryISO: output.expiryISO,
+        price: 0,
       };
 
-      const transfer = await TransferModel.findOneAndUpdate(
+      await TransferModel.findOneAndUpdate(
         { transferId: output.termsId },
         {
           externalId: output.externalId,
-          packageId: offer.packageId,
+          packageId: packageData._id,
           fromMSP: transferTerms.fromMSP,
           toMSP: transferTerms.toMSP,
-          price: transferTerms.price,
+          price: offer ? offer.price : transferTerms.price,
           expiryISO: transferTerms.expiryISO,
           status: "proposed",
           mspId: output.caller,
@@ -963,24 +1095,22 @@ class EventListenerService {
         { new: true, upsert: true },
       );
 
-      if (!transfer) {
-        console.warn(
-          `[EventListener] Transfer not found for StatusUpdatedAfterPropose event: ${output.termsId}. Skipping update.`,
-        );
-        return;
-      }
-
       console.log(
         `[EventListener] Transfer ${output.termsId} updated with status proposed`,
       );
 
-      if (transfer.toMSP === this.nodeMSP) {
+      if (transferTerms.toMSP === this.nodeMSP) {
+        console.log(
+          `[EventListener] Accepting transfer ${output.termsId} from proposal`,
+        );
+        if (packageData.recipientOrgMSP !== this.nodeMSP) {
+          transferTerms.price = offer ? offer.price : transferTerms.price;
+        }
         await this.packageService.acceptTransfer(
           output.externalId,
           output.termsId,
           transferTerms,
         );
-
         await this.packageService.updateStatusAfterAccept(
           output.externalId,
           output.termsId,

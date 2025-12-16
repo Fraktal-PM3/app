@@ -59,7 +59,7 @@ export class Transfer {
   public status!: string;
 
   // Transfer price (from private transfer terms)
-  @prop()
+  @prop({ default: 0 })
   public price?: number;
 
   // Announcement reference (links transfer to the announcement that triggered it)

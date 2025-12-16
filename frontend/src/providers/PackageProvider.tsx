@@ -133,20 +133,32 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       }),
 
       // StatusUpdatedAfterPropose - refetch packages to get updated status
-      subscribe<StatusUpdatedAfterProposeEvent>("StatusUpdatedAfterPropose", async (data) => {
-        setIsLoading(true);
-        console.log("[PackageProvider] StatusUpdatedAfterPropose event:", data);
-        await Promise.all([refetchPackages(), refetchTransfers()]);
-        setIsLoading(false);
-      }),
+      subscribe<StatusUpdatedAfterProposeEvent>(
+        "StatusUpdatedAfterPropose",
+        async (data) => {
+          setIsLoading(true);
+          console.log(
+            "[PackageProvider] StatusUpdatedAfterPropose event:",
+            data,
+          );
+          await Promise.all([refetchPackages(), refetchTransfers()]);
+          setIsLoading(false);
+        },
+      ),
 
       // StatusUpdatedAfterAccept - refetch packages and transfers
-      subscribe<StatusUpdatedAfterAcceptEvent>("StatusUpdatedAfterAccept", async (data) => {
-        setIsLoading(true);
-        console.log("[PackageProvider] StatusUpdatedAfterAccept event:", data);
-        await Promise.all([refetchPackages(), refetchTransfers()]);
-        setIsLoading(false);
-      }),
+      subscribe<StatusUpdatedAfterAcceptEvent>(
+        "StatusUpdatedAfterAccept",
+        async (data) => {
+          setIsLoading(true);
+          console.log(
+            "[PackageProvider] StatusUpdatedAfterAccept event:",
+            data,
+          );
+          await Promise.all([refetchPackages(), refetchTransfers()]);
+          setIsLoading(false);
+        },
+      ),
 
       // TransferExecuted - refetch packages and transfers
       subscribe<TransferExecutedEvent>("TransferExecuted", async (data) => {
@@ -160,7 +172,7 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       subscribe<TransferToPM3Event>("TransferToPM3", async (data) => {
         setIsLoading(true);
         console.log("[PackageProvider] TransferToPM3 event:", data);
-        await Promise.all([refetchPackages()]);
+        await refetchPackages();
         setIsLoading(false);
       }),
     ];

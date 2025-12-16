@@ -1087,7 +1087,7 @@
 
     "forwarded": ["forwarded@0.2.0", "", {}, "sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow=="],
 
-    "fraktal-lib": ["fraktal-lib@github:Fraktal-PM3/fraktal-lib#dc44361", { "dependencies": { "@hyperledger/firefly-sdk": "^1.3.3", "json-stringify-deterministic": "^1.0.12", "sort-keys-recursive": "^2.1.10", "zod": "^4.1.13" } }, "Fraktal-PM3-fraktal-lib-dc44361"],
+    "fraktal-lib": ["fraktal-lib@github:Fraktal-PM3/fraktal-lib#76cbf1d", { "dependencies": { "@hyperledger/firefly-sdk": "^1.3.3", "json-stringify-deterministic": "^1.0.12", "sort-keys-recursive": "^2.1.10", "zod": "^4.1.13" } }, "Fraktal-PM3-fraktal-lib-76cbf1d"],
 
     "framer-motion": ["framer-motion@12.23.25", "", { "dependencies": { "motion-dom": "12.23.23", "motion-utils": "12.23.6", "tslib": "2.8.1" }, "optionalDependencies": { "react": "19.2.0", "react-dom": "19.2.0" } }, "sha512-gUHGl2e4VG66jOcH0JHhuJQr6ZNwrET9g31ZG0xdXzT0CznP7fHX4P8Bcvuc4MiUB90ysNnWX2ukHRIggkl6hQ=="],
 

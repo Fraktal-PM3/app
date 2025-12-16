@@ -42,7 +42,7 @@ export class TransferOffer {
   public toMSP!: string; // Sender MSP receiving the offer
 
   // Offer details
-  @prop({ required: true })
+  @prop({ required: true, default: 0 })
   public price!: number; // Offered price for delivery
 
   @prop({ required: true })

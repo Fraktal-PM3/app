@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import { useSSEConnection } from "./SSEConnectionProvider";
 
 export type ActivityType =
@@ -12,6 +18,7 @@ export type ActivityType =
   | "TransferExecuted"
   | "PackageAnnouncement"
   | "TransferOffer"
+  | "TransferToPM3"
   | "Message";
 
 export interface Activity {
@@ -29,7 +36,9 @@ interface MessageContextValue {
   activities: Activity[];
 }
 
-const MessageContext = createContext<MessageContextValue | undefined>(undefined);
+const MessageContext = createContext<MessageContextValue | undefined>(
+  undefined,
+);
 
 export function MessageProvider({ children }: { children: React.ReactNode }) {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -42,7 +51,10 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
       console.log(`[MessageProvider] Received event: ${eventName}`, data);
       const activity = transformEventToActivity(eventName, data);
       if (activity) {
-        console.log(`[MessageProvider] Created activity from ${eventName}:`, activity);
+        console.log(
+          `[MessageProvider] Created activity from ${eventName}:`,
+          activity,
+        );
         setActivities((prev) => {
           // Check for duplicates
           if (prev.some((a) => a.id === activity.id)) {
@@ -61,7 +73,9 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({ activities }), [activities]);
 
-  return <MessageContext.Provider value={value}>{children}</MessageContext.Provider>;
+  return (
+    <MessageContext.Provider value={value}>{children}</MessageContext.Provider>
+  );
 }
 
 // Hook to access recent activity
@@ -80,7 +94,10 @@ export function useRecentActivity() {
 }
 
 // Transform SSE events to Activity format
-function transformEventToActivity(eventName: string, data: any): Activity | null {
+function transformEventToActivity(
+  eventName: string,
+  data: any,
+): Activity | null {
   switch (eventName) {
     case "CreatePackage": {
       const packageId = data.output?.externalId;
@@ -156,6 +173,20 @@ function transformEventToActivity(eventName: string, data: any): Activity | null
       };
     }
 
+    case "TransferToPM3": {
+      const packageId = data.output?.externalId;
+      const newOwner = data.output?.newOwner;
+
+      return {
+        id: `pm3-${packageId}-${Date.now()}`,
+        type: "TransferToPM3",
+        timestamp: data.timestamp || new Date().toISOString(),
+        title: "Transferred to PM3",
+        description: `Package ${packageId} transferred to PM3 (${newOwner})`,
+        metadata: { packageId, newOwner },
+      };
+    }
+
     case "DeletePackage": {
       const packageId = data.output?.externalId;
 
@@ -198,7 +229,14 @@ function transformEventToActivity(eventName: string, data: any): Activity | null
           timestamp: data.created || new Date().toISOString(),
           title: "Transfer Offer Received",
           description: `${fromMSP} sent transfer offer to ${toMSP} for package ${packageId} (Price: ${price})`,
-          metadata: { termsId, fromMSP, toMSP, price, packageId, messageId: data.id },
+          metadata: {
+            termsId,
+            fromMSP,
+            toMSP,
+            price,
+            packageId,
+            messageId: data.id,
+          },
         };
       } else {
         // Generic message
