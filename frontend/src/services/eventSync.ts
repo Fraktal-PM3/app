@@ -1,6 +1,7 @@
 import FireFly from "@hyperledger/firefly-sdk";
-import SystemStateModel from "../models/systemState";
-import dbConnect from "../lib/dbService";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "../../convex/_generated/api";
+import { convexServerClient } from "../lib/convexServerClient";
 
 interface EventSyncConfig {
   fireflyInstance: FireFly;
@@ -17,11 +18,9 @@ class EventSyncService {
     try {
       console.log("[EventSync] Starting historical event sync...");
 
-      await dbConnect();
-
       // Get last sync timestamp from system state
-      const lastSync = await SystemStateModel.findOne({ key: "lastEventSync" });
-      const lastSyncTime = lastSync?.lastSyncTimestamp;
+      const lastSync = await convexServerClient.systemState.get("lastEventSync");
+      const lastSyncTime = lastSync?.lastSyncTimestamp ? new Date(lastSync.lastSyncTimestamp) : null;
 
       const lookbackHours = config.lookbackHours || 24; // Default 24 hours lookback
       const defaultLookback = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
@@ -36,17 +35,14 @@ class EventSyncService {
         await this.fetchAndProcessEvents(config.fireflyInstance, syncFrom, config.nodeMSP);
 
         // Update last sync timestamp
-        await SystemStateModel.findOneAndUpdate(
-          { key: "lastEventSync" },
+        await convexServerClient.systemState.set(
+          "lastEventSync",
+          undefined,
+          Date.now(),
           {
-            key: "lastEventSync",
-            lastSyncTimestamp: new Date(),
-            metadata: {
-              syncedFrom: syncFrom,
-              syncedAt: new Date(),
-            },
-          },
-          { upsert: true, new: true }
+            syncedFrom: syncFrom,
+            syncedAt: new Date(),
+          }
         );
 
         console.log("[EventSync] Historical event sync completed successfully");
@@ -129,11 +125,10 @@ class EventSyncService {
    */
   async getLastSyncStatus() {
     try {
-      await dbConnect();
-      const lastSync = await SystemStateModel.findOne({ key: "lastEventSync" });
+      const lastSync = await convexServerClient.systemState.get("lastEventSync");
 
       return {
-        lastSyncTimestamp: lastSync?.lastSyncTimestamp,
+        lastSyncTimestamp: lastSync?.lastSyncTimestamp ? new Date(lastSync.lastSyncTimestamp) : null,
         metadata: lastSync?.metadata,
       };
     } catch (error) {

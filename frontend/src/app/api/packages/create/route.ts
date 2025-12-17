@@ -1,13 +1,12 @@
 import { CreatePackageRequestSchema } from "@/lib/packageSchemas";
 import { NextRequest, NextResponse } from "next/server";
 import { getMspIdentity, getPackageService } from "../service";
-import dbConnect from "@/lib/dbService";
-import Package from "@/models/package";
 import { randomUUID } from "crypto";
+import { Urgency, Status } from "fraktal-lib";
+import convexServerClient from "@/lib/convexServerClient";
 
 export async function POST(request: NextRequest) {
   try {
-    await dbConnect();
     const body = await request.json();
 
     const validationResult = CreatePackageRequestSchema.safeParse(body);
@@ -24,44 +23,61 @@ export async function POST(request: NextRequest) {
     const { name, packageDetails, pii, salt, recipientOrgMSP } =
       validationResult.data;
 
-    // Generate UUID automatically
-    const packageId = randomUUID();
-    const mspIdentity = await getMspIdentity();
-
-    const newPackage = await Package.create({
-      id: packageId,
-      name,
-      packageDetails,
-      pii,
-      salt,
-      mspId: mspIdentity.mspId,
-      ownerOrgMSP: mspIdentity.mspId, // Track original creator (never changes)
-      senderOrgMSP: mspIdentity.mspId, // Set sender MSP (same as owner on creation)
-      recipientOrgMSP,
-    });
-
-    if (!newPackage.packageDetails || !newPackage.pii || !newPackage.salt) {
+    if (!packageDetails || !pii || !salt) {
       return NextResponse.json(
-        { success: false, error: "Package is missing required fields" },
+        { success: false, error: "Package details, PII, and salt are required" },
         { status: 400 },
       );
     }
 
-    // Submit to blockchain
+    // Generate UUID automatically
+    const packageId = randomUUID();
+    const mspIdentity = await getMspIdentity();
+
+    // Convert urgency string to Urgency enum
+    const urgencyMap: Record<string, Urgency> = {
+      "high": Urgency.HIGH,
+      "medium": Urgency.MEDIUM,
+      "low": Urgency.LOW,
+      "none": Urgency.NONE,
+    };
+
+    // Create package in Convex immediately (don't wait for blockchain event)
+    await convexServerClient.createPackage({
+      externalId: packageId,
+      name: name,
+      recipientOrgMSP: recipientOrgMSP,
+      ownerOrgMSP: mspIdentity.mspId,
+      senderOrgMSP: mspIdentity.mspId,
+      status: Status.PENDING,
+      mspId: mspIdentity.mspId,
+      packageDetails: packageDetails, // Include all form details
+      pii: pii, // Include PII data
+      salt: salt, // Include salt for verification
+    });
+
+    console.log(`[API] Package created in Convex: ${packageId}`);
+
+    // Submit to blockchain - EventListener will update status when blockchain confirms
     const service = await getPackageService();
     const result = await service.createPackage(
-      newPackage.id,
-      newPackage.recipientOrgMSP,
-      newPackage.packageDetails,
-      newPackage.pii,
-      newPackage.salt,
+      packageId,
+      recipientOrgMSP,
+      {
+        ...packageDetails,
+        urgency: urgencyMap[packageDetails.urgency] || Urgency.NONE,
+      },
+      pii,
+      salt,
       false,
     );
 
+    console.log(`[API] Package submitted to blockchain: ${packageId}`);
+
     return NextResponse.json({
       success: true,
-      id: newPackage.id,
-      name: newPackage.name,
+      id: packageId,
+      name: name,
       result,
     });
   } catch (error: any) {

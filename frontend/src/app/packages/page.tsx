@@ -21,7 +21,7 @@ export default function MyPackagesPage() {
     announcements,
     isLoading: announcementsLoading,
     refetch: refetchAnnouncements,
-  } = useAnnouncements(false);
+  } = useAnnouncements();
 
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
@@ -50,10 +50,10 @@ export default function MyPackagesPage() {
 
   // Filter packages by status
   const activePackages = packages.filter(
-    (pkg) => pkg.active === "true" && pkg.status !== "succeeded",
+    (pkg) => !["succeeded", "failed"].includes(pkg.status),
   );
   const completedPackages = packages.filter(
-    (pkg) => pkg.active === "false" || pkg.status === "succeeded",
+    (pkg) => ["succeeded", "failed"].includes(pkg.status),
   );
 
   if (error) {

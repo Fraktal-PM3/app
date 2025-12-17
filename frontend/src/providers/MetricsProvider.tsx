@@ -61,7 +61,7 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
 
   const { packages } = usePackages();
   const { transfers } = useTransfers();
-  const { announcements } = useAnnouncements(false); // Get all announcements
+  const { announcements } = useAnnouncements(); // Get all announcements
 
   // Role detection logic
   useEffect(() => {

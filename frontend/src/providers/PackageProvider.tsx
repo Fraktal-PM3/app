@@ -1,38 +1,36 @@
 "use client";
 
-import type {
-  CreatePackageEvent,
-  DeletePackageEvent,
-  StatusUpdatedEvent,
-  StatusUpdatedAfterProposeEvent,
-  StatusUpdatedAfterAcceptEvent,
-  TransferExecutedEvent,
-} from "@/types/events";
 import type { Package, Transfer } from "@/types/package";
+import { api } from "../../convex/_generated/api";
+import { useQuery } from "convex/react";
 import React, {
   createContext,
-  useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
 } from "react";
-import { useSSEConnection } from "./SSEConnectionProvider";
-import { TransferToPM3Event } from "fraktal-lib";
 
 // Helper to normalize date fields to ISO strings
-function toIso(s?: string | null | undefined): string | undefined {
-  if (!s) return undefined;
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return undefined;
-  return d.toISOString();
+function toIso(timestamp?: number | null): string | undefined {
+  if (!timestamp) return undefined;
+  return new Date(timestamp).toISOString();
 }
 
 function normalizePackage(p: any): Package {
   return {
     ...p,
-    createdAt: toIso(p?.createdAt) || undefined,
-    updatedAt: toIso(p?.updatedAt) || undefined,
+    _id: p._id,
+    id: p.externalId, // Map externalId to id for backwards compatibility
+    createdAt: toIso(p._creationTime),
+    updatedAt: toIso(p.updatedAt),
+  };
+}
+
+function normalizeTransfer(t: any): Transfer {
+  return {
+    ...t,
+    _id: t._id,
+    createdAt: toIso(t._creationTime),
+    updatedAt: toIso(t.updatedAt),
   };
 }
 
@@ -41,8 +39,6 @@ interface PackageContextValue {
   transfers: Transfer[];
   isLoading: boolean;
   error: string | null;
-  refetchPackages: () => Promise<void>;
-  refetchTransfers: () => Promise<void>;
 }
 
 const PackageContext = createContext<PackageContextValue | undefined>(
@@ -50,137 +46,22 @@ const PackageContext = createContext<PackageContextValue | undefined>(
 );
 
 export function PackageProvider({ children }: { children: React.ReactNode }) {
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use Convex queries - they auto-update!
+  const packagesData = useQuery(api.queries.packages.list);
+  const transfersData = useQuery(api.queries.transfers.list);
 
-  const { subscribe } = useSSEConnection();
+  const packages = useMemo(
+    () => (packagesData || []).map(normalizePackage),
+    [packagesData],
+  );
 
-  // Fetch packages from API
-  const refetchPackages = useCallback(async () => {
-    try {
-      const response = await fetch("/api/packages", { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch packages: ${response.statusText}`);
-      }
-      const data = await response.json();
-      const normalized = (data || []).map((p: any) => normalizePackage(p));
-      setPackages(normalized);
-      setError(null);
-    } catch (err) {
-      const errorMsg =
-        err instanceof Error ? err.message : "Failed to load packages";
-      setError(errorMsg);
-      console.error("[PackageProvider] Error fetching packages:", err);
-    }
-  }, []);
+  const transfers = useMemo(
+    () => (transfersData || []).map(normalizeTransfer),
+    [transfersData],
+  );
 
-  // Fetch transfers from API
-  const refetchTransfers = useCallback(async () => {
-    try {
-      const response = await fetch("/api/transfers");
-      if (!response.ok) {
-        throw new Error(`Failed to fetch transfers: ${response.statusText}`);
-      }
-      const data = await response.json();
-      setTransfers(data || []);
-      setError(null);
-    } catch (err) {
-      const errorMsg =
-        err instanceof Error ? err.message : "Failed to load transfers";
-      setError(errorMsg);
-      console.error("[PackageProvider] Error fetching transfers:", err);
-    }
-  }, []);
-
-  // Initial data fetch
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setIsLoading(true);
-      await Promise.all([refetchPackages(), refetchTransfers()]);
-      setIsLoading(false);
-    };
-
-    fetchInitialData();
-  }, [refetchPackages, refetchTransfers]);
-
-  // SSE event subscriptions
-  useEffect(() => {
-    const unsubscribes = [
-      // CreatePackage - add new package
-      subscribe<CreatePackageEvent>("CreatePackage", async (data) => {
-        setIsLoading(true);
-        console.log("[PackageProvider] CreatePackage event:", data);
-        await refetchPackages();
-        setIsLoading(false);
-      }),
-
-      // StatusUpdated - update package status
-      subscribe<StatusUpdatedEvent>("StatusUpdated", async (data) => {
-        setIsLoading(true);
-        console.log("[PackageProvider] StatusUpdated event:", data);
-        await refetchPackages();
-        setIsLoading(false);
-      }),
-
-      // DeletePackage - remove package
-      subscribe<DeletePackageEvent>("DeletePackage", async (data) => {
-        setIsLoading(true);
-        console.log("[PackageProvider] DeletePackage event:", data);
-        await refetchPackages();
-        setIsLoading(false);
-      }),
-
-      // StatusUpdatedAfterPropose - refetch packages to get updated status
-      subscribe<StatusUpdatedAfterProposeEvent>(
-        "StatusUpdatedAfterPropose",
-        async (data) => {
-          setIsLoading(true);
-          console.log(
-            "[PackageProvider] StatusUpdatedAfterPropose event:",
-            data,
-          );
-          await Promise.all([refetchPackages(), refetchTransfers()]);
-          setIsLoading(false);
-        },
-      ),
-
-      // StatusUpdatedAfterAccept - refetch packages and transfers
-      subscribe<StatusUpdatedAfterAcceptEvent>(
-        "StatusUpdatedAfterAccept",
-        async (data) => {
-          setIsLoading(true);
-          console.log(
-            "[PackageProvider] StatusUpdatedAfterAccept event:",
-            data,
-          );
-          await Promise.all([refetchPackages(), refetchTransfers()]);
-          setIsLoading(false);
-        },
-      ),
-
-      // TransferExecuted - refetch packages and transfers
-      subscribe<TransferExecutedEvent>("TransferExecuted", async (data) => {
-        setIsLoading(true);
-        console.log("[PackageProvider] TransferExecuted event:", data);
-        await Promise.all([refetchPackages(), refetchTransfers()]);
-        setIsLoading(false);
-      }),
-
-      // TransferToPM3 - refetch packages
-      subscribe<TransferToPM3Event>("TransferToPM3", async (data) => {
-        setIsLoading(true);
-        console.log("[PackageProvider] TransferToPM3 event:", data);
-        await refetchPackages();
-        setIsLoading(false);
-      }),
-    ];
-
-    return () => {
-      unsubscribes.forEach((fn) => fn());
-    };
-  }, [subscribe, refetchPackages, refetchTransfers]);
+  const isLoading = packagesData === undefined || transfersData === undefined;
+  const error = null; // Convex handles errors automatically
 
   const value = useMemo(
     () => ({
@@ -188,10 +69,8 @@ export function PackageProvider({ children }: { children: React.ReactNode }) {
       transfers,
       isLoading,
       error,
-      refetchPackages,
-      refetchTransfers,
     }),
-    [packages, transfers, isLoading, error, refetchPackages, refetchTransfers],
+    [packages, transfers, isLoading, error],
   );
 
   return (
@@ -206,14 +85,12 @@ export function usePackages() {
     throw new Error("usePackages must be used within PackageProvider");
   }
 
-  const { isConnected } = useSSEConnection();
-
   return {
     packages: context.packages,
     isLoading: context.isLoading,
-    isConnected,
+    isConnected: !context.isLoading, // If data loaded, we're connected
     error: context.error,
-    refetch: context.refetchPackages,
+    refetch: () => Promise.resolve(), // Convex handles refetching automatically
   };
 }
 
@@ -224,14 +101,12 @@ export function useTransfers() {
     throw new Error("useTransfers must be used within PackageProvider");
   }
 
-  const { isConnected } = useSSEConnection();
-
   return {
     transfers: context.transfers,
     isLoading: context.isLoading,
-    isConnected,
+    isConnected: !context.isLoading,
     error: context.error,
-    refetch: context.refetchTransfers,
+    refetch: () => Promise.resolve(),
   };
 }
 
@@ -242,8 +117,6 @@ export function usePackage(packageId: string) {
     throw new Error("usePackage must be used within PackageProvider");
   }
 
-  const { isConnected } = useSSEConnection();
-
   const packageData = useMemo(
     () => context.packages.find((pkg) => pkg.id === packageId),
     [context.packages, packageId],
@@ -252,8 +125,8 @@ export function usePackage(packageId: string) {
   return {
     packageData: packageData,
     isLoading: context.isLoading,
-    isConnected,
+    isConnected: !context.isLoading,
     error: context.error,
-    refetch: context.refetchPackages,
+    refetch: () => Promise.resolve(),
   };
 }

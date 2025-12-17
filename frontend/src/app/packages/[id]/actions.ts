@@ -1,8 +1,6 @@
 "use server";
 
 import { getMspIdentity, getPackageService } from "@/app/api/packages/service";
-import dbConnect from "@/lib/dbService";
-import PackageModel from "@/models/package";
 import { TransferOffer } from "@/types/package";
 import { randomBytes, randomUUID } from "crypto";
 import { Status, TransferTerms } from "fraktal-lib";

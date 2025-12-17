@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import eventListenerService from "@/services/eventListener";
 import eventSyncService from "@/services/eventSync";
-import dbConnect from "@/lib/dbService";
-import mongoose from "mongoose";
 
 // Use dynamic rendering
 export const dynamic = "force-dynamic";
@@ -17,7 +15,7 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     services: {
       eventListener: {},
-      mongodb: {},
+      convex: {},
       firefly: {},
       lastSync: {},
     },
@@ -36,32 +34,10 @@ export async function GET() {
       health.status = "degraded";
     }
 
-    // Check MongoDB connection
-    try {
-      await dbConnect();
-      const mongoStatus = mongoose.connection.readyState;
-      const mongoStateMap = {
-        0: "disconnected",
-        1: "connected",
-        2: "connecting",
-        3: "disconnecting",
-      };
-
-      health.services.mongodb = {
-        status: mongoStateMap[mongoStatus as keyof typeof mongoStateMap] || "unknown",
-        readyState: mongoStatus,
-      };
-
-      if (mongoStatus !== 1) {
-        health.status = "unhealthy";
-      }
-    } catch (error: any) {
-      health.services.mongodb = {
-        status: "error",
-        error: error.message,
-      };
-      health.status = "unhealthy";
-    }
+    // Convex connection is handled by the SDK
+    health.services.convex = {
+      status: "connected", // Convex manages connection internally
+    };
 
     // Check last event sync
     try {

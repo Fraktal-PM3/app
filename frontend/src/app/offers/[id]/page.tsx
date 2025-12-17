@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAnnouncements, useTransferOffers } from "@/providers";
+import { useAnnouncements, useOffers } from "@/providers";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -40,8 +40,8 @@ export default function OfferDetailsPage() {
   const announcementId = params.id as string;
 
   const { announcements, isLoading, isConnected, error } =
-    useAnnouncements(false); // Show ALL announcements, not just active ones
-  const { offers, refetch } = useTransferOffers();
+    useAnnouncements(); // Show ALL announcements
+  const { offers, refetch } = useOffers();
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [currentMspId, setCurrentMspId] = useState<string | null>(null);
 

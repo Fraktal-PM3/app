@@ -15,11 +15,10 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  useAnnouncementOffers,
+  useOffersByAnnouncement,
   useAnnouncements,
   usePackage,
   useRecentActivity,
-  useSSEConnection,
   useTransfers,
 } from "@/providers";
 import { Status } from "fraktal-lib";
@@ -64,9 +63,8 @@ export default function PackageDetailsPage() {
   const { packageData, isLoading, error, refetch } = usePackage(packageId);
   const { transfers, isLoading: transfersLoading } = useTransfers();
   const { announcements, isLoading: announcementsLoading } =
-    useAnnouncements(false);
+    useAnnouncements();
   const { activities } = useRecentActivity();
-  const { isConnected } = useSSEConnection();
   const [isOwner, setIsOwner] = useState(false);
   const [isSender, setIsSender] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -116,7 +114,7 @@ export default function PackageDetailsPage() {
   );
 
   // Get offers for the active announcement
-  const { offers: announcementOffers } = useAnnouncementOffers(
+  const { offers: announcementOffers } = useOffersByAnnouncement(
     activeAnnouncement?.messageId || "",
   );
 
@@ -128,6 +126,7 @@ export default function PackageDetailsPage() {
           const metadata = a.metadata;
           return (
             metadata?.packageId === packageData?._id ||
+            metadata?.packageExternalId === packageData?.id ||
             metadata?.externalId === packageData?.id ||
             metadata?.id === packageData?.id
           );
@@ -144,12 +143,7 @@ export default function PackageDetailsPage() {
     }
   }, [packageData]);
 
-  // Refetch when SSE events occur
-  useEffect(() => {
-    if (isConnected) {
-      refetch();
-    }
-  }, [isConnected, refetch]);
+  // Convex handles auto-refetching via reactive queries - no manual refetch needed
 
   const handleMarkInTransit = async (externalId: string) => {
     setIsMarkingInTransit(true);
@@ -265,7 +259,7 @@ export default function PackageDetailsPage() {
         {/* Header */}
         <PackageDetailsHeader
           packageData={packageData}
-          isConnected={isConnected}
+          isConnected={true}
           isSender={isSender}
           isOwner={isOwner}
           hasActiveAnnouncement={hasActiveAnnouncement}

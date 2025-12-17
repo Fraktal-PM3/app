@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAnnouncements, useTransferOffers } from "@/providers";
+import { useAnnouncements, useOffers } from "@/providers";
 import { PackageAnnouncement, TransferOffer } from "@/types/package";
 import { motion } from "framer-motion";
 import { Briefcase, Search } from "lucide-react";
@@ -17,9 +17,9 @@ import { getCurrentMspId } from "./actions";
 
 export default function OffersPage() {
   const { announcements, isLoading, isConnected, error, refetch } =
-    useAnnouncements(true); // Show ALL announcements, not just active ones
+    useAnnouncements(); // Show all announcements
 
-  const { offers } = useTransferOffers();
+  const { offers } = useOffers();
 
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<PackageAnnouncement | null>(null);

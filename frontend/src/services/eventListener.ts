@@ -13,15 +13,7 @@ import type {
   TransferTerms,
 } from "fraktal-lib";
 import { PackageService, Status, isPackageDetailsMessage } from "fraktal-lib";
-import dbConnect from "../lib/dbService";
-import eventBus from "../lib/eventBus";
-import PackageModel, { Package } from "../models/package";
-import PackageAnnouncementModel, {
-  PackageAnnouncementDocument,
-} from "../models/packageAnnouncement";
-import SystemStateModel from "../models/systemState";
-import TransferModel from "../models/transfer";
-import TransferOfferModel from "../models/transferOffer";
+import convexServerClient from "../lib/convexServerClient";
 
 interface EventListenerConfig {
   fireflyHost?: string;
@@ -48,9 +40,11 @@ class EventListenerService {
     try {
       console.log("[EventListener] Initializing...");
 
-      // Connect to MongoDB
-      await dbConnect();
-      console.log("[EventListener] MongoDB connected");
+      // Check Convex client
+      if (!convexServerClient.isInitialized()) {
+        throw new Error("Convex client not initialized - check CONVEX_URL environment variable");
+      }
+      console.log("[EventListener] Convex client ready");
 
       this.fireflyInstance = new FireFly({
         host: process.env.FIREFLY_NODE_URL || "",
@@ -140,15 +134,11 @@ class EventListenerService {
   private async storeNodeIdentity(): Promise<void> {
     try {
       if (this.nodeMSP) {
-        await SystemStateModel.findOneAndUpdate(
-          { key: "nodeMSP" },
-          {
-            key: "nodeMSP",
-            value: this.nodeMSP,
-            lastSyncTimestamp: new Date(),
-          },
-          { upsert: true, new: true },
-        );
+        await convexServerClient.setSystemState({
+          key: "nodeMSP",
+          value: this.nodeMSP,
+          lastSyncTimestamp: Date.now(),
+        });
         console.log("[EventListener] Node MSP stored in system state");
       }
     } catch (error) {
@@ -189,6 +179,16 @@ class EventListenerService {
         output.ownerOrgMSP === this.nodeMSP ||
         output.newOwner === this.nodeMSP
       ) {
+        return true;
+      }
+
+      // Check package recipient field (important for receiving packages)
+      if (output.recipientOrgMSP === this.nodeMSP) {
+        return true;
+      }
+
+      // Check sender field (for packages we're sending)
+      if (output.senderOrgMSP === this.nodeMSP) {
         return true;
       }
 
@@ -361,8 +361,7 @@ class EventListenerService {
 
         try {
           await this.handleCreatePackage(event);
-          eventBus.emitBlockchainEvent("CreatePackage", event);
-          // Mark event as processed after successful handling
+          // Convex handles reactivity automatically - no need to emit events
         } catch (error) {
           console.error("[EventListener] Error handling CreatePackage:", error);
         }
@@ -389,9 +388,9 @@ class EventListenerService {
 
         this.markEventAsProcessed(event, eventName);
 
-        const packageData = await PackageModel.findOne({
-          id: event.output.externalId,
-        });
+        const packageData = await convexServerClient.getPackageByExternalId(
+          event.output.externalId
+        );
 
         if (!packageData) {
           console.log(
@@ -402,7 +401,6 @@ class EventListenerService {
 
         try {
           await this.handleStatusUpdated(event);
-          eventBus.emitBlockchainEvent("StatusUpdated", event);
           // Mark event as processed after successful handling
         } catch (error) {
           console.error("[EventListener] Error handling StatusUpdated:", error);
@@ -444,11 +442,8 @@ class EventListenerService {
           return;
         }
 
-        await dbConnect();
-
         try {
           await this.handleStatusUpdatedAfterPropose(event);
-          eventBus.emitBlockchainEvent("StatusUpdatedAfterPropose", event);
           // Mark event as processed after successful handling
         } catch (error) {
           console.error(
@@ -483,11 +478,9 @@ class EventListenerService {
 
         this.markEventAsProcessed(event, "StatusUpdatedAfterAccept");
 
-        await dbConnect();
-
-        const packageData = await PackageModel.findOne({
-          id: event.output.externalId,
-        });
+        const packageData = await convexServerClient.getPackageByExternalId(
+          event.output.externalId
+        );
 
         if (!packageData) {
           console.log(
@@ -496,11 +489,14 @@ class EventListenerService {
           return;
         }
 
-        if (
-          packageData.senderOrgMSP !== this.nodeMSP &&
-          packageData.recipientOrgMSP !== this.nodeMSP &&
-          packageData.mspId !== this.nodeMSP
-        ) {
+        // Check if this MSP is involved in the package or is the caller (accepter) of the transfer
+        const isInvolved =
+          packageData.senderOrgMSP === this.nodeMSP ||
+          packageData.recipientOrgMSP === this.nodeMSP ||
+          packageData.mspId === this.nodeMSP ||
+          event.output.caller === this.nodeMSP; // The one accepting the transfer
+
+        if (!isInvolved) {
           console.log(
             "[EventListener] StatusUpdatedAfterAccept event discarded, not addressed to this MSP",
           );
@@ -508,7 +504,6 @@ class EventListenerService {
         }
         try {
           await this.handleStatusUpdatedAfterAccept(event);
-          eventBus.emitBlockchainEvent("StatusUpdatedAfterAccept", event);
         } catch (error) {
           console.error(
             "[EventListener] Error handling StatusUpdatedAfterAccept:",
@@ -533,24 +528,21 @@ class EventListenerService {
           return; // Skip duplicate event
         }
 
-        await dbConnect();
-
-        const transfer = await TransferModel.exists({
-          transferId: event.output.termsId,
-        });
+        const transfer = await convexServerClient.getTransferByTransferId(
+          event.output.termsId
+        );
 
         console.log("TransferExecuted - found transfer:", transfer);
 
-        const packageData = await PackageModel.exists({
-          id: event.output.externalId,
-        });
+        const packageData = await convexServerClient.getPackageByExternalId(
+          event.output.externalId
+        );
 
         if (!transfer && !packageData) return;
 
         try {
           this.markEventAsProcessed(event, eventName);
           await this.handleTransferExecuted(event);
-          eventBus.emitBlockchainEvent("TransferExecuted", event);
           // Mark event as processed after successful handling
         } catch (error) {
           console.error(
@@ -581,7 +573,6 @@ class EventListenerService {
         try {
           this.markEventAsProcessed(event, eventName);
           await this.handleDeletePackage(event);
-          eventBus.emitBlockchainEvent("DeletePackage", event);
         } catch (error) {
           console.error("[EventListener] Error handling DeletePackage:", error);
         }
@@ -606,14 +597,17 @@ class EventListenerService {
         this.markEventAsProcessed(event, eventName);
 
         // Check if we are tracking the package
-        if (!(await PackageModel.exists({ id: event.output.externalId }))) {
+        const pkg = await convexServerClient.getPackageByExternalId(
+          event.output.externalId
+        );
+        
+        if (!pkg) {
           console.log(
             "[EventListener] Not tracking package, discarding TransferToPM3Event",
           );
         }
         try {
           this.handleTransferToPM3(event);
-          eventBus.emitBlockchainEvent("TransferToPM3", event);
           // Mark event as processed after successful handling
         } catch (error) {
           console.error("[EventListener] Error handling TransferToPM3:", error);
@@ -640,17 +634,14 @@ class EventListenerService {
             // Handle package announcements
             console.log("[EventListener] PACKAGE_ANNOUNCE message detected");
             await this.handlePackageAnnouncement(event);
-            eventBus.emitBlockchainEvent("PackageAnnouncement", event);
             // Mark message as processed
           } else if (messageTag === "TRANSFER_OFFER") {
             // Handle transfer offers (private messages)
             console.log("[EventListener] TRANSFER_OFFER message detected");
             await this.handleTransferOffer(event);
-            eventBus.emitBlockchainEvent("TransferOffer", event);
             // Mark message as processed
           } else {
             // Emit generic message event for other message types
-            eventBus.emitBlockchainEvent("message", event);
             // Mark message as processed
           }
         } catch (error) {
@@ -672,11 +663,74 @@ class EventListenerService {
     try {
       const output = event.output;
       console.log(
-        `[EventListener] CreatePackage event processed (DB not modified): ${output.externalId}`,
+        `[EventListener] CreatePackage event received: ${output.externalId}`,
       );
-      // Just log the event - DB modifications are handled exclusively via API endpoints
-      // Package creation in DB: POST /api/packages
-      // Package blockchain submission: POST /api/packages/create
+
+      // Check if this node's MSP is involved in the package
+      const isInvolved = 
+        output.senderOrgMSP === this.nodeMSP ||
+        output.ownerOrgMSP === this.nodeMSP ||
+        output.recipientOrgMSP === this.nodeMSP;
+
+      if (!isInvolved) {
+        console.log(
+          `[EventListener] Package ${output.externalId} does not involve this MSP (${this.nodeMSP}), skipping creation`,
+        );
+        return;
+      }
+
+      // Check if package already exists in Convex
+      const existingPackage = await convexServerClient.getPackageByExternalId(output.externalId);
+      
+      if (existingPackage) {
+        console.log(`[EventListener] Package ${output.externalId} already exists in Convex, logging activity event`);
+        
+        // Still log activity event for the blockchain confirmation
+        await convexServerClient.logActivityEvent({
+          type: "CreatePackage",
+          packageExternalId: output.externalId,
+          title: `Package Confirmed on Blockchain`,
+          description: `Blockchain confirmation for package ${output.externalId}`,
+          newStatus: output.status,
+          metadata: {
+            ownerOrgMSP: output.ownerOrgMSP,
+            senderOrgMSP: output.senderOrgMSP,
+            recipientOrgMSP: output.recipientOrgMSP,
+            blockchainConfirmed: true,
+          },
+        });
+        
+        return;
+      }
+
+      // Create package in Convex
+      await convexServerClient.createPackage({
+        externalId: output.externalId,
+        name: output.externalId, // Use externalId as name if not provided
+        recipientOrgMSP: output.recipientOrgMSP,
+        ownerOrgMSP: output.ownerOrgMSP,
+        senderOrgMSP: output.senderOrgMSP,
+        status: output.status,
+        mspId: output.ownerOrgMSP,
+      });
+
+      // Log activity event
+      await convexServerClient.logActivityEvent({
+        type: "CreatePackage",
+        packageExternalId: output.externalId,
+        title: `Package Created: ${output.externalId}`,
+        description: `Status: ${output.status}`,
+        newStatus: output.status,
+        metadata: {
+          ownerOrgMSP: output.ownerOrgMSP,
+          senderOrgMSP: output.senderOrgMSP,
+          recipientOrgMSP: output.recipientOrgMSP,
+        },
+      });
+
+      console.log(
+        `[EventListener] Package created in Convex: ${output.externalId}`,
+      );
     } catch (error) {
       console.error("[EventListener] Error processing CreatePackage:", error);
       throw error;
@@ -693,21 +747,19 @@ class EventListenerService {
       const output = event.output;
 
       // Only update existing packages (don't create new ones)
-      const updated = await PackageModel.findOneAndUpdate(
-        { id: output.externalId },
-        {
-          status: output.status,
-          mspId: this.extractMSP(event),
-        },
-        { new: true },
-      );
+      const pkg = await convexServerClient.getPackageByExternalId(output.externalId);
 
-      if (!updated) {
+      if (!pkg) {
         console.warn(
           `[EventListener] Package not found for StatusUpdated event: ${output.externalId}. Skipping update.`,
         );
         return;
       }
+
+      await convexServerClient.updatePackageStatus({
+        externalId: output.externalId,
+        status: output.status,
+      });
 
       console.log(
         `[EventListener] Package status updated: ${output.externalId} -> ${output.status}`,
@@ -739,11 +791,15 @@ class EventListenerService {
         blockchainPackage,
       );
 
-      await PackageModel.findOneAndUpdate(
-        { id: event.output.externalId },
-        { ...blockchainPackage },
-        { new: true },
-      );
+      const pkg = await convexServerClient.getPackageByExternalId(event.output.externalId);
+      
+      if (pkg) {
+        await convexServerClient.updatePackageStatus({
+          externalId: event.output.externalId,
+          status: blockchainPackage.status,
+          ownerOrgMSP: blockchainPackage.ownerOrgMSP,
+        });
+      }
     } catch (error) {
       console.error(
         `[EventListener] Error when transfering package to PM3: ${error}`,
@@ -765,75 +821,75 @@ class EventListenerService {
       }
 
       console.log("handleTransferExecuted event:", event);
+      
       if (output.newOwner === this.nodeMSP) {
         const blockchainPackage =
           await this.packageService.readBlockchainPackage(output.externalId);
         console.log("Fetched blockchain package:", blockchainPackage);
+        
         const packageDetailsAndPII =
           (await this.packageService.readPackageDetailsAndPII(
             output.externalId,
           )) as StoreObject;
         console.log("Fetched package details and PII:", packageDetailsAndPII);
-        await PackageModel.findOneAndUpdate(
-          { id: output.externalId },
-          {
-            ...blockchainPackage,
-            ...packageDetailsAndPII,
-            mspId: this.nodeMSP,
-            name: output.externalId,
-            id: output.externalId,
-          },
-          { new: true, upsert: true },
-        );
+        
+        // Create or update package with full details
+        await convexServerClient.createPackage({
+          externalId: output.externalId,
+          name: output.externalId,
+          recipientOrgMSP: blockchainPackage.recipientOrgMSP,
+          ownerOrgMSP: output.newOwner,
+          senderOrgMSP: blockchainPackage.senderOrgMSP,
+          status: blockchainPackage.status,
+          mspId: this.nodeMSP,
+          packageDetails: packageDetailsAndPII.packageDetails,
+          pii: packageDetailsAndPII.pii,
+          salt: packageDetailsAndPII.salt,
+        });
       } else {
         const blockchainPackage =
           await this.packageService.readBlockchainPackage(output.externalId);
-        await PackageModel.findOneAndUpdate(
-          { id: output.externalId },
-          {
-            ...blockchainPackage,
-            mspId: output.newOwner, // Update owner to the new owner
-          },
-          { new: true },
-        );
+        
+        await convexServerClient.updatePackageStatus({
+          externalId: output.externalId,
+          status: blockchainPackage.status,
+          ownerOrgMSP: output.newOwner,
+          termsId: output.termsId,
+        });
       }
 
-      if (await TransferModel.exists({ transferId: output.termsId })) {
-        const executed = await TransferModel.findOneAndUpdate(
-          { transferId: output.termsId },
-          {
-            status: "executed",
-            mspId: this.extractMSP(event),
+      // Update transfer status
+      const transfer = await convexServerClient.getTransferByTransferId(output.termsId);
+      
+      if (transfer) {
+        await convexServerClient.updateTransferStatus({
+          transferId: output.termsId,
+          status: "executed",
+          blockchainTxId: event.txid,
+        });
+
+        // Log activity event for transfer execution
+        await convexServerClient.logActivityEvent({
+          type: "TransferExecuted",
+          packageExternalId: output.externalId,
+          title: "Transfer Executed",
+          description: `Transfer ${output.termsId} executed - ownership transferred to ${output.newOwner}`,
+          oldStatus: "accepted",
+          newStatus: "executed",
+          metadata: {
+            transferId: output.termsId,
+            newOwner: output.newOwner,
+            fromMSP: transfer.fromMSP,
+            toMSP: transfer.toMSP,
             blockchainTxId: event.txid,
           },
-          { new: true },
-        );
-
-        if (!executed) {
-          console.warn(
-            `[EventListener] Transfer not found for TransferExecuted event: ${output.termsId}. Skipping update.`,
-          );
-          return;
-        }
+        });
       }
 
-      if (
-        await PackageAnnouncementModel.exists({
-          packageExternalId: output.externalId,
-        })
-      ) {
-        // Mark all active announcements for this package as inactive
-        // since it has been transferred to a new owner
-        await PackageAnnouncementModel.updateMany(
-          {
-            packageExternalId: output.externalId,
-            isActive: true,
-          },
-          {
-            $set: { isActive: false },
-          },
-        );
-      }
+      // Deactivate announcements for this package
+      await convexServerClient.deactivateAnnouncements({
+        packageExternalId: output.externalId,
+      });
 
       console.log(`[EventListener] Transfer executed: ${output.termsId}`);
       console.log(
@@ -858,32 +914,24 @@ class EventListenerService {
       const output = event.output;
 
       // Soft delete by setting status to failed (only if package exists)
-      const deleted = await PackageModel.findOneAndUpdate(
-        { id: output.externalId },
-        {
-          status: "failed",
-          mspId: this.extractMSP(event),
-        },
-        { new: true },
-      );
-
-      if (!deleted) {
+      const pkg = await convexServerClient.getPackageByExternalId(output.externalId);
+      
+      if (!pkg) {
         console.warn(
           `[EventListener] Package not found for DeletePackage event: ${output.externalId}. Skipping delete.`,
         );
         return;
       }
 
+      await convexServerClient.updatePackageStatus({
+        externalId: output.externalId,
+        status: "failed",
+      });
+
       // Mark all active announcements for this package as inactive
-      await PackageAnnouncementModel.updateMany(
-        {
-          packageExternalId: output.externalId,
-          isActive: true,
-        },
-        {
-          $set: { isActive: false },
-        },
-      );
+      await convexServerClient.deactivateAnnouncements({
+        packageExternalId: output.externalId,
+      });
 
       console.log(`[EventListener] Package deleted: ${output.externalId}`);
       console.log(
@@ -916,31 +964,33 @@ class EventListenerService {
         return;
       }
 
-      // Try to find the package in our database
-      const pkg = await PackageModel.findOne({
-        id: packageExternalId,
-      });
-
-      const announcementData = {
+      // Create announcement
+      await convexServerClient.createAnnouncement({
         messageId: event.id,
         messageHash: event.hash,
         packageExternalId: packageExternalId,
-        packageId: pkg ? pkg._id : undefined,
         announcerMSP: announcerMSP,
         announcerNode: announcerNode,
         isActive: true,
         price: event.value.price || undefined,
         messageData: event.value,
         packageDetails: event.value,
-        expiresAt: event.value.expiresAt ? event.value.expiresAt : undefined,
-      } as Partial<PackageAnnouncementDocument>;
+        expiresAt: event.value.expiresAt ? new Date(event.value.expiresAt).getTime() : undefined,
+      });
 
-      // Upsert announcement (create or update if exists)
-      await PackageAnnouncementModel.findOneAndUpdate(
-        { messageId: event.id },
-        announcementData,
-        { upsert: true, new: true },
-      );
+      // Log activity event for announcement
+      await convexServerClient.logActivityEvent({
+        type: "PackageAnnouncement",
+        packageExternalId: packageExternalId,
+        title: "Package Announced",
+        description: `Package announced by ${announcerMSP}`,
+        metadata: {
+          announcerMSP: announcerMSP,
+          announcerNode: announcerNode,
+          price: event.value.price,
+          messageId: event.id,
+        },
+      });
 
       console.log(
         `[EventListener] Package announcement stored: ${packageExternalId} from ${announcerMSP}`,
@@ -973,41 +1023,40 @@ class EventListenerService {
         return;
       }
 
-      // Try to find the package in our database
-      const pkg = await PackageModel.findOne({
-        id: offerValue.externalPackageId,
-      });
-
       // Try to find the active announcement for this package
-      const activeAnnouncement = await PackageAnnouncementModel.findOne({
-        packageExternalId: offerValue.externalPackageId,
-        isActive: true,
-      }).sort({ createdAt: -1 });
+      const announcements = await convexServerClient.getAnnouncementsByPackage(
+        offerValue.externalPackageId
+      );
+      const activeAnnouncement = announcements.find((a: any) => a.isActive);
 
-      const transferOfferData = {
+      await convexServerClient.createOffer({
         messageId: event.id,
         messageHash: event.hash,
         externalPackageId: offerValue.externalPackageId,
-        packageId: pkg ? pkg._id : undefined,
         fromMSP: offerValue.fromMSP,
         toMSP: offerValue.toMSP,
         price: offerValue.price,
         expiryISO: offerValue.expiryISO,
         senderNode: senderNode,
         signingKey: event.signingKey,
-        announcementMessageId: activeAnnouncement
-          ? activeAnnouncement.messageId
-          : undefined,
+        announcementMessageId: activeAnnouncement?.messageId,
         messageData: offerValue,
-        packageDetails: offerValue,
-      };
+      });
 
-      // Upsert transfer offer (create or update if exists)
-      await TransferOfferModel.findOneAndUpdate(
-        { externalPackageId: offerValue.externalPackageId },
-        transferOfferData,
-        { upsert: true, new: true },
-      );
+      // Log activity event for offer
+      await convexServerClient.logActivityEvent({
+        type: "TransferOffer",
+        packageExternalId: offerValue.externalPackageId,
+        title: `Transfer Offer: $${offerValue.price}`,
+        description: `Offer from ${offerValue.fromMSP} to ${offerValue.toMSP}`,
+        metadata: {
+          fromMSP: offerValue.fromMSP,
+          toMSP: offerValue.toMSP,
+          price: offerValue.price,
+          expiryISO: offerValue.expiryISO,
+          messageId: event.id,
+        },
+      });
 
       console.log(
         `[EventListener] Transfer offer stored: ${offerValue.externalPackageId} from ${offerValue.fromMSP} with price ${offerValue.price}`,
@@ -1062,50 +1111,112 @@ class EventListenerService {
         throw new Error("PackageService not initialized");
       }
 
-      const packageData = await PackageModel.findOneAndUpdate(
-        { id: output.externalId },
-        { status: output.status },
-        { new: true, upsert: true },
-      );
+      // Check if package exists
+      let pkg = await convexServerClient.getPackageByExternalId(output.externalId);
+      
+      if (!pkg) {
+        console.log(
+          `[EventListener] Package ${output.externalId} not found - creating from blockchain and announcement data`,
+        );
+        
+        // Fetch package from blockchain
+        const blockchainPackage = await this.packageService.readBlockchainPackage(output.externalId);
+        
+        // Try to fetch announcement for additional details
+        const announcements = await convexServerClient.getAnnouncementsByPackage(output.externalId);
+        const announcement = announcements.find((a: any) => a.isActive);
+        
+        // Extract and clean packageDetails from announcement (remove extra fields like id, price)
+        let cleanedPackageDetails = undefined;
+        if (announcement?.packageDetails) {
+          const details = announcement.packageDetails;
+          cleanedPackageDetails = {
+            pickupLocation: details.pickupLocation,
+            dropLocation: details.dropLocation,
+            size: details.size,
+            weightKg: details.weightKg,
+            urgency: details.urgency,
+          };
+        }
+        
+        // Create package with all available information
+        await convexServerClient.createPackage({
+          externalId: output.externalId,
+          name: announcement?.packageDetails?.name || output.externalId,
+          recipientOrgMSP: blockchainPackage.recipientOrgMSP,
+          ownerOrgMSP: blockchainPackage.ownerOrgMSP,
+          senderOrgMSP: blockchainPackage.senderOrgMSP,
+          status: output.status,
+          mspId: blockchainPackage.ownerOrgMSP,
+          packageDetails: cleanedPackageDetails,
+        });
+        
+        console.log(`[EventListener] Package ${output.externalId} created from proposal`);
+        
+        // Refetch the package
+        pkg = await convexServerClient.getPackageByExternalId(output.externalId);
+      } else {
+        // Update package status if it already exists
+        await convexServerClient.updatePackageStatus({
+          externalId: output.externalId,
+          status: output.status,
+        });
+      }
 
-      const offer = await TransferOfferModel.findOne({
-        externalPackageId: output.externalId,
-      });
+      // Get offer for price
+      const offer = await convexServerClient.getOfferByPackage(output.externalId);
 
       const transferTerms: TransferTerms = {
         externalPackageId: output.externalId,
         fromMSP: output.caller,
         toMSP: output.toMSP,
         expiryISO: output.expiryISO,
-        price: 0,
+        price: offer?.price || 0,
       };
 
-      await TransferModel.findOneAndUpdate(
-        { transferId: output.termsId },
-        {
-          externalId: output.externalId,
-          packageId: packageData._id,
+      // Create/update transfer
+      await convexServerClient.createTransfer({
+        transferId: output.termsId,
+        externalId: output.externalId,
+        fromMSP: transferTerms.fromMSP,
+        toMSP: transferTerms.toMSP,
+        price: transferTerms.price,
+        status: "proposed",
+        mspId: output.caller,
+      });
+
+      // Log activity event for transfer proposal
+      await convexServerClient.logActivityEvent({
+        type: "StatusUpdatedAfterPropose",
+        packageExternalId: output.externalId,
+        title: "Transfer Proposed",
+        description: `From ${transferTerms.fromMSP} to ${transferTerms.toMSP}`,
+        newStatus: "proposed",
+        metadata: {
+          transferId: output.termsId,
           fromMSP: transferTerms.fromMSP,
           toMSP: transferTerms.toMSP,
-          price: offer ? offer.price : transferTerms.price,
-          expiryISO: transferTerms.expiryISO,
-          status: "proposed",
-          mspId: output.caller,
+          price: transferTerms.price,
         },
-        { new: true, upsert: true },
-      );
+      });
 
       console.log(
         `[EventListener] Transfer ${output.termsId} updated with status proposed`,
       );
 
-      if (transferTerms.toMSP === this.nodeMSP) {
+      // Auto-accept if we are the toMSP (transporter) or recipientOrgMSP (final recipient)
+      const shouldAutoAccept = transferTerms.toMSP === this.nodeMSP
+
+      if (shouldAutoAccept) {
         console.log(
-          `[EventListener] Accepting transfer ${output.termsId} from proposal`,
+          `[EventListener] Auto-accepting transfer ${output.termsId} (toMSP: ${transferTerms.toMSP}, our MSP: ${this.nodeMSP}, recipientOrgMSP: ${pkg?.recipientOrgMSP})`,
         );
-        if (packageData.recipientOrgMSP !== this.nodeMSP) {
-          transferTerms.price = offer ? offer.price : transferTerms.price;
+        
+        // If we're a transporter (not final recipient), use the offer price
+        if (pkg && pkg.recipientOrgMSP !== this.nodeMSP) {
+          transferTerms.price = offer?.price || transferTerms.price;
         }
+        
         await this.packageService.acceptTransfer(
           output.externalId,
           output.termsId,
@@ -1142,11 +1253,8 @@ class EventListenerService {
         output.externalId,
       );
 
-      const packageData = (await PackageModel.findOneAndUpdate(
-        { id: output.externalId },
-        { status: output.status },
-        { new: true },
-      )) as Package;
+      // Update package status
+      const packageData = await convexServerClient.getPackageByExternalId(output.externalId);
 
       if (!packageData) {
         console.warn(
@@ -1155,25 +1263,44 @@ class EventListenerService {
         return;
       }
 
+      await convexServerClient.updatePackageStatus({
+        externalId: output.externalId,
+        status: output.status,
+      });
+
       console.log(
         `[EventListener] Package ${output.externalId} status updated to ${output.status} after accept`,
       );
 
-      const transfer = await TransferModel.findOneAndUpdate(
-        {
-          transferId: output.termsId,
-        },
-        {
-          status: "accepted",
-        },
-        { new: true, upsert: true },
-      );
+      // Update transfer status
+      const transfer = await convexServerClient.getTransferByTransferId(output.termsId);
+      
       if (!transfer) {
         console.warn(
           `[EventListener] Transfer not found for StatusUpdatedAfterAccept event: ${output.termsId}. Skipping update.`,
         );
         return;
       }
+
+      await convexServerClient.updateTransferStatus({
+        transferId: output.termsId,
+        status: "accepted",
+      });
+
+      // Log activity event for transfer acceptance
+      await convexServerClient.logActivityEvent({
+        type: "StatusUpdatedAfterAccept",
+        packageExternalId: output.externalId,
+        title: "Transfer Accepted",
+        description: `Transfer ${output.termsId} accepted`,
+        oldStatus: "proposed",
+        newStatus: "accepted",
+        metadata: {
+          transferId: output.termsId,
+          fromMSP: transfer.fromMSP,
+          toMSP: transfer.toMSP,
+        },
+      });
 
       if (
         transfer.toMSP === packageData.recipientOrgMSP &&

@@ -1,8 +1,8 @@
-import dbConnect from "@/lib/dbService";
-import PackageAnnouncementModel from "@/models/packageAnnouncement";
 import { TransferOffer, TransferOfferSchema } from "@/types/package";
 import { NextRequest, NextResponse } from "next/server";
 import { getFireFly, getPackageService } from "../../service";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "../../../../../../convex/_generated/api";
 
 
 export async function POST(
@@ -35,11 +35,10 @@ export async function POST(
     }
 
     // Look up the package announcement to get the announcer's identity
-    await dbConnect();
-    const announcement = await PackageAnnouncementModel.findOne({
-      packageExternalId: id,
-      isActive: true,
-    }).sort({ createdAt: -1 });
+    const announcements = await fetchQuery(api.queries.announcements.listActive);
+    const announcement = announcements
+      .filter((a: any) => a.packageExternalId === id && a.isActive)
+      .sort((a: any, b: any) => b._creationTime - a._creationTime)[0];
 
     if (!announcement || !announcement.announcerNode) {
       return NextResponse.json(

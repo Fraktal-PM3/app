@@ -1,7 +1,5 @@
-import dbConnect from "@/lib/dbService";
-import PackageModel from "@/models/package";
 import { NextRequest, NextResponse } from "next/server";
-import { getFireFly } from "../../packages/service";
+import { getFireFly, getPackageService } from "../../packages/service";
 
 type Body = {
   packageId: string;
@@ -27,23 +25,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get package from MongoDB
-    await dbConnect();
-    const pkg = await PackageModel.findOne({ id: packageId });
+    // Get package from blockchain
+    const packageService = await getPackageService();
+    const storeObject = await packageService.readPackageDetailsAndPII(packageId);
 
-    if (!pkg) {
+    if (!storeObject || !storeObject.packageDetails) {
       return NextResponse.json(
-        { success: false, error: "Package not found" },
+        { success: false, error: "Package not found or missing details" },
         { status: 404 }
       );
     }
 
-    if (!pkg.packageDetails) {
-      return NextResponse.json(
-        { success: false, error: "Package details are required for announcement" },
-        { status: 400 }
-      );
-    }
+    const packageDetails = storeObject.packageDetails;
 
     // Send a broadcast with PACKAGE_ANNOUNCE tag
     const firefly = await getFireFly();
@@ -58,12 +51,12 @@ export async function POST(request: NextRequest) {
             version: "1.0.0",
           },
           value: {
-            id: pkg.id,
-            pickupLocation: pkg.packageDetails.pickupLocation,
-            dropLocation: pkg.packageDetails.dropLocation,
-            size: pkg.packageDetails.size,
-            weightKg: pkg.packageDetails.weightKg,
-            urgency: pkg.packageDetails.urgency,
+            id: packageId,
+            pickupLocation: packageDetails.pickupLocation,
+            dropLocation: packageDetails.dropLocation,
+            size: packageDetails.size,
+            weightKg: packageDetails.weightKg,
+            urgency: packageDetails.urgency,
             price: price,
           },
         },

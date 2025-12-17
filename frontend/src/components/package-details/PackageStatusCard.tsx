@@ -10,8 +10,8 @@ interface PackageStatusCardProps {
 }
 
 export function PackageStatusCard({ packageData }: PackageStatusCardProps) {
-  const getStatusBadge = (status: string, active?: string) => {
-    if (status === "succeeded" || active === "false") {
+  const getStatusBadge = (status: string) => {
+    if (status === "succeeded") {
       return (
         <Badge variant="outline" className="font-mono text-xs">
           <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -29,11 +29,12 @@ export function PackageStatusCard({ packageData }: PackageStatusCardProps) {
       );
     }
 
-    if (active === "true") {
+    // Active statuses: proposed, ready_for_pickup, picked_up, in_transit, delivered
+    if (["proposed", "ready_for_pickup", "picked_up", "in_transit", "delivered"].includes(status)) {
       return (
         <Badge variant="default" className="font-mono text-xs">
           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-          ACTIVE
+          {status?.toUpperCase() || "ACTIVE"}
         </Badge>
       );
     }
@@ -74,7 +75,7 @@ export function PackageStatusCard({ packageData }: PackageStatusCardProps) {
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             Current Status
           </span>
-          {getStatusBadge(packageData.status, packageData.active)}
+          {getStatusBadge(packageData.status)}
         </div>
 
         {packageData.packageDetails?.urgency && (
@@ -85,15 +86,6 @@ export function PackageStatusCard({ packageData }: PackageStatusCardProps) {
             {getUrgencyBadge(packageData.packageDetails.urgency)}
           </div>
         )}
-
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            Active
-          </span>
-          <span className="font-semibold">
-            {packageData.active === "true" ? "Yes" : "No"}
-          </span>
-        </div>
 
         {packageData.termsId && packageData.termsId !== "null" && (
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">

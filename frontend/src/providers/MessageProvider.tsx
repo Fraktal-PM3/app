@@ -3,11 +3,10 @@
 import React, {
   createContext,
   useContext,
-  useState,
-  useEffect,
   useMemo,
 } from "react";
-import { useSSEConnection } from "./SSEConnectionProvider";
+import { api } from "../../convex/_generated/api";
+import { useQuery } from "convex/react";
 
 export type ActivityType =
   | "CreatePackage"
@@ -30,8 +29,6 @@ export interface Activity {
   metadata?: Record<string, any>;
 }
 
-const MAX_ACTIVITIES = 50;
-
 interface MessageContextValue {
   activities: Activity[];
 }
@@ -41,35 +38,21 @@ const MessageContext = createContext<MessageContextValue | undefined>(
 );
 
 export function MessageProvider({ children }: { children: React.ReactNode }) {
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const { subscribeAll } = useSSEConnection();
+  // Use Convex query for activities - auto-updates!
+  const activitiesData = useQuery(api.queries.activities.listRecent, { limit: 50 });
 
-  // Subscribe to all events
-  useEffect(() => {
-    console.log("[MessageProvider] Setting up subscribeAll");
-    const unsubscribe = subscribeAll((eventName, data) => {
-      console.log(`[MessageProvider] Received event: ${eventName}`, data);
-      const activity = transformEventToActivity(eventName, data);
-      if (activity) {
-        console.log(
-          `[MessageProvider] Created activity from ${eventName}:`,
-          activity,
-        );
-        setActivities((prev) => {
-          // Check for duplicates
-          if (prev.some((a) => a.id === activity.id)) {
-            return prev;
-          }
-          // Add to front and keep only last MAX_ACTIVITIES
-          return [activity, ...prev].slice(0, MAX_ACTIVITIES);
-        });
-      } else {
-        console.log(`[MessageProvider] No activity created from ${eventName}`);
-      }
-    });
-
-    return unsubscribe;
-  }, [subscribeAll]);
+  const activities = useMemo(() => {
+    if (!activitiesData) return [];
+    
+    return activitiesData.map((a: any): Activity => ({
+      id: a.id,
+      type: a.type as ActivityType,
+      timestamp: new Date(a.timestamp).toISOString(),
+      title: a.title,
+      description: a.description,
+      metadata: a.metadata,
+    }));
+  }, [activitiesData]);
 
   const value = useMemo(() => ({ activities }), [activities]);
 
@@ -85,7 +68,7 @@ export function useRecentActivity() {
     throw new Error("useRecentActivity must be used within MessageProvider");
   }
 
-  const { isConnected } = useSSEConnection();
+  const isConnected = context.activities !== undefined;
 
   return {
     activities: context.activities,
@@ -93,168 +76,4 @@ export function useRecentActivity() {
   };
 }
 
-// Transform SSE events to Activity format
-function transformEventToActivity(
-  eventName: string,
-  data: any,
-): Activity | null {
-  switch (eventName) {
-    case "CreatePackage": {
-      const packageId = data.output?.externalId;
-      const status = data.output?.status;
-      const ownerMSP = data.output?.ownerOrgMSP;
 
-      return {
-        id: `create-${packageId}-${Date.now()}`,
-        type: "CreatePackage",
-        timestamp: data.timestamp || new Date().toISOString(),
-        title: "Package Created",
-        description: `Package ${packageId} created with status ${status}`,
-        metadata: { packageId, status, ownerMSP },
-      };
-    }
-
-    case "StatusUpdated": {
-      const packageId = data.output?.externalId;
-      const newStatus = data.output?.status;
-
-      return {
-        id: `status-${packageId}-${Date.now()}`,
-        type: "StatusUpdated",
-        timestamp: data.timestamp || new Date().toISOString(),
-        title: "Status Updated",
-        description: `Package ${packageId} status changed to ${newStatus}`,
-        metadata: { packageId, newStatus },
-      };
-    }
-
-    case "StatusUpdatedAfterPropose": {
-      const packageId = data.output?.externalId;
-      const termsId = data.output?.termsId;
-      const status = data.output?.status;
-
-      return {
-        id: `propose-${termsId}-${Date.now()}`,
-        type: "StatusUpdatedAfterPropose",
-        timestamp: data.timestamp || new Date().toISOString(),
-        title: "Transfer Proposed",
-        description: `Package ${packageId} status updated to ${status} after transfer proposal`,
-        metadata: { packageId, termsId, status },
-      };
-    }
-
-    case "StatusUpdatedAfterAccept": {
-      const packageId = data.output?.externalId;
-      const termsId = data.output?.termsId;
-      const status = data.output?.status;
-
-      return {
-        id: `accept-${termsId}-${Date.now()}`,
-        type: "StatusUpdatedAfterAccept",
-        timestamp: data.timestamp || new Date().toISOString(),
-        title: "Transfer Accepted",
-        description: `Package ${packageId} status updated to ${status} after transfer acceptance`,
-        metadata: { packageId, termsId, status },
-      };
-    }
-
-    case "TransferExecuted": {
-      const packageId = data.output?.externalId;
-      const termsId = data.output?.termsId;
-      const newOwner = data.output?.newOwner;
-
-      return {
-        id: `execute-${termsId}-${Date.now()}`,
-        type: "TransferExecuted",
-        timestamp: data.timestamp || new Date().toISOString(),
-        title: "Transfer Executed",
-        description: `Package ${packageId} ownership transferred to ${newOwner}`,
-        metadata: { packageId, termsId, newOwner },
-      };
-    }
-
-    case "TransferToPM3": {
-      const packageId = data.output?.externalId;
-      const newOwner = data.output?.newOwner;
-
-      return {
-        id: `pm3-${packageId}-${Date.now()}`,
-        type: "TransferToPM3",
-        timestamp: data.timestamp || new Date().toISOString(),
-        title: "Transferred to PM3",
-        description: `Package ${packageId} transferred to PM3 (${newOwner})`,
-        metadata: { packageId, newOwner },
-      };
-    }
-
-    case "DeletePackage": {
-      const packageId = data.output?.externalId;
-
-      return {
-        id: `delete-${packageId}-${Date.now()}`,
-        type: "DeletePackage",
-        timestamp: data.timestamp || new Date().toISOString(),
-        title: "Package Deleted",
-        description: `Package ${packageId} was deleted`,
-        metadata: { packageId },
-      };
-    }
-
-    case "PackageAnnouncement": {
-      const packageId = data.value?.id;
-      const announcerMSP = data.signingKey?.split(":")[0];
-
-      return {
-        id: `announce-${data.id}`,
-        type: "PackageAnnouncement",
-        timestamp: data.created || new Date().toISOString(),
-        title: "Package Announced",
-        description: `${announcerMSP} announced package ${packageId} for bidding`,
-        metadata: { packageId, announcerMSP, messageId: data.id },
-      };
-    }
-
-    case "message": {
-      // Check if it's a transfer offer
-      if (data.value?.termsId && data.value?.price) {
-        const termsId = data.value?.termsId;
-        const fromMSP = data.value?.fromMSP;
-        const toMSP = data.value?.toMSP;
-        const price = data.value?.price;
-        const packageId = data.value?.externalPackageId;
-
-        return {
-          id: `offer-${data.id}`,
-          type: "TransferOffer",
-          timestamp: data.created || new Date().toISOString(),
-          title: "Transfer Offer Received",
-          description: `${fromMSP} sent transfer offer to ${toMSP} for package ${packageId} (Price: ${price})`,
-          metadata: {
-            termsId,
-            fromMSP,
-            toMSP,
-            price,
-            packageId,
-            messageId: data.id,
-          },
-        };
-      } else {
-        // Generic message
-        const author = data.author;
-        const messageId = data.id;
-
-        return {
-          id: `message-${messageId}`,
-          type: "Message",
-          timestamp: data.created || new Date().toISOString(),
-          title: "Message Received",
-          description: `Message received from ${author}`,
-          metadata: { author, messageId, data },
-        };
-      }
-    }
-
-    default:
-      return null;
-  }
-}

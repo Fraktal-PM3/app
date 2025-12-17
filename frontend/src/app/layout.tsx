@@ -6,8 +6,8 @@ import {
   MetricsProvider,
   OffersProvider,
   PackageProvider,
-  SSEConnectionProvider,
 } from "@/providers";
+import { ConvexClientProvider } from "@/providers/ConvexClientProvider";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Toaster } from "sonner";
@@ -43,31 +43,9 @@ export default function RootLayout({
             >
               Fraktal
             </Link>
-
-            {/* Navigation Links */}
-            <nav className="flex items-center gap-6">
-              <Link
-                href="/messages"
-                className="font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Messages
-              </Link>
-              <Link
-                href="/createPackage"
-                className="font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Create
-              </Link>
-              <Link
-                href="/activePackage"
-                className="font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Active
-              </Link>
-            </nav>
           </div>
         </header>
-        <SSEConnectionProvider>
+        <ConvexClientProvider>
           <PackageProvider>
             <AuctionProvider>
               <OffersProvider>
@@ -79,7 +57,7 @@ export default function RootLayout({
               </OffersProvider>
             </AuctionProvider>
           </PackageProvider>
-        </SSEConnectionProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );

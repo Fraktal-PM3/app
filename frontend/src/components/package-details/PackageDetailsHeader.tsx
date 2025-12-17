@@ -93,8 +93,8 @@ export function PackageDetailsHeader({
     }
   };
 
-  const getStatusBadge = (status: string, active?: string) => {
-    if (status === "succeeded" || active === "false") {
+  const getStatusBadge = (status: string) => {
+    if (status === "succeeded") {
       return (
         <Badge variant="outline" className="font-mono text-xs">
           <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -112,11 +112,12 @@ export function PackageDetailsHeader({
       );
     }
 
-    if (active === "true") {
+    // Active statuses: proposed, ready_for_pickup, picked_up, in_transit, delivered
+    if (["proposed", "ready_for_pickup", "picked_up", "in_transit", "delivered"].includes(status)) {
       return (
         <Badge variant="default" className="font-mono text-xs">
           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-          ACTIVE
+          {status?.toUpperCase() || "ACTIVE"}
         </Badge>
       );
     }
@@ -170,7 +171,7 @@ export function PackageDetailsHeader({
         <div className="flex flex-col gap-2 md:items-end">
           <div className="flex flex-wrap gap-2">
             {getUrgencyBadge(packageData.packageDetails?.urgency)}
-            {getStatusBadge(packageData.status, packageData.active)}
+            {getStatusBadge(packageData.status)}
             {isConnected && (
               <Badge variant="outline" className="font-mono text-xs">
                 <div className="mr-2 h-2 w-2 animate-pulse rounded-full bg-green-500" />
@@ -189,8 +190,7 @@ export function PackageDetailsHeader({
                   disabled={
                     announceSuccess ||
                     packageData.status === "succeeded" ||
-                    packageData.status === "failed" ||
-                    packageData.active === "false"
+                    packageData.status === "failed"
                   }
                   size="sm"
                   variant={hasActiveAnnouncement ? "outline" : "default"}
