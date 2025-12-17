@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Health check endpoint
- * Returns the status of the event listener service, MongoDB, and Firefly
+ * Returns the status of the event listener service, Convex, and Firefly
  */
 export async function GET() {
   const health = {

@@ -25,9 +25,6 @@ export async function GET(
       );
     }
 
-    // check if package exists in mongoDB
-      // if not, save it
-
     return NextResponse.json({
       success: true,
       package: pkg,

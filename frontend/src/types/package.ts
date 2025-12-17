@@ -1,4 +1,4 @@
-// Package types that match the MongoDB models
+// Package types that match the Convex schema
 
 import z from "zod";
 import { Status } from "fraktal-lib";
@@ -41,7 +41,7 @@ export type PII = {
 };
 
 /**
- * Package type matching the Package MongoDB model
+ * Package type matching the Convex Package schema
  */
 export type Package = {
   _id: string;
@@ -63,7 +63,7 @@ export type Package = {
 };
 
 /**
- * Transfer type matching the Transfer MongoDB model
+ * Transfer type matching the Convex Transfer schema
  */
 export type Transfer = {
   _id: string;
@@ -83,7 +83,7 @@ export type Transfer = {
 };
 
 /**
- * PackageAnnouncement type matching the PackageAnnouncement MongoDB model
+ * PackageAnnouncement type matching the Convex PackageAnnouncement schema
  */
 export type PackageAnnouncement = {
   _id: string;
@@ -130,7 +130,7 @@ export const TransferOfferSchema = z.object({
 export type TransferOfferInput = z.infer<typeof TransferOfferSchema>;
 
 /**
- * TransferOffer type matching the TransferOffer MongoDB model
+ * TransferOffer type matching the Convex TransferOffer schema
  * (for private message offers, not blockchain transfers)
  */
 export type TransferOffer = {

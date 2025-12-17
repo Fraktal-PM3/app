@@ -64,7 +64,7 @@ app.prepare().then(async () => {
 ║                                                           ║
 ║   🚀 Server:     http://${hostname}:${port}               ║
 ║   🔗 Firefly:    ${process.env.FIREFLY_NODE_URL || "Auto-detect"}           ║
-║   📦 Database:   ${process.env.MONGODB_URI || "mongodb://localhost:27017/fraktal"} ║
+║   📦 Database:   Convex (${process.env.CONVEX_URL || "Auto-detect"})           ║
 ║   🔧 Mode:       ${dev ? "Development" : "Production"}                    ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝

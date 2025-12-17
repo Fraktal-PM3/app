@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Next.js 16 frontend application for a blockchain-based package transportation system called "Fraktal". It integrates with Hyperledger Firefly for blockchain operations and uses MongoDB for data persistence. The application supports dual-mode operation (transporter vs. sender) with real-time event streaming.
+This is a Next.js 16 frontend application for a blockchain-based package transportation system called "Fraktal". It integrates with Hyperledger Firefly for blockchain operations and uses Convex for data persistence. The application supports dual-mode operation (transporter vs. sender) with real-time event streaming.
 
 ## Development Commands
 
@@ -14,10 +14,10 @@ This is a Next.js 16 frontend application for a blockchain-based package transpo
 # Standard development mode
 npm run dev
 
-# Run as transporter (port 8000, localhost:27067)
+# Run as transporter (port 3000)
 npm run transporter
 
-# Run as sender (port 8001, localhost:27017)
+# Run as sender (port 3001)
 npm run sender
 
 # Production build
@@ -50,7 +50,8 @@ npm run lint
 
 Required environment variables (see `.env.template`):
 
-- `MONGODB_URI` - MongoDB connection string (default: mongodb://localhost:27017/fraktal)
+- `CONVEX_URL` - Convex backend URL (required for data persistence)
+- `NEXT_PUBLIC_CONVEX_URL` - Convex URL for client-side access (required)
 - `NEXT_PUBLIC_TRANSPORTER` - Boolean flag ("TRUE" for transporter, "FALSE" for sender)
 - `FIREFLY_HOST` - Optional Firefly host (defaults based on transporter flag)
 - `FIREFLY_NAMESPACE` - Optional Firefly namespace (default: "default")
@@ -60,8 +61,8 @@ Required environment variables (see `.env.template`):
 
 The application operates in two distinct modes:
 
-- **Transporter mode**: Connects to Firefly on port 8000, MongoDB on port 27018
-- **Sender mode**: Connects to Firefly on port 8001, MongoDB on port 27017
+- **Transporter mode**: Connects to Firefly on port 8000, Convex on localhost:3220
+- **Sender mode**: Connects to Firefly on port 8001, Convex on localhost:3210
 
 **Port Configuration:**
 - Development mode: Uses default port 3000 (configurable via `PORT` environment variable)
@@ -82,7 +83,7 @@ Unlike standard Next.js apps, this uses a custom Node.js server (`server.ts`) th
 4. Implements graceful shutdown handlers
 5. Manages WebSocket/SSE connections for real-time updates
 
-The server automatically initializes `eventListenerService` which connects to Firefly and persists blockchain events to MongoDB.
+The server automatically initializes `eventListenerService` which connects to Firefly and persists blockchain events to Convex.
 
 ### Real-time Event System
 
@@ -91,8 +92,8 @@ The application uses Server-Sent Events (SSE) for real-time updates:
 **Server-side (`src/services/eventListener.ts`):**
 - Background service that connects to Hyperledger Firefly
 - Listens for blockchain events (CreatePackage, StatusUpdated, ProposeTransfer, etc.)
-- Persists events to MongoDB
-- Broadcasts events to connected clients via `eventBus`
+- Persists events to Convex
+- Broadcasts events to connected clients
 
 **Client-side (`src/providers/SSEConnectionProvider.tsx`):**
 - Establishes SSE connection on component mount
@@ -103,10 +104,9 @@ The application uses Server-Sent Events (SSE) for real-time updates:
 **Event flow:**
 1. Blockchain event occurs in Firefly
 2. `eventListenerService` receives event
-3. Event persisted to MongoDB
-4. Event broadcast via `eventBus`
-5. SSE endpoint streams to connected clients
-6. Client providers update state and re-render
+3. Event persisted to Convex
+4. Convex automatically broadcasts changes to all subscribed clients
+5. Client providers receive updates and re-render
 
 ### Provider Hierarchy
 
@@ -125,16 +125,18 @@ Each provider:
 - Provides hooks for consuming data (e.g., `usePackages()`, `useMetrics()`)
 - Maintains local state synced with backend via events
 
-### Data Models (MongoDB/Typegoose)
+### Data Models (Convex Schema)
 
-Located in `src/models/`:
+Data models are defined in the Convex backend (`convex/` directory):
 
-- `package.ts` - Package entity with status, locations, dimensions
-- `transfer.ts` - Transfer proposals and executions
-- `packageAnnouncement.ts` - Public package announcements
-- `systemState.ts` - Node identity and sync state
+- `packages` - Package entities with status, locations, dimensions
+- `transfers` - Transfer proposals and executions
+- `announcements` - Public package announcements
+- `offers` - Transfer offers from transporters
+- `activityEvents` - Activity feed for package history
+- `systemState` - Node identity and sync state
 
-All models use `@typegoose/typegoose` decorators with Mongoose. Note that decorators are enabled in tsconfig.json (`experimentalDecorators: true`).
+All models are defined using Convex schema validators and automatically sync with the frontend via reactive queries.
 
 ### API Routes
 
@@ -204,7 +206,11 @@ All pages are client components (`"use client"`) to support real-time updates an
 
 ### Database Connection
 
-MongoDB uses cached connection pattern to prevent multiple connections during Next.js hot reload (`src/lib/dbService.ts`). The global `_mongoose` cache persists across hot reloads in development.
+Convex provides real-time reactive data synchronization. The application uses:
+- Server-side: `convexServerClient` (from `src/lib/convexServerClient.ts`) for backend operations
+- Client-side: React hooks from `convex/react` for reactive queries and mutations
+
+Convex automatically handles connection management, caching, and real-time updates.
 
 ### Firefly Integration
 
@@ -227,7 +233,7 @@ The `@/*` alias maps to `src/*` (configured in tsconfig.json). Always use this f
 
 ```typescript
 import { PackageProvider } from "@/providers";
-import dbConnect from "@/lib/dbService";
+import convexServerClient from "@/lib/convexServerClient";
 ```
 
 ### Testing Setup
@@ -593,16 +599,15 @@ The offer details page (`/offers/[id]`) provides a comprehensive view of package
 
 1. Add event type to `fraktal-lib` types (external package)
 2. Add handler in `src/services/eventListener.ts` (server-side)
-3. Update MongoDB model if needed
-4. Add SSE event type to `src/types/events.ts`
-5. Subscribe to event in relevant provider
-6. Update UI components consuming the provider
+3. Update Convex schema if needed (in `convex/` directory)
+4. Convex automatically handles real-time updates
+5. Update UI components to query the new data via Convex hooks
 
 ### Creating a new API route
 
 1. Create `route.ts` in appropriate `src/app/api/` subdirectory
 2. Import `getPackageService()` or `getFireFly()` from service.ts
-3. Call `dbConnect()` before database operations
+3. Use `convexServerClient` for database operations
 4. Use Zod schemas from `src/lib/packageSchemas.ts` for validation
 5. Return `Response` objects (App Router standard)
 
@@ -619,88 +624,63 @@ The offer details page (`/offers/[id]`) provides a comprehensive view of package
 - **ESLint**: Configured with `--max-warnings 0` - builds fail on any warnings
 - **TypeScript**: Strict mode enabled - all types must be properly defined
 - **React 19**: Uses latest React with React Compiler babel plugin
-- **MongoDB**: Requires running instance - connection string must be valid
+- **Convex**: Requires running Convex backend - CONVEX_URL environment variable must be set
 - **Firefly**: Backend dependency - app won't function without Firefly connection
 
 ## Troubleshooting
 
-### MongoDB Connection Issues
+### Convex Connection Issues
 
-**Symptom:** `MongooseServerSelectionError: Socket 'connect' timed out`
+**Symptom:** Application fails to load data or shows connection errors
 
 **Causes:**
-1. MongoDB is not running on the specified port
-2. Wrong port configured in `MONGODB_URI`
-3. MongoDB service is not started
+1. Convex backend is not running
+2. Wrong URL configured in `CONVEX_URL` or `NEXT_PUBLIC_CONVEX_URL`
+3. Convex deployment not initialized
 
 **Solutions:**
 
-**Option 1: Start MongoDB Service (Windows)**
+**Option 1: Start Convex Development Server**
 ```bash
-# Check if MongoDB is installed
-mongod --version
+# Make sure you're in the project directory
+cd convex
 
-# Start MongoDB service
-net start MongoDB
+# Start Convex dev server
+npx convex dev
 
-# Or run MongoDB manually
-mongod --dbpath C:\data\db
+# The dev server will run on http://localhost:3210 (sender) or http://localhost:3220 (transporter)
 ```
 
-**Option 2: Start MongoDB Service (Linux/Mac)**
-```bash
-# Check if MongoDB is installed
-mongod --version
-
-# Start MongoDB service
-sudo systemctl start mongod
-
-# Or using Homebrew (Mac)
-brew services start mongodb-community
-```
-
-**Option 3: Use Docker (Recommended for Development)**
-```bash
-# Sender mode (port 27017)
-docker run -d -p 27017:27017 --name mongodb-sender mongo:latest
-
-# Transporter mode (port 27018)
-docker run -d -p 27018:27017 --name mongodb-transporter mongo:latest
-
-# View logs
-docker logs mongodb-sender
-
-# Stop containers
-docker stop mongodb-sender mongodb-transporter
-docker rm mongodb-sender mongodb-transporter
-```
-
-**Option 4: Verify Connection String**
+**Option 2: Verify Environment Variables**
 
 Check your `.env` or `.env.local` file:
 ```bash
 # Sender mode
-MONGODB_URI=mongodb://localhost:27017/fraktal
+CONVEX_URL=http://localhost:3210
+NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210
 
 # Transporter mode
-MONGODB_URI=mongodb://localhost:27018/fraktal
+CONVEX_URL=http://localhost:3220
+NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3220
+```
+
+**Option 3: Initialize Convex**
+```bash
+# If Convex is not initialized, run:
+npx convex dev --once
+
+# This will set up the Convex project and create necessary configuration
 ```
 
 **Quick Test:**
 ```bash
-# Test MongoDB connection with mongosh
-mongosh mongodb://localhost:27017/fraktal
+# Check if Convex dev server is running
+curl http://localhost:3210  # Sender
+curl http://localhost:3220  # Transporter
 
-# Or check if port is listening
-netstat -an | findstr 27017  # Windows
-lsof -i :27017               # Linux/Mac
+# Check Convex logs
+# The convex dev command shows real-time logs of all operations
 ```
-
-**Improved Error Messages:**
-The application now provides clearer error messages:
-- Faster timeout (5 seconds instead of 30)
-- Connection URI logging (credentials hidden)
-- Helpful suggestions for fixing connection issues
 
 ### Port Configuration Issues
 
@@ -710,8 +690,8 @@ The application now provides clearer error messages:
 Ensure different ports for each mode:
 - Sender: `PORT=3001` (configured in `start:sender` script)
 - Transporter: `PORT=3000` (default)
-- MongoDB Sender: `27017`
-- MongoDB Transporter: `27018`
+- Convex Sender: `3210`
+- Convex Transporter: `3220`
 
 ### Build Errors
 
