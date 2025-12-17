@@ -1,44 +1,30 @@
-# Fraktal-PM3 Frontend
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-To install all node dependencies
-```bash
-cd frontend/ && npm i && npm install https://github.com/Fraktal-PM3/fraktal-lib
-```
+Run the development server:
 
-For development in frontend, use:
 ```bash
 npm run dev
 ```
 
-## MongoDB
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```bash
-docker run -d -p 27017:27017 --name mongodb mongo:7
-docker exec -it mongodb mongosh
-use fraktal
-db.packages.find().pretty()
-db.packages.deleteMany({})
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-### Start 
-```bash
-# Firefly
-# in your fraktal repo:
-git pull
-./dev.sh up
-./dev.sh deploycc package
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-# to shut down
-./dev.sh down
+## Learn More
 
-# Frontend
-/GitHub/app docker compose up -d
-/GitHub/app/frontend npm i
-/GitHub/app/frontend npm i https://github.com/Fraktal-PM3/fraktal-lib#latestcommithash
-/GitHub/app/frontend npm run start:role "role = Whatever you want to have static"
-/GitHub/app/frontend npm run role "role = Whatever you want as dev"
-```
+To learn more about Next.js, take a look at the following resources:
 
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
