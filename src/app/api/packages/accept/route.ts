@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPackageService } from "../service";
+import { TransferTerms } from "fraktal-lib";
 
 export const runtime = "nodejs";
 
 interface Body {
   externalId?: string;
   termsId?: string;
-  transferTerms?: {
-    externalPackageId: string;
-    fromMSP: string;
-    toMSP: string;
-    expiryISO: string;
-    price: number;
-  };
+  transferTerms?: TransferTerms;
 }
 
 export async function POST(request: NextRequest) {
@@ -30,13 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      !transferTerms.externalPackageId ||
-      !transferTerms.fromMSP ||
-      !transferTerms.toMSP ||
-      !transferTerms.expiryISO ||
-      typeof transferTerms.price !== "number"
-    ) {
+    if (!transferTerms) {
       return NextResponse.json(
         { success: false, error: "Invalid `transferTerms` structure." },
         { status: 400 },
@@ -77,4 +66,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

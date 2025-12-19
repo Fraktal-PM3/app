@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPackageService } from "../service";
 import type { PackageDetails, PackagePII, TransferTerms } from "fraktal-lib";
+import convexServerClient from "@/lib/convexServerClient";
 
 export const runtime = "nodejs";
 
@@ -40,17 +41,21 @@ export async function POST(request: NextRequest) {
       packageDetails,
     };
 
+    const transfer = await convexServerClient.getTransferByTransferId(termsId);
+    if (!transfer) {
+      return NextResponse.json(
+        { success: false, error: "Transfer terms not found." },
+        { status: 404 },
+      );
+    }
+
     const service = await getPackageService();
-    const transferTerms = await service.readPrivateTransferTerms(
-      externalId,
-      termsId,
-    );
 
     const result = await service.executeTransfer(
       externalId,
       termsId,
+      transfer.toMSP,
       storeObject,
-      transferTerms as TransferTerms,
     );
 
     return NextResponse.json(
@@ -73,4 +78,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

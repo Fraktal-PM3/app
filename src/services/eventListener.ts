@@ -42,7 +42,9 @@ class EventListenerService {
 
       // Check Convex client
       if (!convexServerClient.isInitialized()) {
-        throw new Error("Convex client not initialized - check CONVEX_URL environment variable");
+        throw new Error(
+          "Convex client not initialized - check CONVEX_URL environment variable",
+        );
       }
       console.log("[EventListener] Convex client ready");
 
@@ -389,7 +391,7 @@ class EventListenerService {
         this.markEventAsProcessed(event, eventName);
 
         const packageData = await convexServerClient.getPackageByExternalId(
-          event.output.externalId
+          event.output.externalId,
         );
 
         if (!packageData) {
@@ -479,7 +481,7 @@ class EventListenerService {
         this.markEventAsProcessed(event, "StatusUpdatedAfterAccept");
 
         const packageData = await convexServerClient.getPackageByExternalId(
-          event.output.externalId
+          event.output.externalId,
         );
 
         if (!packageData) {
@@ -529,13 +531,13 @@ class EventListenerService {
         }
 
         const transfer = await convexServerClient.getTransferByTransferId(
-          event.output.termsId
+          event.output.termsId,
         );
 
         console.log("TransferExecuted - found transfer:", transfer);
 
         const packageData = await convexServerClient.getPackageByExternalId(
-          event.output.externalId
+          event.output.externalId,
         );
 
         if (!transfer && !packageData) return;
@@ -598,9 +600,9 @@ class EventListenerService {
 
         // Check if we are tracking the package
         const pkg = await convexServerClient.getPackageByExternalId(
-          event.output.externalId
+          event.output.externalId,
         );
-        
+
         if (!pkg) {
           console.log(
             "[EventListener] Not tracking package, discarding TransferToPM3Event",
@@ -667,7 +669,7 @@ class EventListenerService {
       );
 
       // Check if this node's MSP is involved in the package
-      const isInvolved = 
+      const isInvolved =
         output.senderOrgMSP === this.nodeMSP ||
         output.ownerOrgMSP === this.nodeMSP ||
         output.recipientOrgMSP === this.nodeMSP;
@@ -680,11 +682,15 @@ class EventListenerService {
       }
 
       // Check if package already exists in Convex
-      const existingPackage = await convexServerClient.getPackageByExternalId(output.externalId);
-      
+      const existingPackage = await convexServerClient.getPackageByExternalId(
+        output.externalId,
+      );
+
       if (existingPackage) {
-        console.log(`[EventListener] Package ${output.externalId} already exists in Convex, logging activity event`);
-        
+        console.log(
+          `[EventListener] Package ${output.externalId} already exists in Convex, logging activity event`,
+        );
+
         // Still log activity event for the blockchain confirmation
         await convexServerClient.logActivityEvent({
           type: "CreatePackage",
@@ -699,7 +705,7 @@ class EventListenerService {
             blockchainConfirmed: true,
           },
         });
-        
+
         return;
       }
 
@@ -747,7 +753,9 @@ class EventListenerService {
       const output = event.output;
 
       // Only update existing packages (don't create new ones)
-      const pkg = await convexServerClient.getPackageByExternalId(output.externalId);
+      const pkg = await convexServerClient.getPackageByExternalId(
+        output.externalId,
+      );
 
       if (!pkg) {
         console.warn(
@@ -791,8 +799,10 @@ class EventListenerService {
         blockchainPackage,
       );
 
-      const pkg = await convexServerClient.getPackageByExternalId(event.output.externalId);
-      
+      const pkg = await convexServerClient.getPackageByExternalId(
+        event.output.externalId,
+      );
+
       if (pkg) {
         await convexServerClient.updatePackageStatus({
           externalId: event.output.externalId,
@@ -821,18 +831,18 @@ class EventListenerService {
       }
 
       console.log("handleTransferExecuted event:", event);
-      
+
       if (output.newOwner === this.nodeMSP) {
         const blockchainPackage =
           await this.packageService.readBlockchainPackage(output.externalId);
         console.log("Fetched blockchain package:", blockchainPackage);
-        
+
         const packageDetailsAndPII =
           (await this.packageService.readPackageDetailsAndPII(
             output.externalId,
           )) as StoreObject;
         console.log("Fetched package details and PII:", packageDetailsAndPII);
-        
+
         // Create or update package with full details
         await convexServerClient.createPackage({
           externalId: output.externalId,
@@ -849,7 +859,7 @@ class EventListenerService {
       } else {
         const blockchainPackage =
           await this.packageService.readBlockchainPackage(output.externalId);
-        
+
         await convexServerClient.updatePackageStatus({
           externalId: output.externalId,
           status: blockchainPackage.status,
@@ -859,8 +869,10 @@ class EventListenerService {
       }
 
       // Update transfer status
-      const transfer = await convexServerClient.getTransferByTransferId(output.termsId);
-      
+      const transfer = await convexServerClient.getTransferByTransferId(
+        output.termsId,
+      );
+
       if (transfer) {
         await convexServerClient.updateTransferStatus({
           transferId: output.termsId,
@@ -914,8 +926,10 @@ class EventListenerService {
       const output = event.output;
 
       // Soft delete by setting status to failed (only if package exists)
-      const pkg = await convexServerClient.getPackageByExternalId(output.externalId);
-      
+      const pkg = await convexServerClient.getPackageByExternalId(
+        output.externalId,
+      );
+
       if (!pkg) {
         console.warn(
           `[EventListener] Package not found for DeletePackage event: ${output.externalId}. Skipping delete.`,
@@ -975,7 +989,9 @@ class EventListenerService {
         price: event.value.price || undefined,
         messageData: event.value,
         packageDetails: event.value,
-        expiresAt: event.value.expiresAt ? new Date(event.value.expiresAt).getTime() : undefined,
+        expiresAt: event.value.expiresAt
+          ? new Date(event.value.expiresAt).getTime()
+          : undefined,
       });
 
       // Log activity event for announcement
@@ -1025,7 +1041,7 @@ class EventListenerService {
 
       // Try to find the active announcement for this package
       const announcements = await convexServerClient.getAnnouncementsByPackage(
-        offerValue.externalPackageId
+        offerValue.externalPackageId,
       );
       const activeAnnouncement = announcements.find((a: any) => a.isActive);
 
@@ -1112,20 +1128,24 @@ class EventListenerService {
       }
 
       // Check if package exists
-      let pkg = await convexServerClient.getPackageByExternalId(output.externalId);
-      
+      let pkg = await convexServerClient.getPackageByExternalId(
+        output.externalId,
+      );
+
       if (!pkg) {
         console.log(
           `[EventListener] Package ${output.externalId} not found - creating from blockchain and announcement data`,
         );
-        
+
         // Fetch package from blockchain
-        const blockchainPackage = await this.packageService.readBlockchainPackage(output.externalId);
-        
+        const blockchainPackage =
+          await this.packageService.readBlockchainPackage(output.externalId);
+
         // Try to fetch announcement for additional details
-        const announcements = await convexServerClient.getAnnouncementsByPackage(output.externalId);
+        const announcements =
+          await convexServerClient.getAnnouncementsByPackage(output.externalId);
         const announcement = announcements.find((a: any) => a.isActive);
-        
+
         // Extract and clean packageDetails from announcement (remove extra fields like id, price)
         let cleanedPackageDetails = undefined;
         if (announcement?.packageDetails) {
@@ -1138,7 +1158,7 @@ class EventListenerService {
             urgency: details.urgency,
           };
         }
-        
+
         // Create package with all available information
         await convexServerClient.createPackage({
           externalId: output.externalId,
@@ -1150,11 +1170,15 @@ class EventListenerService {
           mspId: blockchainPackage.ownerOrgMSP,
           packageDetails: cleanedPackageDetails,
         });
-        
-        console.log(`[EventListener] Package ${output.externalId} created from proposal`);
-        
+
+        console.log(
+          `[EventListener] Package ${output.externalId} created from proposal`,
+        );
+
         // Refetch the package
-        pkg = await convexServerClient.getPackageByExternalId(output.externalId);
+        pkg = await convexServerClient.getPackageByExternalId(
+          output.externalId,
+        );
       } else {
         // Update package status if it already exists
         await convexServerClient.updatePackageStatus({
@@ -1164,23 +1188,17 @@ class EventListenerService {
       }
 
       // Get offer for price
-      const offer = await convexServerClient.getOfferByPackage(output.externalId);
-
-      const transferTerms: TransferTerms = {
-        externalPackageId: output.externalId,
-        fromMSP: output.caller,
-        toMSP: output.toMSP,
-        expiryISO: output.expiryISO,
-        price: offer?.price || 0,
-      };
+      const offer = await convexServerClient.getOfferByPackage(
+        output.externalId,
+      );
 
       // Create/update transfer
       await convexServerClient.createTransfer({
         transferId: output.termsId,
         externalId: output.externalId,
-        fromMSP: transferTerms.fromMSP,
-        toMSP: transferTerms.toMSP,
-        price: transferTerms.price,
+        fromMSP: output.caller,
+        toMSP: output.toMSP,
+        price: offer.price ?? 0,
         status: "proposed",
         mspId: output.caller,
       });
@@ -1190,13 +1208,13 @@ class EventListenerService {
         type: "StatusUpdatedAfterPropose",
         packageExternalId: output.externalId,
         title: "Transfer Proposed",
-        description: `From ${transferTerms.fromMSP} to ${transferTerms.toMSP}`,
+        description: `From ${output.caller} to ${output.toMSP}`,
         newStatus: "proposed",
         metadata: {
           transferId: output.termsId,
-          fromMSP: transferTerms.fromMSP,
-          toMSP: transferTerms.toMSP,
-          price: transferTerms.price,
+          fromMSP: output.caller,
+          toMSP: output.toMSP,
+          price: offer.price ?? 0,
         },
       });
 
@@ -1205,18 +1223,24 @@ class EventListenerService {
       );
 
       // Auto-accept if we are the toMSP (transporter) or recipientOrgMSP (final recipient)
-      const shouldAutoAccept = transferTerms.toMSP === this.nodeMSP
+      const shouldAutoAccept = output.toMSP === this.nodeMSP;
 
       if (shouldAutoAccept) {
         console.log(
-          `[EventListener] Auto-accepting transfer ${output.termsId} (toMSP: ${transferTerms.toMSP}, our MSP: ${this.nodeMSP}, recipientOrgMSP: ${pkg?.recipientOrgMSP})`,
+          `[EventListener] Auto-accepting transfer ${output.termsId} (toMSP: ${output.toMSP}, our MSP: ${this.nodeMSP}, recipientOrgMSP: ${pkg?.recipientOrgMSP})`,
         );
-        
+
+        const transferTerms =
+          (await this.packageService.readPrivateTransferTerms(
+            output.externalId,
+            output.termsId,
+          )) as TransferTerms;
+
         // If we're a transporter (not final recipient), use the offer price
         if (pkg && pkg.recipientOrgMSP !== this.nodeMSP) {
           transferTerms.price = offer?.price || transferTerms.price;
         }
-        
+
         await this.packageService.acceptTransfer(
           output.externalId,
           output.termsId,
@@ -1254,7 +1278,9 @@ class EventListenerService {
       );
 
       // Update package status
-      const packageData = await convexServerClient.getPackageByExternalId(output.externalId);
+      const packageData = await convexServerClient.getPackageByExternalId(
+        output.externalId,
+      );
 
       if (!packageData) {
         console.warn(
@@ -1273,8 +1299,10 @@ class EventListenerService {
       );
 
       // Update transfer status
-      const transfer = await convexServerClient.getTransferByTransferId(output.termsId);
-      
+      const transfer = await convexServerClient.getTransferByTransferId(
+        output.termsId,
+      );
+
       if (!transfer) {
         console.warn(
           `[EventListener] Transfer not found for StatusUpdatedAfterAccept event: ${output.termsId}. Skipping update.`,
@@ -1315,17 +1343,12 @@ class EventListenerService {
         const storeObject = await this.packageService.readPackageDetailsAndPII(
           output.externalId,
         );
-        const transferTerms =
-          await this.packageService.readPrivateTransferTerms(
-            output.externalId,
-            output.termsId,
-          );
 
         await this.packageService.executeTransfer(
           output.externalId,
           output.termsId,
+          transfer.toMSP,
           storeObject as any,
-          transferTerms as TransferTerms,
         );
       }
 

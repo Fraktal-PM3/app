@@ -3,7 +3,7 @@
 import { getMspIdentity, getPackageService } from "@/app/api/packages/service";
 import { TransferOffer } from "@/types/package";
 import { randomBytes, randomUUID } from "crypto";
-import { Status, TransferTerms } from "fraktal-lib";
+import { Proposal, Status, TransferTerms } from "fraktal-lib";
 
 /**
  * Server action to get the current node's MSP identity
@@ -77,6 +77,7 @@ export async function proposeTransfer(offer: TransferOffer) {
     toMSP: offer.toMSP,
     price: offer.price,
     expiryISO: offer.expiryISO,
+    salt: randomBytes(16).toString("hex"),
   };
 
   const packageService = await getPackageService();
@@ -153,16 +154,16 @@ export async function confirmPackageReceipt(
 export async function executeTransfer(transferId: string, externalId: string) {
   const packageService = await getPackageService();
   const storeObject = await packageService.readPackageDetailsAndPII(externalId);
-  const transferTerms = await packageService.readPrivateTransferTerms(
+  const transferTerms = (await packageService.readPublicProposal(
     externalId,
     transferId,
-  );
+  )) as Proposal;
 
   const res = await packageService.executeTransfer(
     externalId,
     transferId,
+    transferTerms.toMSP,
     storeObject as any,
-    transferTerms as TransferTerms,
   );
   console.log("ExecuteTransfer - result:", res);
 }
@@ -244,6 +245,7 @@ export async function initiateDelivery(externalId: string): Promise<{
       toMSP: blockchainPackage.recipientOrgMSP,
       price: 0,
       expiryISO: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      salt: randomBytes(16).toString("hex"),
     };
 
     await packageService.proposeTransfer(externalId, termsId, transferTerms);
