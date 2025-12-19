@@ -1198,7 +1198,7 @@ class EventListenerService {
         externalId: output.externalId,
         fromMSP: output.caller,
         toMSP: output.toMSP,
-        price: offer.price ?? 0,
+        price: offer?.price ?? 0,
         status: "proposed",
         mspId: output.caller,
       });
@@ -1214,7 +1214,7 @@ class EventListenerService {
           transferId: output.termsId,
           fromMSP: output.caller,
           toMSP: output.toMSP,
-          price: offer.price ?? 0,
+          price: offer?.price ?? 0,
         },
       });
 
@@ -1238,7 +1238,7 @@ class EventListenerService {
 
         // If we're a transporter (not final recipient), use the offer price
         if (pkg && pkg.recipientOrgMSP !== this.nodeMSP) {
-          transferTerms.price = offer?.price || transferTerms.price;
+          transferTerms.price = offer?.price ?? transferTerms.price;
         }
 
         await this.packageService.acceptTransfer(
